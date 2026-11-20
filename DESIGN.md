@@ -183,9 +183,17 @@ docs area (not in this repo yet).
   order/fibre dependence; those stay empirical (B stars).
 
 Wavelength component, production form:
-  lambda(x; fibre, order, exposure) = optics(theta_era)
-      + table(fibre, order) + x0_exposure [+ small per-order term
-      with a tight prior]
+  lambda(x; fibre, order, exposure) = optics(theta_era,
+      x + dx_detector(x, y)) + table(fibre, order) + x0_exposure
+      [+ small per-order term with a tight prior]
+
+dx_detector is a fixed per-pixel position-error map of the CCD
+(lithography stitching boundaries and pixel-size errors, as laser combs
+reveal on HARPS-class detectors). It is a property of the detector, so
+it stays fixed in pixel coordinates across realignments, which is how
+it is separated from optical terms; a decade of iodine data is the
+calibration source. The map is a calibration product, not free
+parameters in the per-exposure fit.
 
 ## Era breaks
 
