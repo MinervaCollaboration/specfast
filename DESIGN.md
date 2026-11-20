@@ -161,10 +161,44 @@ problem; EXOZIPPy keeps consuming RVs. The spectrum component would
 fit stellar parameters to a coadded or inferred template, or a few
 high-S/N exposures, with the instrument calibration held fixed.
 
+## KiwiSpec optical model (first results, 2026-11-20)
+
+Reconstructed from the Zemax lens file (three encrypted black boxes: the
+input relay, the VPH grating of the grism cross-disperser, the camera)
+and the SPIE papers; code and write-up in the collaboration's private
+docs area (not in this repo yet).
+
+- 7 physical constants per hardware era (camera focal length, one
+  distortion term, detector rotation, fibre-line angle, echelle gamma
+  and blaze-angle offsets, position) match iodine-anchored wavelength
+  solutions to 0.04-0.05 px rms in both the 2016 and 2017+ setups.
+- A static per-(fibre, order) residual of ~0.03 px (~30 m/s) remains,
+  repeatable over months: a calibration table, not free parameters.
+- Per exposure only the detector position x0 (optionally the focal
+  length) needs to float: 1-2 numbers instead of ~270 free polynomial
+  coefficients.
+- Fibre-to-fibre offsets are predicted to 0.02-0.04 px.
+- LSF: the design predicts the shape along an order (narrower in km/s,
+  broader in pixels toward the red) but not the absolute width or its
+  order/fibre dependence; those stay empirical (B stars).
+
+Wavelength component, production form:
+  lambda(x; fibre, order, exposure) = optics(theta_era)
+      + table(fibre, order) + x0_exposure [+ small per-order term
+      with a tight prior]
+
+## Era breaks
+
+Dated from the vacuum and thermometer logs and the frame headers
+(instrument-log analysis, 2026-11-20). Default era starts: 2016-01-20,
+2016-09-28, 2016-11-22, 2017-10-02 (Wilson+19), 2019-09-18, 2020-10-01,
+2021-09-12, 2024-03-15, 2026-01-21; excluded windows 2017-04-25..10-01,
+2019-10-01..10-21, 2020-09-05..09-30. Between 2021-09 and 2023-07 the
+bench was not regulated: regress on bench temperature within the era.
+The break list is configuration.
+
 ## Open questions
 
-- The KiwiSpec optical model: the Zemax file is a black box. Can it
-  export a table of (order, wavelength, fibre) -> (x, y, spot size)?
-  The KiwiSpec papers give the grating and camera parameters.
-- Era break list: which instrument interventions moved the offsets?
+- Calibrate the optical model from B-star frames (the first fit used
+  daytime sky) and test structure above quadratic within an order.
 - Repository name and the MinervaCollaboration org (not created yet).
