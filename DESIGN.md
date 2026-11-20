@@ -1,4 +1,4 @@
-# MINERVA iodine RV pipeline: architecture (draft 0, 2026-11-20)
+# specfast: architecture (draft 0, 2026-11-20)
 
 Status: proposal for discussion. Nothing here is implemented yet. The
 test bed for experiments is Charlie's code; this repository is the
@@ -201,4 +201,4 @@ The break list is configuration.
 
 - Calibrate the optical model from B-star frames (the first fit used
   daytime sky) and test structure above quadratic within an order.
-- Repository name and the MinervaCollaboration org (not created yet).
+- Repository: specfast, in the MinervaCollaboration org (not created yet).
