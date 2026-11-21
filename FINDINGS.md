@@ -205,6 +205,72 @@ Results: `work/results/freelsf/`; plots in `work/plots/freelsf/`.
   polynomial background. Raw 2D frames: gateway /nas/kiwispec/nYYYYMMDD/.
 - Results: `work/xtalk/`. Raw frames: `data/raw2d/`.
 
+## 2026-11-21 Guiding and flux-weighted midpoints (branch fluxmid)
+
+Data found on the gateway NAS:
+- FAU guide images, `/nas/t{1-4}/nYYYYMMDD/*.FAU.*`, 2015-2026. 2,324 of
+  the 2,451 (exposure, telescope) pairs are usable.
+- Guide-loop logs, `/nas/log/<night>/control.log`: star and fibre
+  position per guide frame.
+- Exposure meter, `/nas/kiwilog/<night>/expmeter.dat`: 1 Hz, summed over
+  all four fibres, 2016-2020 only.
+- FLUXMID: minerva-control writes UNKNOWN. The old IDL values are
+  unreliable (r = 0.04 against the FAU). The code uses DATE-OBS +
+  EXPTIME/2.
+
+Midpoint error:
+- dt (flux-weighted minus geometric): robust sigma 2-5 s, rms ~40 s,
+  dominated by rare lost-star cases. The per-telescope part is 24 s rms,
+  uncorrelated between telescopes.
+- Predicted barycentric error 0.2-0.7 m/s rms (2-2.5 with a coupling
+  model), uncorrelated with the residuals. Midpoint corrections leave the
+  per-telescope rms unchanged.
+- Rejected as the cause.
+
+The one real timing effect:
+- In 2016-2020, 30-50% of (exposure, telescope) pairs have a guide gap of
+  ~215 s (median) right after shutter open, and the star is 1.7" (median)
+  off the fibre by the next frame.
+- Suspected cause: `takeSpectrum` -> `getHdr` stalling the guide loop
+  (control.py ~L1873); not proven.
+- Correcting the epoch improves tau Cet nightly 4.63 -> 4.0-4.3 m/s (beats
+  shuffled nulls); no effect on sigma Dra or HD 122064.
+- To do: the robofast guider must keep imaging while headers are collected.
+
+The per-telescope scatter is episodic:
+- 2-13% of exposures beyond 4 MAD drive it; the core per-telescope sigma
+  is only 2-3.3 m/s.
+- T2, May-Jul 2019: the guider held the star 7-11" off the fibre.
+- T2 on tau Cet, Oct-Nov 2018: about 1" off per the stamps, though the
+  log says 0.3". Residuals -6 to -11 m/s, throughput -0.6 dex.
+- In typical exposures T1 and T2 are not worse guided (median offset
+  0.40", against 0.46-0.48" for T3 and T4).
+
+Throughput dependence:
+- Own relative throughput still predicts the residual: tau Cet T2
+  +6.3 +/- 0.6 m/s per dex; T1 +3.6. Guiding offset and jitter do not
+  explain it.
+- For T2 the residual depends equally on relative and absolute flux, a
+  count-level (S/N) bias on that trace. Candidate: charge-transfer
+  inefficiency or nonlinearity (untested).
+
+Time conventions: DATE-OBS is shutter-open UTC (2.3-2.4 s after the
+control log). There is no constant clock offset (+17 +/- 29 s). The
+barycentric and template-shift signs are correct.
+
+Paths: `data/fau_stamps/`, `data/fau_logs/`, `data/expmeter/`,
+`work/fluxmid/`, `work/results/fluxmid/`, `work/plots/fluxmid/`.
+
+## 2026-11-21 Pre-2018 extractions were never redone
+
+- In our copies and in the gateway's `/Data/kiwispec-proc`, 2016 to
+  mid-2018 is still v0.1-v0.6: per-trace +/-5 px window fits that zero
+  low-flux windows. Five versions in two years.
+- v1.0.0 (joint fit of all traces in a column, plus background) was
+  only ever run forward from mid-2018.
+- Raw 2D frames for every night are on `/nas/kiwispec/`. A re-extraction
+  test is proposed.
+
 ## 2026-11-21 Literature: MAROON-X (what it says about our suspects)
 
 No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
