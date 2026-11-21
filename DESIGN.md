@@ -174,26 +174,39 @@ docs area (not in this repo yet).
   solutions to 0.04-0.05 px rms in both the 2016 and 2017+ setups.
 - A static per-(fibre, order) residual of ~0.03 px (~30 m/s) remains,
   repeatable over months: a calibration table, not free parameters.
-- Per exposure only the detector position x0 (optionally the focal
-  length) needs to float: 1-2 numbers instead of ~270 free polynomial
-  coefficients.
+- Per exposure, x0 alone fits the wavelength solutions themselves, but
+  not well enough for RVs (see below).
 - Fibre-to-fibre offsets are predicted to 0.02-0.04 px.
 - LSF: the design predicts the shape along an order (narrower in km/s,
   broader in pixels toward the red) but not the absolute width or its
   order/fibre dependence; those stay empirical (B stars).
 
-Wavelength component, production form:
-  lambda(x; fibre, order, exposure) = optics(theta_era,
-      x + dx_detector(x, y)) + table(fibre, order) + x0_exposure
-      [+ small per-order term with a tight prior]
+Inside the RV fit (wavelength ladder on HD 122064 2016-2020 and 51 Peg,
+2026-11-20), the rigid form (per-exposure x0 only) failed. The static
+per-trace table is stable to only ~0.015 px (~15-22 m/s per order) over
+years: RMS 12.8 vs 10.1 m/s, and errors underestimated by ~30%. Sharing x0
+across fibres is worse still. What works: per-order offset plus slope on top
+of the optical model (RMS 9.7, sqrt(chi2_r) 1.60), or a free quartic (9.4,
+1.51), against 10.1 / 1.68 for the free quadratic. The optical model's clear
+payoff is the starting guess. It rescues 23 Dec 2016 - Mar 2017 exposures
+where the stored pipeline wavelengths send the quadratic fit to wrong
+minima.
 
-dx_detector is a fixed per-pixel position-error map of the CCD
-(lithography stitching boundaries and pixel-size errors, as laser combs
-reveal on HARPS-class detectors). It is a property of the detector, so
-it stays fixed in pixel coordinates across realignments, which is how
-it is separated from optical terms; a decade of iodine data is the
-calibration source. The map is a calibration product, not free
-parameters in the per-exposure fit.
+Wavelength component, production form:
+  lambda(x; fibre, order, exposure) = optics(theta_era, x) + D_era(x)
+      + a0(fibre, order, exposure) + a1(fibre, order, exposure) * x
+      [+ higher free terms if the ladder keeps favouring them]
+
+- No detector stitching was found. Steps at 512-px boundaries are below
+  ~0.02 px, from a stack of 127 + 322 star, 106 B-star and 72 sky frames
+  across two eras.
+- The missing term instead is a smooth along-order distortion D(x),
+  +/-0.1 px (~70-100 m/s), quasi-periodic at ~800 px.
+- D(x) is identical across orders, fibres and datasets within an era
+  (correlation 0.92-0.98). It moves with the spectrum, not the detector
+  (best cross-era match at the ~68 px remount shift), so it is optical.
+- D(x) is a per-era calibration product. A detector map stays possible
+  if better data (a comb) ever demands it.
 
 ## Era breaks
 
