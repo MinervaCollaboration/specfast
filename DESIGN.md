@@ -21,7 +21,10 @@ in the Wilson+19 window (3 telescopes).
    - line-by-line velocities, so activity and spot confounders can be
      masked or modelled downstream;
    - a stellar-spectrum component in EXOZIPPy.
-4. No silent failures, no hidden global state, no environment variables
+4. Out of scope: daytime-sky solar analysis (JDE). Any recheck of
+   Charlie's daytime results is a one-off in the test bed, not a
+   specfast feature.
+5. No silent failures, no hidden global state, no environment variables
    that change the science; every product records its provenance.
 
 ## The forward model
