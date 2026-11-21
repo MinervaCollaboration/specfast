@@ -175,6 +175,31 @@ model in throughput and fibre position).
 
 Results: `work/results/freelsf/`; plots in `work/plots/freelsf/`.
 
+## 2026-11-21 Literature: MAROON-X (what it says about our suspects)
+
+No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
++2020 commissioning (2106.02157) and +2022 two-year review (2210.06563).
+
+- Blending: the design requires >= 10 px between slices and orders.
+  No measured cross-talk is published. Ji+2025 (arXiv:2505.19994) simulate
+  it with an ESPRESSO-like PSF and box extraction (worst case): science-to-
+  science contamination of 0.1% gives per-trace offsets up to a few m/s,
+  reduced by averaging traces; below 0.01% it is negligible.
+- Line-profile changes are their main long-term limit. After a 2021
+  outage the profile width and shape changed, and these "have different
+  impact on the calibration source and on stellar data and lead to
+  unrecoverable RV offsets". An iodine cell avoids that mismatch only if
+  the forward model captures the profile shape.
+- Guiding: active tip-tilt at 1-10 s, requirement < 0.05 arcsec. The
+  fibre and target positions are logged at the guide rate.
+- Barycentric: they use an exposure meter, and plan a chromatic one for
+  extinction-driven midpoint differences between arms.
+- S/N changes between exposures: "no significant impact".
+- Their precision: ~30 cm/s within a ~2-week run. Long-term run offsets
+  are uncertain by 0.5-1.5 m/s (etalon chromatic drift). The instrument
+  drifts 1.8-7 m/s per mK and ~10 m/s per night, removed by the
+  simultaneous etalon.
+
 ## Open threads
 
 - Per-telescope nightly scatter (tels 1 and 2 worst): fibre illumination,
