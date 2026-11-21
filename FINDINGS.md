@@ -179,7 +179,11 @@ Results: `work/results/freelsf/`; plots in `work/plots/freelsf/`.
 
 - Slit order per spectral order is T1, T2, T3, T4: tels 1 and 2 (the worst)
   are the middle fibres, 15.5 px from each neighbour. The edge fibres sit
-  23-28 px from the adjacent order's trace.
+  next to the adjacent order's T4/T1 trace. That inter-order gap shrinks
+  from ~44 px at one detector edge to ~10 px (~8 sigma) at the other
+  (y < 400); below y ~ 400 it is the smallest separation on the chip
+  (JDE pointed this out). Even there, the leakage after a local
+  background is <= 3e-4.
 - The cross-dispersion profile is Gaussian with sigma 1.3 px, so the
   neighbours are ~12 sigma apart. Leakage into a neighbour's aperture is
   a smooth scattered-light pedestal (0.5-1.4% in a box), not a profile wing.
