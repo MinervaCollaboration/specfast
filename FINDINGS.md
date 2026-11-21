@@ -306,3 +306,50 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
 - iota Per's missing 2016 jump.
 - Recalibrate the optical model from B-star frames.
 - Inferred-template mode; Korg prototype; specfast skeleton.
+
+## 2026-11-21: The two iodine atlases differ by air dispersion
+
+Both atlases are in the gateway's `~/minerva-pipeline/minerva_dopcode/templates/`:
+
+- `MINERVA_I2_0.1_nm.npy`:
+  - 500-620 nm, resampled to a uniform grid in wavelength;
+  - used by the legacy dopcode and by Charlie's code, where it is assumed
+    to be in vacuum.
+- `MINERVA_NIST_scan_201808.npy`:
+  - 469-704 nm, still on its native FTS grid, uniform in wavenumber to
+    1.7e-10, so its wavelength is exact vacuum 1e7/sigma;
+  - Wilson's pipeline switched to it in 2018-09 ("SXW NIST new scan
+    201809" in `wilsonpipeline/four_chunk_gauss_mw.py`).
+
+Method: continuum-normalize both, broaden to R = 80k, then cross-correlate
+in 2 nm chunks (58 chunks).
+
+Results:
+
+- **The shift is a smooth ramp.** NIST minus I2_0.1 runs from +632 m/s at
+  501 nm down to +16 m/s at 614 nm (median 283 m/s).
+- **The ramp is air dispersion.** It matches (n_air(lambda) - n_air(614 nm))
+  * c from the standard-air formula: 647, 537, 433, 336, 243, 158, 76, 0 m/s
+  predicted against 632, 537, 430, 341, 263, 174, 91, 16 m/s measured.
+- **Which file is wrong:** I2_0.1 was most likely converted between air and
+  vacuum with a constant (non-dispersive) index, so its wavelength scale is
+  off by about +/- 300 m/s, a smooth function of wavelength.
+- **Why the RV fit doesn't see it:**
+  - across one order the error changes by only ~20-30 m/s;
+  - the per-order wavelength offset and slope absorb it, which is probably
+    why "neither atlas seemed better" in RVs.
+- **It still touches two things:**
+  - the per-(telescope, order) velocity offsets;
+  - any model that shares a wavelength solution across orders (the optical
+    model).
+- **Line depths:** the optical-depth ratio NIST/I2_0.1 is 1.05 (p10-p90
+  1.04-1.075). Since the fitted iodine strength absorbs this, the two are
+  consistent with a cell-temperature or column difference.
+- **Shape residual:** after shift and scale, 0.6% rms at R = 80k, against a
+  line-depth rms of 7.7%. This is an ~8% shape disagreement and is
+  unexplained (FTS resolution or line shape, noise, or temperature). A
+  data-driven iodine correction would arbitrate it.
+
+Next: use the NIST scan as the wavelength reference. Test both atlases
+chunk by chunk on B-star iodine frames (lower chi2 per chunk), and in the
+learned observer-frame residual test.
