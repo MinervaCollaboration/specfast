@@ -74,8 +74,11 @@ below, local only); results `/pool/radish1/minerva-rv/work/results/`.
 
 ## 2026-11-20 Why not Keck precision (diagnosis)
 
-- Within a night the scatter is at or below the formal errors (tau Cet
-  1.5 vs 2.1 m/s), so S/N does not dominate.
+- Within a night the scatter is close to the formal errors, so S/N does
+  not dominate the long-term rms. My first number (tau Cet 1.5 vs 2.1 m/s)
+  used a different definition. The free-LSF run measures 2.89 m/s rms
+  about each night's weighted mean, on nights with >= 2 exposures; its
+  median error is 2.11.
 - Night to night there is 4-13 m/s of scatter, already full at a 1-day lag.
 - Nightly RVs from different telescopes correlate at only 0.04-0.12.
   Telescopes 1 and 2 (~13 m/s) are worse than 0 and 3 (5-8 m/s).
@@ -84,8 +87,8 @@ below, local only); results `/pool/radish1/minerva-rv/work/results/`.
 - Flux-weighted midpoint: FLUXMID equals the geometric midpoint in
   90-100% of frames before 2022. It is unused by the code, but not the
   dominant term.
-- Leading suspect: the frozen LSF cannot track per-telescope, per-night
-  changes in illumination. The free-LSF test (branch freelsf) is running.
+- First suspect: the frozen LSF cannot track per-telescope, per-night
+  illumination changes. The free-LSF test (below) largely rules this out.
 
 ## 2026-11-20 KiwiSpec optical model
 
@@ -124,10 +127,60 @@ below, local only); results `/pool/radish1/minerva-rv/work/results/`.
 - Next: fix D(x) in the fit and re-run the quadratic and quartic, and the
   per-segment structure.
 
+## 2026-11-21 Free-LSF ladder (branch freelsf)
+
+Tested on tau Cet (331 exposures), sigma Dra (395) and HD 122064. Levels:
+
+- L0: frozen B-star sigma (production; reproduced bit-identical).
+- L1: free sigma per (exposure, tel, order).
+- L2: L1 plus Gauss-Hermite h3.
+- L3: sum of Gaussians.
+- S0-S3: shared variants.
+  - S0: a fixed sigma and h3 per (tel, order, era).
+  - S1: one sigma scale per (exposure, tel).
+  - S2: S1 plus an h3 offset per (exposure, tel), on top of the fixed h3.
+  - S3: the nightly h3 change only.
+
+Results:
+
+- No variant changes the nightly rms by more than about 3% on tau Cet
+  (L0 4.62 m/s) or sigma Dra (11.17). L2 and L3 are worse.
+- HD 122064: S3 improves the nightly rms 9.2 -> 8.1, but the within-night
+  rms rises.
+- sigma varies night to night by 1-3% per telescope, most on tel 1. It
+  barely moves the velocity (10-25 m/s per unit scale, under 1 m/s in
+  practice).
+- h3 correlates with the per-telescope residual (pooled r +0.23 to +0.51;
+  strongest on tels 1 and 2), and the sign is right. Correcting for it
+  trims telescope-specific scatter by 5-15% but adds 5-8% within-night
+  noise.
+- Nightly means from different telescopes stay uncorrelated (r 0-0.2) at
+  every level. So the nightly scatter is independent errors per
+  telescope, averaged together. Look at the per-fibre light path and
+  illumination, not a common LSF.
+- Headers have no guiding-error, FWHM or seeing keywords. h3 correlates
+  weakly with throughput (r +0.2 to +0.3) and with fibre position on the
+  guider (YFIBER, up to +0.31).
+- Lead: a fixed per-(tel, order) h3 pattern shrinks the era zero-point
+  steps (two-star fit 10.9 / 13.5 -> 4.7 / 3.4 m/s). The steps are partly
+  degenerate with a fixed LSF asymmetry; verify with the 7-star fit.
+- Bug: `joint_offsets.joint_fit` references errors to the mean of all
+  exposures, including ones dropped later, which inflates rv_err
+  (tau Cet L1 median 2.56 -> 3.57). Fixed in `freelsf_eval`; still
+  present in `standards_eval.level1`.
+
+Decision: keep the frozen symmetric sigma. If an LSF term is ever added,
+use a shared h3 per (exposure, tel), regularized (nightly average, or a
+model in throughput and fibre position).
+
+Results: `work/results/freelsf/`; plots in `work/plots/freelsf/`.
+
 ## Open threads
 
-- Free-LSF ladder (L0 frozen to L3 sum of Gaussians) on tau Cet, sigma Dra
-  and HD 122064: running.
+- Per-telescope nightly scatter (tels 1 and 2 worst): fibre illumination,
+  guiding, modal noise, scrambling. Check FAU guide logs and fibre position.
+- LSF asymmetry vs era steps: 7-star Z with a fixed h3 pattern.
+- Fix the joint_fit error reference in standards_eval.
 - Flux-weighted midpoint: look for exposure-meter logs.
 - iota Per's missing 2016 jump.
 - Recalibrate the optical model from B-star frames.
