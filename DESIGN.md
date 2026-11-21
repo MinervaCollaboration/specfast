@@ -208,6 +208,20 @@ Wavelength component, production form:
 - D(x) is a per-era calibration product. A detector map stays possible
   if better data (a comb) ever demands it.
 
+## Extraction (if specfast re-extracts)
+
+Cross-talk is not a driver: measured leakage is <= 1e-3, worth under
+0.2 m/s. If specfast takes over extraction from the legacy pipeline:
+
+- Fit all traces in a column simultaneously, with an empirical profile
+  per trace from fibre flats.
+- Model the scattered light with a 2D or local background. The pedestal
+  is 0.5-1.4% of the trace flux and 3x larger in the blue.
+- Never zero out low-flux windows; report dark traces.
+- Re-centre the traces per exposure.
+- Output, per (exposure, fibre), the cross-dispersion width and
+  centroid, and a residual map, as illumination diagnostics.
+
 ## Era breaks
 
 Dated from the vacuum and thermometer logs and the frame headers

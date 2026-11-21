@@ -175,6 +175,32 @@ model in throughput and fibre position).
 
 Results: `work/results/freelsf/`; plots in `work/plots/freelsf/`.
 
+## 2026-11-21 Fibre cross-talk / extraction (branch xtalk)
+
+- Slit order per spectral order is T1, T2, T3, T4: tels 1 and 2 (the worst)
+  are the middle fibres, 15.5 px from each neighbour. The edge fibres sit
+  23-28 px from the adjacent order's trace.
+- The cross-dispersion profile is Gaussian with sigma 1.3 px, so the
+  neighbours are ~12 sigma apart. Leakage into a neighbour's aperture is
+  a smooth scattered-light pedestal (0.5-1.4% in a box), not a profile wing.
+- Effective leakage in the delivered 1D spectra: 1e-5 to 7e-5 (pipeline
+  v1.0.0, a simultaneous profile fit); <= 1e-3 in v0.x.
+- Simulated sensitivity: same-order contamination ~0.03 m/s per 1%,
+  because the ghost carries the iodine too. Cross-order ~0.5 m/s per 1%,
+  and only on the edge fibres. Predicted error <= 0.15 m/s, against an
+  observed 4-13 m/s.
+- On real data, the neighbour-flux coefficient is consistent with zero
+  for every star and telescope. Some own-throughput coefficients are
+  significant: tau Cet tel 1 +10.4 +/- 2.8 m/s per dex; sigma Dra tel 0
+  +10.6 +/- 3.0 and tel 1 +4.4 +/- 1.3. This points to the fibre's own
+  illumination.
+- Conclusion: cross-talk is ruled out. Extraction needs no rework for
+  this; specfast's extraction requirements go in DESIGN.md.
+- Legacy pipeline: v0.x fits each trace alone and zeroes windows below
+  20 counts; v1.0.0 fits all 116 profiles per column jointly, plus a
+  polynomial background. Raw 2D frames: gateway /nas/kiwispec/nYYYYMMDD/.
+- Results: `work/xtalk/`. Raw frames: `data/raw2d/`.
+
 ## 2026-11-21 Literature: MAROON-X (what it says about our suspects)
 
 No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
