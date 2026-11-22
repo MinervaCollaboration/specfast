@@ -636,3 +636,26 @@ Code: Charlie branch `extract2` (ee8441b..4e256fd, local). Data:
 `/pool/radish1/minerva-rv/data/extract2/` (README); results:
 `work/results/extract2/` (README has every table). Originals verified by
 sha256.
+
+## 2026-11-22: extract2 refinement round, frozen as x2-0.2
+
+- **The 12 still-lost faint HD 122064 frames:** 11 were dropped silently
+  by the RV code's 150-count floor (T3 only; 112-144 e-/column, S/N 300-430
+  per trace). 1 failed on a singular column in the joint solve (fixed).
+  With the floor removed and honest-error weighting, all 12 are usable:
+  13-17 of 23 orders pass, errors 18-24 m/s, residual/sigma rms 1.15, none
+  beyond 3 sigma, and the other 227 exposures move by 0.00 m/s. They must be
+  used weighted (unweighted rms rises 6.0 -> 7.9).
+- **Daytime profiles:** per-era daytime profiles (16 column blocks, 0.33 px
+  knots) bring daytime chi2_r 8.2 -> 3.5 and cosmic-ray flags 3.4% ->
+  0.12%. Star frames are unaffected.
+- **Stacked pixel-to-pixel flat** is the default (2016 and 2020+ borrow
+  the 2018-19 stack, flagged).
+- **No regression on bright stars:** tau Cet pre-2018 nightly 6.08 vs
+  6.07 for the original.
+- **A 2018-07 era break** helps nobody consistently; not adopted.
+
+Frozen as tag x2-0.2 (Charlie branch extract2, 0d548b9). The full
+pre-mid-2018 run started 2026-11-22: 10,435 frames over 501 nights, to
+`/pool/radish1/minerva-rv/data/extract2/full/`, with a manifest and failure
+log.

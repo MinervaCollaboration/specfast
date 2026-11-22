@@ -221,6 +221,9 @@ Cross-talk is not a driver: measured leakage is <= 1e-3, worth under
 - Model the scattered light with a 2D or local background. The pedestal
   is 0.5-1.4% of the trace flux and 3x larger in the blue.
 - Never zero out low-flux windows; report dark traces.
+- No hard count floor anywhere downstream: faint traces enter with honest
+  errors and the fit down-weights them (the legacy 150-count floor
+  silently dropped 11 usable frames).
 - Re-centre the traces per exposure.
 - Output, per (exposure, fibre), the cross-dispersion width and
   centroid, and a residual map, as illumination diagnostics.
