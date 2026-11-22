@@ -316,7 +316,10 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
   stop and wrapped its cables. On 2018-12-22: T2 throughput jumps, T1 LSF
   width +2.9% (gradient unchanged), spectrograph temperatures flat
   (+/-0.01 C), iodine cell, CCD and pressure unchanged. So it is a
-  telescope/fibre-side break. T3's fibre runs with its cables, so T3 data
+  telescope/fibre-side break. The cleaning included re-collimation, and
+  the SBIG guide cameras were replaced with ZWOs on the same trip, so the
+  guiding changed too (camera, pixel scale, cadence; header XFIBER/YFIBER
+  are in different pixel units before and after). T3's fibre runs with its cables, so T3 data
   before the repair may carry fibre-stress (FRD / modal) effects.
 - Flux-weighted midpoint: look for exposure-meter logs.
 - iota Per's missing 2016 jump.

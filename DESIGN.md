@@ -249,8 +249,8 @@ Dated from the vacuum and thermometer logs and the frame headers
 2019-10-01..10-21, 2020-09-05..09-30. Between 2021-09 and 2023-07 the
 bench was not regulated: regress on bench temperature within the era.
 Per-telescope breaks (LSF width, offsets, throughput), not
-spectrograph-wide: 2018-12-22 (site trip: mirrors cleaned, T3 hard stop
-and cable wrap repaired). The break list is configuration.
+spectrograph-wide: 2018-12-22 (site trip: mirrors cleaned and re-collimated,
+SBIG guide cameras replaced by ZWOs, T3 hard stop and cable wrap repaired). The break list is configuration.
 
 ## Open questions
 
