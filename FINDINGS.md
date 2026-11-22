@@ -302,6 +302,8 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
   guiding, modal noise, scrambling. Check FAU guide logs and fibre position.
 - LSF asymmetry vs era steps: 7-star Z with a fixed h3 pattern.
 - Fix the joint_fit error reference in standards_eval.
+- T2 count-level slope in post-2018-07 data (not the extraction): look at
+  what changed in 2018-07 (realignment, fibre, guiding).
 - Flux-weighted midpoint: look for exposure-meter logs.
 - iota Per's missing 2016 jump.
 - Recalibrate the optical model from B-star frames.
@@ -353,3 +355,65 @@ Results:
 Next: use the NIST scan as the wavelength reference. Test both atlases
 chunk by chunk on B-star iodine frames (lower chi2 per chunk), and in the
 learned observer-frame residual test.
+
+## 2026-11-21: Re-extracting pre-mid-2018 with v1.0.0 (branch reextract)
+
+v1.0.0 runs on radish (Python 2.7 env on /pool) and reproduces the archived
+v1.0.0 products (7 frames from 2018-10/11: flux ratio 0.9999-1.0000,
+per-pixel scatter 0.02-0.04 sigma, identical wavelength HDU). Changes:
+paths and I/O, plus a mathematically identical diagonal shortcut in
+`chi_fit` (2.3x faster, <= 8e-8 sigma). Fallbacks, all flagged in headers:
+a 2016 trace file from v1.0.0's own `trace_fitter` (T4 rebuilt from T2/T3
+spacing), the no-slit-flat path for 2016 (saturated slit flats), and the
+nearest night's bias for 52 nights. v1.0.0 uses the n20161123 wavelength
+solution for everything (no ThAr frames exist).
+
+Coverage: 553 of 555 star frames (tau Cet, HD 122064, 51 Peg) and all 187
+daytime frames. 2 crash (a trace runs off the chip). 21 faint HD 122064
+exposures (mostly Feb-Apr 2018, T3 only) fall below the RV code's 150-count
+floor because v1.0.0 removes ~140 counts of blue background; 8 exposures
+are recovered. The stale wavelength problem is gone: Dec 2016-Feb 2017
+offsets are +0.6 px with no preshift, against -69.7 px (44 of 46 patched).
+
+L0 RVs, same exposures (rms / nightly / within-night, m/s):
+
+| Set | Original | v1.0.0 |
+|---|---|---|
+| tau Cet, pre-2018 span (80) | 5.66 / 6.08 / 3.14 | 7.92 / 6.89 / 9.23 |
+| tau Cet, all years (331) | 4.60 / 4.63 / 2.89 | 5.33 / 4.93 / 4.85 |
+| HD 122064 (187) | 5.86 / 5.62 / 5.25 | 5.93 / 6.00 / 4.09 |
+| Wilson+19 window (22) | 8.95 / 9.12 / 6.31 | 8.05 / 7.49 / 7.36 |
+| 51 Peg K (16) | 54.3 +/- 2.0 | 53.1 +/- 2.2 |
+
+- Bright-star RVs change by only ~1.2 m/s per exposure. The tau Cet
+  within-night loss comes from a few faint 2017 exposures moving 10-30 m/s.
+- Per telescope, T2 improves (HD 122064 nightly 9.0 -> 3.2) while T1 and T3
+  get worse; the combined RMS doesn't improve.
+- Era steps barely move: 2016-11-22 is 9.6 +/- 1.3 -> 8.5 +/- 1.5;
+  2017-10-02 is -1.3 -> -2.5 (+/- ~1.5).
+- Fitted LSF widths shift by -0.009 km/s, below the 0.02 threshold for
+  rebuilding the B-star LSF map.
+- **Count-level bias is not the extraction:** the tau Cet T2 slope with
+  log counts (+6.6 +/- 0.6 m/s per dex) exists only in post-2018-07 data,
+  which was always v1.0.0. Pre-2018 data shows ~0 slope with either
+  extraction (HD 122064: all telescopes within +/- 2). Caveat: tau Cet has
+  only 15-17 pre-2018 T2 exposures.
+- **Daytime sky:** the extraction changes the answer (per-order velocity
+  fingerprint changes by 17.8 m/s rms per telescope and order; day means
+  shift -3 to -22 m/s; New Year day-to-day rms 27.0 -> 20.8 m/s), but
+  v1.0.0 extracts these frames badly: its Gaussian profile gives reduced
+  chi2 ~ 37 at daytime signal levels, flux comes out 27% low, and cosmic-ray
+  rejection flags profile pixels in 20-80% of columns. Any redo should use
+  a better extractor, not v1.0.0 (one-off in the test bed; out of scope for
+  specfast).
+
+Verdict: don't reprocess the archive with v1.0.0. It fixes the stale
+wavelength (already handled by the preshift) but loses faint frames and
+doesn't improve bright ones. A full redo would be ~10,000 frames, ~430
+CPU-h and ~190 GB from the gateway. Keep these products as an alternative
+for the two stars; wait for specfast's extraction (see DESIGN "Extraction").
+
+Originals verified unchanged (sha256 of 1,423 local files; size, mtime and
+inode of 741 gateway files). Products and README:
+`/pool/radish1/minerva-rv/data/reextract_v1/`; RV results:
+`work/results/reextract/`; Charlie branch `reextract` (f35bb48, 8595a84).
