@@ -667,3 +667,41 @@ Frozen as tag x2-0.2 (Charlie branch extract2, 0d548b9). The full
 pre-mid-2018 run started 2026-11-22: 10,435 frames over 501 nights, to
 `/pool/radish1/minerva-rv/data/extract2/full/`, with a manifest and failure
 log.
+
+## 2026-11-22: Fibre feed (JDE) and what it implies
+
+Each telescope feeds an octagonal fibre butt-coupled to a circular fibre.
+Light travels in the octagonal leg's cladding as well as its core, and the
+circular fibre's core cuts part of that cladding light at the joint.
+
+How the input could reach the LSF and the counts:
+
+- How much light goes into high-angle and cladding modes of the
+  octagonal leg depends on the input: star centring, seeing, collimation
+  and mirror scatter.
+- The circular core accepts only part of the cladding light, at the edge
+  of its face. So the transmitted flux AND the near- and far-field
+  illumination entering the circular leg (which scrambles radially poorly)
+  both depend on the input.
+- That gives a direct mechanism for:
+  - throughput-LSF correlations (h3 vs throughput r 0.2-0.3; vs YFIBER up
+    to 0.31);
+  - count-dependent RVs (the T2 slope);
+  - T1's +2.9% width jump at the 2018-12 trip (cleaning and
+    re-collimation changed the input angles).
+
+Tests:
+
+- **Per telescope:** LSF width and h3 against relative throughput and FAU
+  guide offset and seeing on ordinary nights.
+- **extract2 per-trace diagnostics:** cross-dispersion width and profile
+  wings against the same, since cladding light enters at the edge of the
+  circular core and should change the output near-field.
+- **The T2 count slope:** whether it tracks guide offset and throughput
+  deficit rather than counts themselves.
+
+specfast implication: the LSF can't be fixed per telescope; it needs a
+regularized dependence on the fibre-feed state (throughput deficit, guide
+offset, profile shape). Hardware note for later: a cladding-mode stripper
+on the octagonal leg ahead of the joint would remove the input-dependent
+cladding light.
