@@ -705,3 +705,51 @@ regularized dependence on the fibre-feed state (throughput deficit, guide
 offset, profile shape). Hardware note for later: a cladding-mode stripper
 on the octagonal leg ahead of the joint would remove the input-dependent
 cladding light.
+
+### Interim results (branch feed, 2026-11-22; tests 1, 3, 4; test 2 pilot only)
+
+Outputs: `work/results/feed/`. Feed proxies tried: own relative throughput
+`lthru` (clouds removed), cloud-driven counts `lcom`, FAU guide offset,
+jitter, FAU half-flux radius, autofocus HFR. Partials take out era,
+airmass and time; three stars pooled.
+
+- **LSF vs feed state.** Throughput tracks the LSF; guide offset and seeing
+  don't (all |r| <= 0.2, and they explain little of throughput itself).
+  - Width scale vs `lthru`: T3 r = -0.47 (z 10.5, -1.7%/dex, same within a
+    night), T4 -0.29, T1 -0.18, T2 ~0 (sign flips by era).
+  - It is the feed, not S/N: on T3 `lthru` gives -2.05 +/- 0.25%/dex and
+    `lcom` -0.25 +/- 0.20. T1/T4 are mixed.
+  - h3 vs `lthru`: T2 r = +0.34 (z 7); other telescopes ~0.
+  - Leave-one-star-out width prediction: r 0.56-0.76 on T3 before
+    2018-12-22, 0.1-0.5 after.
+- **Cross-dispersion (pilot).** Profile halo at 3-7 px vs `lthru`: T3 r =
+  -0.46, T2 -0.39. The cross-dispersion width tracks the spectral LSF width
+  (r 0.62 T1, 0.64 T3, 0.39 T2/T4). Near field and LSF move together, as
+  the feed mechanism predicts.
+- **T2 count slope.**
+  - Jul-Dec 2018: counts were a proxy for throughput. With `lthru` added the
+    count slope goes from +6.4 to +0.1 m/s/dex; guide offset carries +17 +/- 6
+    m/s per arcsec (the Oct-Nov 2018 mis-guided episode).
+  - After 2018-12-22: not the feed. tau Cet +3.5 +/- 0.6 m/s/dex barely moves
+    with feed regressors, and clouds give the same slope as own throughput,
+    so it is a count-level (S/N) effect. Per-exposure fitted width + h3
+    remove it (+0.7 +/- 0.5), but fitted h3 is partly circular.
+- **Payoff (fixed-kernel refits; nightly rms m/s, tau Cet / sigma Dra / HD 122064).**
+
+  | Model | tau Cet | sigma Dra | HD 122064 |
+  |---|---|---|---|
+  | L0 (production) | 4.63 | 11.24 | 9.23 |
+  | S1 free width | 4.57 | 11.21 | 9.36 |
+  | S3 free h3 | 4.50 | 11.17 | 8.07 |
+  | F1 feed-predicted width | 4.65 | 11.18 | 9.37 |
+  | F2 feed-predicted width + h3 | 4.45 | 11.26 | 9.10 |
+
+  - A predicted width does nothing (F1 = L0): width moves v by < 1 m/s.
+  - Predicted h3 adds no within-night noise (free h3 does: tau Cet 3.11 vs
+    2.89), but gains only 0-4% nightly. F2 cuts the post-trip T2 count
+    slope on sigma Dra from +6.1 to +1.3 m/s/dex.
+
+Interim conclusion: the feed mechanism is real (throughput, LSF width,
+h3 on T2 and the near field move together), but a feed-predicted LSF buys
+little RV. Pending: F2 ablations (throughput-only vs clouds-only h3) and
+test 2 on the full re-extraction.
