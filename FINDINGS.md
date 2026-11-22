@@ -313,8 +313,9 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
   Look at what changed in 2018-07 and 2018-12 (fibre, guiding, alignment).
   JDE (2026-11-22): December 2018 was a site trip. The mirrors were
   cleaned, and the main job was repairing T3, which had sheared its hard
-  stop and wrapped its cables. On 2018-12-22: T2 throughput jumps, T1 LSF
-  width +2.9% (gradient unchanged), spectrograph temperatures flat
+  stop and wrapped its cables. On 2018-12-22: T2 throughput jumps, T2 LSF
+  width +2.9% (gradient unchanged; corrected 2026-11-22 from "T1", a 0-based
+  index slip), spectrograph temperatures flat
   (+/-0.01 C), iodine cell, CCD and pressure unchanged. So it is a
   telescope/fibre-side break. The cleaning included re-collimation, and
   the SBIG guide cameras were replaced with ZWOs on the same trip, so the
@@ -687,7 +688,7 @@ How the input could reach the LSF and the counts:
   - throughput-LSF correlations (h3 vs throughput r 0.2-0.3; vs YFIBER up
     to 0.31);
   - count-dependent RVs (the T2 slope);
-  - T1's +2.9% width jump at the 2018-12 trip (cleaning and
+  - T2's +2.9% width jump at the 2018-12 trip (cleaning and
     re-collimation changed the input angles).
 
 Tests:
@@ -753,3 +754,46 @@ Interim conclusion: the feed mechanism is real (throughput, LSF width,
 h3 on T2 and the near field move together), but a feed-predicted LSF buys
 little RV. Pending: F2 ablations (throughput-only vs clouds-only h3) and
 test 2 on the full re-extraction.
+
+## 2026-11-22: LSF width gradient along each order (branch lsfgrad)
+
+JDE's question: the free-LSF tests assumed one width per order. Could the
+along-order width variation dominate the exposure-to-exposure variation?
+**No.** Results: `work/results/lsfgrad/`. Telescopes 1-based (T1-T4).
+
+- **The gradient is real, large and static.** Width changes by g = -0.05 to
+  -0.11 blue to red (+/-3-5% at the order ends), plus significant curvature.
+  Its per-(exposure, tel) scatter (0.005-0.015) moves the end widths by only
+  0.25-0.75%, against 1-3% scatter in the mean width. Steady night to night,
+  no step at 2018-12-22 (T2's mean width jumps +2.9 +/- 0.4% there; its
+  gradient moves +0.001 +/- 0.003), no steps at era breaks. It anticorrelates
+  with the mean width (r -0.5 to -0.8) and weakly tracks throughput
+  (r +0.16 to +0.39); |r| < 0.16 with airmass and fibre position.
+- **Two-star ladder (tau Cet + sigma Dra, nightly rms m/s):** L0 4.61 / 11.18;
+  static gradient G0 4.62 / 11.05; with curvature 4.62 / 11.06; free width +
+  gradient per trace 4.65 / 10.91; one width scale + gradient offset per
+  exposure (SG1) 4.57 / 11.09. HD 122064: L0 9.19, G0 9.19, G1 9.47. RVs
+  move 0.4-1.1 m/s rms; no variant gains more than ~1%. Only adding h3 (G2)
+  moves the era zero-point steps (to ~4 m/s), as freelsf L2 did.
+- **The gradient is a tracer, not a cause.** tau Cet T2: r(gradient, RV) =
+  -0.48, but SG1 moves the RV the wrong way (r +0.26), and the correlation
+  is mostly exposure-level; it tracks throughput/illumination. sigma Dra T1:
+  r +0.67, and SG1 does fix it (exposure rms 10.2 -> 7.1, nightly 7.7 -> 6.5),
+  but T1's era offsets swamp that in the combined rms. Other telescopes
+  |r| <= 0.15.
+- **Injection** (tau Cet exposure, noise-free, BC swept +/-30 km/s, fitted
+  with constant width): the B-star gradient gives 1.26 m/s peak-to-peak,
+  ~0.33 m/s rms combined over orders, jagged in BC with no trend (lines
+  sliding through the iodine forest), linear in the gradient (3x: 4.0 m/s
+  p-p). Not a smooth annual term; real per-order BC slopes are unchanged.
+- **Per-segment structure:** the static per-(tel, order, quarter) rms is
+  75.8 m/s without and 75.6 with the gradient. Something else (e.g. the
+  +/-0.1 px along-order distortion) makes it.
+- Constant-width fits sit 0.08-0.16% below the gradient model's mean
+  width; per-(tel, order) offsets move 1.3-1.8 m/s.
+- B-star map caveats: order 4 missing (stellar mask); halves/thirds fits
+  biased in order 23 and in curvature.
+
+Verdict: keep the constant-width production LSF. If an LSF term is ever
+added per exposure, make it h3. Correction: the interim "T1" width jump
+and "T1" r = -0.48 were 0-based index 1, i.e. **T2**; fixed above.

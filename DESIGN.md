@@ -64,7 +64,7 @@ Each factor is a component behind one small interface. A component:
 | Component | First implementation | Later implementations |
 |---|---|---|
 | Wavelength | polynomial in pixel, per (exposure, fibre, order); degree configurable (default > 2) | optical model: grating equation plus a camera/distortion map derived from the Zemax design, with a few low-order perturbation terms shared by all orders and fibres, per exposure or night |
-| LSF | Gaussian, sigma per (fibre, order) frozen from the B-star calibration, sigma linear in x | Gauss-Hermite or sum of Gaussians; shape from the optical model times a fitted perturbation |
+| LSF | Gaussian, sigma per (fibre, order) frozen from the B-star calibration, constant in km/s (a static along-order width gradient was tested 2026-11-22 and gains nothing; see FINDINGS) | Gauss-Hermite or sum of Gaussians; shape from the optical model times a fitted perturbation |
 | Iodine | NIST 2018-08 FTS scan (exact vacuum, native wavenumber grid; 4950-6450 A), optical-depth strength. Never I2_0.1 uncorrected (+/-300 m/s air-dispersion error) | per-era atlas, cell temperature term; optional learned observer-frame correction (halves chi2, no RV gain so far) |
 | Telluric | static mask from the atlas at T < 0.98-0.99 (threshold barely matters); orders 18-20 (590 nm water band) masked harder or down-weighted; per-exposure spectral water column saved as a diagnostic | fitted H2O columns from a line-by-line model (TAPAS / molecfit style) with its own line shapes; an atlas raised to a power fails (atlas noise, and one column can't fit the water band) |
 | Star | DSST template; inferred template | Korg synthetic spectrum from (Teff, logg, abundances, vsini, macroturbulence) |
@@ -182,7 +182,10 @@ docs area (not in this repo yet).
 - Fibre-to-fibre offsets are predicted to 0.02-0.04 px.
 - LSF: the design predicts the shape along an order (narrower in km/s,
   broader in pixels toward the red) but not the absolute width or its
-  order/fibre dependence; those stay empirical (B stars).
+  order/fibre dependence; those stay empirical (B stars). The measured
+  along-order width gradient (+/-3-5% at the ends) is static and costs
+  ~0.3 m/s rms of BC-dependent error if ignored, so it is optional; if an
+  LSF term is added per exposure, it should be h3, not width or gradient.
 
 Inside the RV fit (wavelength ladder on HD 122064 2016-2020 and 51 Peg,
 2026-11-20), the rigid form (per-exposure x0 only) failed. The static
