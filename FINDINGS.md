@@ -750,10 +750,25 @@ airmass and time; three stars pooled.
     2.89), but gains only 0-4% nightly. F2 cuts the post-trip T2 count
     slope on sigma Dra from +6.1 to +1.3 m/s/dex.
 
-Interim conclusion: the feed mechanism is real (throughput, LSF width,
-h3 on T2 and the near field move together), but a feed-predicted LSF buys
-little RV. Pending: F2 ablations (throughput-only vs clouds-only h3) and
-test 2 on the full re-extraction.
+**Correction (same day): F2's gain is static per-era h3, not the feed state.**
+Control F2i keeps only F2's intercepts (one width scale and one h3 offset
+per star, tel and feed era; no per-exposure variation): nightly 4.46 /
+11.08 / 9.00 (tau Cet total 4.32 vs F2 4.36, L0 4.60). The per-exposure
+feed part adds +0.0 / +0.18 / +0.10 m/s. Ablations agree: h3 from
+throughput/fibre position/airmass (F2t) 4.46 / 11.24 / 9.09; h3 from
+cloud counts only (F2c) 4.43 / 11.22 / 9.11. The per-exposure part only
+cancels the post-trip sigma Dra T2 count slope (+5.6 -> +1.3 m/s/dex), and
+that needs h3 tracking total counts, consistent with a count-level effect.
+Caveat: the feed eras add breaks at 2018-07-01, 2018-12-22 and 2019-09-18,
+where joint_fit has no per-telescope zero-point, so the per-(tel, era) h3
+may just be acting as a per-tel offset (cf. freelsf: static h3 shrinks the
+era steps).
+
+Conclusion: the feed mechanism is real (throughput, LSF width, T2 h3 and
+the near field move together), but a feed-constrained per-exposure LSF does
+not beat L0. Next test: per-(tel, era) RV zero-points at those three
+breaks vs per-(tel, era) static h3. Test 2 on the full re-extraction is
+pending.
 
 ## 2026-11-22: LSF width gradient along each order (branch lsfgrad)
 
