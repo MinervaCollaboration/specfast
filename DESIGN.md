@@ -225,6 +225,18 @@ Cross-talk is not a driver: measured leakage is <= 1e-3, worth under
 - Output, per (exposure, fibre), the cross-dispersion width and
   centroid, and a residual map, as illumination diagnostics.
 
+Pilot results (extract2, 2026-11-22) settle the recipe:
+- profiles: empirical per trace, from fibre flats where they exist (only
+  2016-01 and 2016-11), otherwise stacked bright frames; pick the source
+  per era by held-out chi2;
+- the 2D scattered-light model and per-trace re-centring are both
+  essential for per-telescope stability;
+- calibrations: bias only; **no darks**; **no nightly slit flats**;
+  optionally a multi-night stacked pixel-to-pixel flat for bright and
+  daytime frames;
+- extraction alone gives < 1 m/s for bright stars; its value is faint
+  frames, daytime frames and robustness (no crashes, no lost frames).
+
 ## Era breaks
 
 Dated from the vacuum and thermometer logs and the frame headers

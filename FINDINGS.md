@@ -308,8 +308,9 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
 - The 96.5% K-recovery scale loss in injection tests (iodine branch).
 - Continuum model: smooth 10-20 A residual structure the quadratic misses.
 - The residual 41-59 m/s per-order offset pattern (DSST wavelength tilt?).
-- T2 count-level slope in post-2018-07 data (not the extraction): look at
-  what changed in 2018-07 (realignment, fibre, guiding).
+- T2 count-level slope (not the extraction, not detector nonlinearity):
+  concentrated in Jul-Dec 2018, before the 2018-12-22 T2 throughput jump.
+  Look at what changed in 2018-07 and 2018-12 (fibre, guiding, alignment).
 - Flux-weighted midpoint: look for exposure-meter logs.
 - iota Per's missing 2016 jump.
 - Recalibrate the optical model from B-star frames.
@@ -408,8 +409,10 @@ L0 RVs, same exposures (rms / nightly / within-night, m/s):
   fingerprint changes by 17.8 m/s rms per telescope and order; day means
   shift -3 to -22 m/s; New Year day-to-day rms 27.0 -> 20.8 m/s), but
   v1.0.0 extracts these frames badly: its Gaussian profile gives reduced
-  chi2 ~ 37 at daytime signal levels, flux comes out 27% low, and cosmic-ray
-  rejection flags profile pixels in 20-80% of columns. Any redo should use
+  chi2 ~ 37 at daytime signal levels and cosmic-ray rejection flags
+  profile pixels in 20-80% of columns. (The "27% low flux" was wrong:
+  the original daytime extraction is itself 1.22-1.26x the raw box sum;
+  see the extract2 entry.) Any redo should use
   a better extractor, not v1.0.0 (one-off in the test bed; out of scope for
   specfast).
 
@@ -547,3 +550,87 @@ diagnostic. Tellurics don't explain the shared 2-3 m/s.
 Code: Charlie branch `telluric` (local; `drivers/run_telluric.py` now
 resumable). Results: `work/results/telluric/`; CAMAL photometry:
 `data/camal/`.
+
+## 2026-11-22: Extraction pilot "x2" (branch extract2)
+
+Prototype extractor:
+- empirical per-trace profiles (flat-relative optimal extraction), fitted
+  jointly per column;
+- a 2D scattered-light model;
+- per-exposure trace re-centring and width;
+- cosmic-ray rejection against the model;
+- an honest variance model, with no zeroed windows.
+
+Fibre flats exist only for 2016-01 and 2016-11, so most eras use profiles
+stacked from bright frames, chosen by held-out chi2 (1.15-2.1 against
+1.3-12 for Gaussians).
+
+**Verdict: don't re-extract the archive for bright-star RVs.** It fails
+JDE's rule (> 1 m/s nightly gain, or the T2 slope disappearing). Use the
+extractor in specfast for faint targets and diagnostics.
+
+Same exposures (rms / nightly / within-night, m/s):
+
+| Set | original | v1.0.0 | x2 |
+|---|---|---|---|
+| tau Cet pre-2018 (80) | 5.65 / 6.07 / 3.08 | 7.93 / 6.86 / 9.28 | 5.94 / 6.19 / 4.07 |
+| tau Cet post-2018 (103; original = v1.0.0) | 3.77 / 3.79 / 2.18 | same | 3.64 / 3.65 / 2.17 |
+| HD 122064 pre-2018 (187) | 5.85 / 5.61 / 5.24 | 5.93 / 5.99 / 4.09 | 5.41 / 5.21 / 3.87 |
+| 51 Peg K | 54.3 +/- 2.0 (rms 4.8) | 53.1 +/- 2.2 (5.0) | 55.0 +/- 1.7 (3.9) |
+
+- **Coverage:** all 658 star frames extract, including the 2 that crashed
+  v1.0.0. 9 of the 21 faint HD 122064 frames that v1.0.0 lost come back.
+- **Per telescope:** T2 pre-2018 improves (tau Cet nightly 15.8 -> 3.2;
+  HD 122064 9.0 -> 3.8).
+- **tau Cet common excess:** pre-2018 0.0 (original) / 4.4 (v1.0.0) / 2.4
+  (x2); post-2018 3.4 -> 3.6. Not an extraction effect.
+- **Ablation (tau Cet):**
+  - empirical profile: -0.75 m/s nightly pre-2018, ~0 post-2018;
+  - 2D scattered light: combined RV about the same, but per-telescope
+    results collapse without it (T2 pre-2018 3.2 -> 15.8, T3 post-2018
+    6.1 -> 20.5);
+  - per-trace re-centring is essential (without it, nightly 8.9 pre-2018
+    and 7.2 post-2018).
+- **T2 count slope is not the extractor:** +10.2 +/- 0.9 m/s/dex
+  (original) vs +10.4 +/- 0.9 (x2) on the same 103 post-2018 exposures.
+  It is concentrated in Jul-Dec 2018 (+14 +/- 5); after the 2018-12-22 T2
+  throughput jump it is +3.9 +/- 0.9, and profile width adds nothing. No
+  sign of nonlinearity: profile width is flat with counts to < 0.5%/dex
+  within seasons (no multi-level flat series exists for a direct test).
+- **Diagnostics:** width, centroid and background fraction don't predict
+  RV residuals (|r| < 0.4, < 1.5 m/s per sigma), except the T2
+  counts/epoch confound above.
+- **Daytime frames are now sane:** profile chi2_r 8.2 (v1.0.0 ~37);
+  cosmic-ray flags in 3.4% of columns (v1.0.0 35%, up to 74%); flux 1.9%
+  above v1.0.0. Correction: both are 0.80x the original daytime
+  extraction because the original is 1.22-1.26x the raw box sum (a
+  normalization difference, not lost flux).
+
+**Calibrations (darks and slit flats; JDE asked to verify the early
+conclusion that they add more noise than signal):**
+
+- **Darks: don't use. Confirmed.** Dark current is 0.7-1.1 e-/px per
+  900 s, smooth, with no persistent hot pixels; read noise is 3.9 e- and
+  scattered light under the traces is 2.8 e-/px. The 2D background absorbs
+  the dark level. A master from 5 x 300 s scaled to 1800 s carries
+  ~15 e-/px of noise: it roughly doubles pre-2018 bright-star rms and cuts
+  the faint survivors from 9 to 2.
+- **Slit flats: confirmed for nightly flats; use only a stacked one.** The
+  true pixel response varies by 0.39%. A nightly 3-frame master has
+  0.42%/px noise, so dividing adds as much as it removes. 17-35-night
+  stacks with the illumination divided out reach 0.07-0.16%. Science
+  peak-pixel noise is 1.6% (tau Cet), 28% (faint) and 0.6% (daytime), so a
+  stacked flat matters only for bright and daytime frames. On 31 tau Cet
+  nights the three flat options agree within ~0.1 m/s. 2016 slit flats
+  show no pixel signal; 2020-22 has none usable and nothing exists after
+  2022, so those epochs borrow the 2018-19 stack.
+
+Full-run cost if ever wanted: ~10,000 frames; ~64 CPU-h extraction (22 s
+per frame against v1.0.0's ~155 s) plus ~42 CPU-h of L0 fits; ~190 GB
+streamed from the gateway (~18 h); ~73 GB of products; ~1 day of wall time
+at 8 processes.
+
+Code: Charlie branch `extract2` (ee8441b..4e256fd, local). Data:
+`/pool/radish1/minerva-rv/data/extract2/` (README); results:
+`work/results/extract2/` (README has every table). Originals verified by
+sha256.
