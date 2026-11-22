@@ -311,6 +311,8 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
 - T2 count-level slope (not the extraction, not detector nonlinearity):
   concentrated in Jul-Dec 2018, before the 2018-12-22 T2 throughput jump.
   Look at what changed in 2018-07 and 2018-12 (fibre, guiding, alignment).
+  JDE: the 2018-12-22 T2 jump was either mirror cleaning or guiding
+  changes. Check the control logs and FAU guide offsets around that date.
 - Flux-weighted midpoint: look for exposure-meter logs.
 - iota Per's missing 2016 jump.
 - Recalibrate the optical model from B-star frames.
