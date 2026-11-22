@@ -311,8 +311,13 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
 - T2 count-level slope (not the extraction, not detector nonlinearity):
   concentrated in Jul-Dec 2018, before the 2018-12-22 T2 throughput jump.
   Look at what changed in 2018-07 and 2018-12 (fibre, guiding, alignment).
-  JDE: the 2018-12-22 T2 jump was either mirror cleaning or guiding
-  changes. Check the control logs and FAU guide offsets around that date.
+  JDE (2026-11-22): December 2018 was a site trip. The mirrors were
+  cleaned, and the main job was repairing T3, which had sheared its hard
+  stop and wrapped its cables. On 2018-12-22: T2 throughput jumps, T1 LSF
+  width +2.9% (gradient unchanged), spectrograph temperatures flat
+  (+/-0.01 C), iodine cell, CCD and pressure unchanged. So it is a
+  telescope/fibre-side break. T3's fibre runs with its cables, so T3 data
+  before the repair may carry fibre-stress (FRD / modal) effects.
 - Flux-weighted midpoint: look for exposure-meter logs.
 - iota Per's missing 2016 jump.
 - Recalibrate the optical model from B-star frames.
