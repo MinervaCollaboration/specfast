@@ -253,7 +253,11 @@ Dated from the vacuum and thermometer logs and the frame headers
 bench was not regulated: regress on bench temperature within the era.
 Per-telescope breaks (LSF width, offsets, throughput), not
 spectrograph-wide: 2018-12-22 (site trip: mirrors cleaned and re-collimated,
-SBIG guide cameras replaced by ZWOs, T3 hard stop and cable wrap repaired). The break list is configuration.
+SBIG guide cameras replaced by ZWOs, T3 hard stop and cable wrap repaired),
+also 2018-07-01 (T3 effectively down) and 2019-09-18. At per-telescope
+breaks allow both a per-telescope RV offset and a static h3 offset: on
+2026-11-22 the offsets carried the gain for sigma Dra and HD 122064, the
+static h3 for tau Cet and the 2019-09-18 step. The break list is configuration.
 
 ## Open questions
 

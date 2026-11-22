@@ -766,9 +766,31 @@ era steps).
 
 Conclusion: the feed mechanism is real (throughput, LSF width, T2 h3 and
 the near field move together), but a feed-constrained per-exposure LSF does
-not beat L0. Next test: per-(tel, era) RV zero-points at those three
-breaks vs per-(tel, era) static h3. Test 2 on the full re-extraction is
-pending.
+not beat L0.
+
+**Zero-points vs static h3** (extra per-(tel, order, era) offsets in
+joint_fit at 2018-07-01, 2018-12-22 and 2019-09-18; `work/results/feed/lsfpred_z/`).
+Nightly / total rms m/s:
+
+| Model | tau Cet | sigma Dra | HD 122064 | Z step 2019-09-18 |
+|---|---|---|---|---|
+| L0 | 4.63 / 4.60 | 11.24 / 9.65 | 9.23 / 8.51 | 11.48 |
+| L0 + ZP | 4.78 / 4.60 | 11.08 / 9.57 | 8.80 / 8.22 | 11.11 |
+| F2i (static h3 per era) | 4.46 / 4.32 | 11.08 / 9.53 | 9.00 / 8.49 | 8.87 |
+| F2i + ZP | 4.67 / 4.44 | 10.92 / 9.45 | 8.69 / 8.26 | 8.94 |
+
+- sigma Dra and HD 122064: zero-points alone give all of F2i's gain or
+  more, so there it is per-tel era offsets.
+- tau Cet: zero-points hurt; static h3 helps, so it changes the per-order
+  velocities, not just their offset. Static h3 alone absorbs ~2.6 m/s of the
+  2019-09-18 common-mode step (zero-points don't).
+- T2's post-trip count slope is unchanged by zero-points.
+- Every variant is within ~5% of L0. None of the gain is per-exposure feed
+  state.
+
+specfast: allow per-telescope offsets at the 2018-07-01, 2018-12-22 and
+2019-09-18 breaks, and a static per-(tel, era) h3; test both on all
+standards. Test 2 on the full re-extraction is pending.
 
 ## 2026-11-22: LSF width gradient along each order (branch lsfgrad)
 
