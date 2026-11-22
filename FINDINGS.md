@@ -489,3 +489,61 @@ continuum model first. The line-scale residual points at the LSF shape.
 Code: Charlie branch `iodine` (36b7499..a0afc5b, local). Atlases:
 `work/calib_data/I2_NIST201808_vac.fits`, `I2_0.1_dispcorr.fits`. Results:
 `work/results/iodine/`; plots `work/plots/iodine/`.
+
+## 2026-11-22: Tellurics (branch telluric)
+
+Stars: tau Cet and sigma Dra, L0 (frozen B-star LSF), two-star zero-points.
+HD 122064 not run.
+
+**Mask threshold doesn't matter.** tau Cet nightly rms / common excess
+(m/s) at atlas-T thresholds: 0.95 4.68 / 2.76; 0.98 4.61 / 2.61;
+0.99 4.55 / 2.53; 0.995 4.61 / 2.21; no mask 4.54 / 2.66. At 0.999 it
+masks 42% of pixels (the atlas noise floor) and degrades to 8.66.
+sigma Dra: 10.8-11.7 nightly across the same ladder. BC correlation
+r <= 0.14 everywhere; the structure function is the same at all lags.
+
+- Masked pixels at 0.98: 1.2% overall; orders 18 / 19 / 20 (590 nm water
+  band) 7.6 / 12 / 3.3%; most orders 0%.
+- Only orders 18-20 respond (order-relative nightly rms 30 / 32 / 23 m/s
+  for tau Cet against a clean-order median of 18.5). Unmasked, order 19
+  doubles, but the joint fit down-weights it, so the combined RV doesn't
+  suffer.
+- The mask is static (atlas T < 0.98 -> err = inf on the observed-frame
+  grid; `fit_order.TELL_THRESH`); it doesn't scale with water or airmass.
+
+**The common mode isn't telluric.** A per-exposure spectral water column
+(fitted per trace, shared across orders and telescopes) tracks surface
+absolute humidity at r = 0.57-0.64 per exposure and 0.77-0.83 nightly, so
+it works as a PWV proxy. The common-mode nightly residual is uncorrelated
+with airmass, BC, water column, dew point and humidity (all |r| <= 0.10,
+<= 0.13 in-season). In sigma Dra, the per-order residual-vs-water slope
+scales with the order's water depth (r 0.80 across orders).
+
+**Fitted telluric model (atlas^a, shared column) is worse than a mask:**
+tau Cet nightly 6.19, sqrt(chi2_r) 2.23, BC slope +0.26 m/s per km/s.
+
+- Clean-template test (atlas set to 1 where T > 0.99; 120 tau Cet
+  exposures): in the clean orders 4-13 the BC-correlated error drops from a
+  median slope of +0.27 to +0.004 m/s per km/s. So the raw atlas's
+  0.1-0.3% noise, raised to the fitted power, made fixed features the star
+  sweeps across with BC.
+- The water orders are unchanged by cleaning (order 18 slope +2.7, order 19
+  +2.0 m/s per km/s): one scaled column, with line shapes fixed by the
+  atlas, is not a good enough water model at MINERVA's resolution.
+- Subset combined nightly rms: mask 0.98 4.76, no mask 4.55, raw model
+  6.03, clean model with shared column 4.65 (still BC-correlated through
+  orders 18-19). Matches the mask; doesn't beat it.
+
+**CAMAL** (gateway `/nas/camal/data`, 154 nights 2017-05..2018-06; 780 /
+823 / 860 nm photometry): as reduced (every 15th triplet, per-star
+Langley), its water index correlates only r ~ 0.3 with the spectral column
+and surface humidity on 21 overlap nights. The spectral column is the
+better proxy.
+
+Verdict: keep a static mask at 0.98-0.99; treat orders 18-20 specially;
+no fitted atlas-power model; keep the spectral water column as a
+diagnostic. Tellurics don't explain the shared 2-3 m/s.
+
+Code: Charlie branch `telluric` (local; `drivers/run_telluric.py` now
+resumable). Results: `work/results/telluric/`; CAMAL photometry:
+`data/camal/`.
