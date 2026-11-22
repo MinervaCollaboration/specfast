@@ -65,10 +65,10 @@ Each factor is a component behind one small interface. A component:
 |---|---|---|
 | Wavelength | polynomial in pixel, per (exposure, fibre, order); degree configurable (default > 2) | optical model: grating equation plus a camera/distortion map derived from the Zemax design, with a few low-order perturbation terms shared by all orders and fibres, per exposure or night |
 | LSF | Gaussian, sigma per (fibre, order) frozen from the B-star calibration, sigma linear in x | Gauss-Hermite or sum of Gaussians; shape from the optical model times a fitted perturbation |
-| Iodine | FTS atlas, optical-depth strength | per-era atlas, cell temperature term |
+| Iodine | NIST 2018-08 FTS scan (exact vacuum, native wavenumber grid; 4950-6450 A), optical-depth strength. Never I2_0.1 uncorrected (+/-300 m/s air-dispersion error) | per-era atlas, cell temperature term; optional learned observer-frame correction (halves chi2, no RV gain so far) |
 | Telluric | mask from an atlas at a configurable depth | fitted H2O and O2 columns per exposure from a line-list model (TAPAS / molecfit style); mask only saturated cores |
 | Star | DSST template; inferred template | Korg synthetic spectrum from (Teff, logg, abundances, vsini, macroturbulence) |
-| Continuum | low-order polynomial times a blaze function | spline |
+| Continuum | blaze function times a spline or higher-order term able to follow 10-20 A structure (a quadratic leaves ~1% rms) | per-era learned shape |
 | Masks / weights | telluric, sky emission ([O I] 5577), bad pixels, template artefacts | stellar-line masks chosen by activity sensitivity |
 
 Masks and weights compose as per-pixel layers, each defined in its own

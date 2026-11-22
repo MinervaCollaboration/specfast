@@ -116,6 +116,9 @@ below, local only); results `/pool/radish1/minerva-rv/work/results/`.
   2016 to Mar 2017.
 - The ~250 m/s per-(telescope, order) offsets do not change with the
   wavelength model, so they are template or line-list zero points.
+  **Corrected 2026-11-22:** they are mostly the I2_0.1 atlas's
+  air-dispersion error; see "Iodine atlas and learned observer-frame
+  correction".
 - No detector stitching: any step at a 512-px boundary is below ~0.02 px.
 - There is a smooth optical along-order distortion of +/-0.1 px
   (~70-100 m/s), period ~800 px.
@@ -302,6 +305,9 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
   guiding, modal noise, scrambling. Check FAU guide logs and fibre position.
 - LSF asymmetry vs era steps: 7-star Z with a fixed h3 pattern.
 - Fix the joint_fit error reference in standards_eval.
+- The 96.5% K-recovery scale loss in injection tests (iodine branch).
+- Continuum model: smooth 10-20 A residual structure the quadratic misses.
+- The residual 41-59 m/s per-order offset pattern (DSST wavelength tilt?).
 - T2 count-level slope in post-2018-07 data (not the extraction): look at
   what changed in 2018-07 (realignment, fibre, guiding).
 - Flux-weighted midpoint: look for exposure-meter logs.
@@ -417,3 +423,69 @@ Originals verified unchanged (sha256 of 1,423 local files; size, mtime and
 inode of 741 gateway files). Products and README:
 `/pool/radish1/minerva-rv/data/reextract_v1/`; RV results:
 `work/results/reextract/`; Charlie branch `reextract` (f35bb48, 8595a84).
+
+## 2026-11-22: Iodine atlas and learned observer-frame correction (branch iodine)
+
+Baseline: L0 (frozen B-star sigma, telluric mask 0.98, two-star
+zero-points); the I2_0.1 run reproduces the telluric M98 run exactly.
+
+**Atlas choice (nightly rms / within-night / excess, m/s):**
+
+| | tau Cet | sigma Dra |
+|---|---|---|
+| I2_0.1 | 4.61 / 2.88 / 2.61 | 11.18 / 5.40 / 9.71 |
+| NIST 2018-08 | 4.88 / 3.04 / 3.00 | 11.15 / 5.22 / 9.64 |
+| I2_0.1, dispersion-corrected | 4.73 / 2.91 / 2.84 | 11.14 / 5.31 / 9.42 |
+
+- **RVs: a wash.** Swapping atlases moves nightly RVs by 0.8-1.8 m/s rms,
+  uncorrelated; tau Cet's 4.61 -> 4.88 is just that added noise.
+- **Fit quality favours NIST.** Star chunk chi2_r is ~2% lower. On B-star
+  frames (1,821 traces) total chi2 is 3.5% lower and 64% of traces
+  improve. The gain is all redward of ~5650 A (13-20% near 5700 and above
+  6000 A); a few blue bands are 2-6% worse.
+- **Depth:** the NIST/I2_0.1 depth ratio rises from 1.03 to 1.18 toward the
+  red, so it is not one column factor. The fitted strength absorbs it
+  (0.96-0.97). The B-star sigma is 1% larger with NIST.
+- **The per-(telescope, order) offsets are the I2_0.1 dispersion error.**
+  They fall from ~210 to 42-60 m/s rms with either NIST or the
+  ramp-corrected I2_0.1, and the change per order follows the air ramp
+  (+620 m/s in order 1 to ~0 in order 23). The per-telescope part is only
+  ~3 m/s. What remains is a 41-59 m/s order pattern, correlated between
+  stars (r 0.64; possibly the DSST templates' own wavelength tilt,
+  untested), plus 13-25 m/s per (telescope, order). Measured NIST - I2_0.1
+  = 0.95 x Ciddor ramp + 23 m/s (10 m/s rms). Era zero-points unchanged.
+
+**Learned static observer-frame correction (Wobble-style, all 7 standards,
+each star's rest-frame part removed):**
+
+- **The structure is real:** 0.7-3.7% rms per order. It reproduces between
+  disjoint star sets (r 0.97-1.00) and between telescopes (0.90-0.98).
+  Across the 2016-11 remount it stays coherent in observed wavelength
+  (r 0.87-0.97) but not in pixels (0.2-0.8), so it lives in the wavelength
+  frame.
+- **Composition:** about half is smooth 10-20 A wiggles (~1.0% rms),
+  continuum or blaze shape the quadratic continuum can't follow. About
+  half is at line scale (~0.8%), largely common to both atlases, so model
+  error (likely LSF shape) rather than atlas choice; NIST leaves less of
+  it in the red.
+- **Regression:** a water term is significant only in water-rich orders
+  and tracks the telluric branch's water column (r 0.98); dry airmass is
+  not significant.
+- **Hold-out** (learned on 5 stars, applied to tau Cet and sigma Dra):
+  per-trace chi2_r halves (tau Cet 4.84 -> 2.41) and formal errors shrink
+  25-30%, but nightly RVs barely move. tau Cet goes 4.88 -> 4.71 (excess
+  3.00 -> 1.92) and sigma Dra 11.15 -> 10.85; the paired variance changes
+  are ~1 sigma. T1 gets worse on both stars, and a per-telescope
+  correction is clearly worse (6.55; not investigated).
+- **Injection-recovery:** with a 5 m/s 1-yr signal phased with BC, the
+  correction absorbs 0.6% (~0.03 m/s). Even uncorrected the chain
+  recovers only 96.5% of K at both 1 yr and 47.3 d; that scale loss is
+  untraced.
+
+Verdict: use the NIST scan as the reference atlas. A learned
+observer-frame correction is safe but buys no RV precision here; fix the
+continuum model first. The line-scale residual points at the LSF shape.
+
+Code: Charlie branch `iodine` (36b7499..a0afc5b, local). Atlases:
+`work/calib_data/I2_NIST201808_vac.fits`, `I2_0.1_dispcorr.fits`. Results:
+`work/results/iodine/`; plots `work/plots/iodine/`.
