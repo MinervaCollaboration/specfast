@@ -39,6 +39,9 @@ Role = Literal[
     "calibration",
 ]
 
+#: Light sources that can feed a reference or calibration channel.
+Source = Literal["comb", "etalon", "thar", "flat", "sky"]
+
 
 @dataclass(frozen=True)
 class Detector:
@@ -47,6 +50,10 @@ class Detector:
     name: str
     #: Extracted pixels along the dispersion direction.
     npix_dispersion: int | None = None
+    #: Pixels across the dispersion direction (the light-sensitive area).
+    npix_cross_dispersion: int | None = None
+    #: Pixel pitch [um].
+    pixel_size_um: float | None = None
     #: Raw-frame rows x columns, including overscan, as stored.
     raw_shape: tuple[int, ...] | None = None
     #: Gain [e-/ADU].
@@ -71,6 +78,9 @@ class Channel:
     #: Position of this channel's trace within an order on the slit
     #: (0 = first), when known.
     slit_position: int | None = None
+    #: Sources that can feed this channel (reference / calibration channels
+    #: whose source is selectable); empty = fixed by ``role``.
+    sources: tuple[Source, ...] = ()
     notes: str = ""
 
 
@@ -98,6 +108,17 @@ class Arm:
     echelle_orders: tuple[int, ...] | None = None
     #: Approximate vacuum wavelength range [nm] (None = unknown).
     wavelength_range_nm: tuple[float, ...] | None = None
+    #: Per order (aligned with ``orders``): the [min, max] wavelength [nm]
+    #: recorded on the detector (None = unknown).
+    order_wavelength_ranges_nm: tuple[tuple[float, ...], ...] | None = None
+    #: Approximate resolving power lambda / delta-lambda (None = unknown).
+    resolving_power: float | None = None
+    #: [min, max] centre-to-centre spacing of adjacent orders across the
+    #: dispersion [pixels] (None = unknown).
+    order_spacing_px: tuple[float, ...] | None = None
+    #: Distance across the dispersion between adjacent slit positions
+    #: (``Channel.slit_position``) [pixels] (None = unknown).
+    slit_pitch_px: float | None = None
     #: (channel, order) slots that exist in the product but carry no light.
     absent_traces: tuple[TraceRef, ...] = ()
     notes: str = ""
@@ -263,6 +284,21 @@ class Instrument:
                 raise ConfigError(f"{where}: arm {a.name!r} rv_orders not in orders")
             if a.echelle_orders is not None and len(a.echelle_orders) != len(a.orders):
                 raise ConfigError(f"{where}: arm {a.name!r} echelle_orders/orders length")
+            r = a.order_wavelength_ranges_nm
+            if r is not None:
+                if len(r) != len(a.orders):
+                    raise ConfigError(
+                        f"{where}: arm {a.name!r} order_wavelength_ranges_nm/orders length"
+                    )
+                if any(len(x) != 2 or not x[0] < x[1] for x in r):
+                    raise ConfigError(
+                        f"{where}: arm {a.name!r} order_wavelength_ranges_nm entries "
+                        "must be [min, max]"
+                    )
+            for k in ("wavelength_range_nm", "order_spacing_px"):
+                v = getattr(a, k)
+                if v is not None and (len(v) != 2 or v[0] > v[1]):
+                    raise ConfigError(f"{where}: arm {a.name!r} {k} must be [min, max]")
             for t in a.absent_traces:
                 if t.channel not in a.channels or t.order not in a.orders:
                     raise ConfigError(f"{where}: arm {a.name!r} absent trace {t} unknown")

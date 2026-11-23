@@ -58,6 +58,11 @@ that meet only at a documented on-disk product:
   (blue/red, dichroic), one or seven science slices, plus reference
   channels. Optical-model parameters are calibration products, not part
   of the public description when they derive from private design files.
+  `specfast-zemax2instrument` (`specfast.optics`) derives the public facts
+  (orders and their wavelength ranges per arm, detector format, resolving
+  power, order spacing, slit pitch) from a Zemax design by ray tracing;
+  everything else comes from an overrides file. The G-CLEF descriptions
+  were made this way from the 2021-12 design.
 - **Stage 1, extract**: raw frame plus calibration products (stacked bias,
   profiles, traces, scattered light, optional stacked flat) to an
   ExtractedSpectrum. Reference channels are extracted like any other.
