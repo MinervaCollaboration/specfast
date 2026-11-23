@@ -25,11 +25,20 @@ in the Wilson+19 window (3 telescopes).
    Charlie's daytime results is a one-off in the test bed, not a
    specfast feature.
 5. Eventually G-CLEF, on Magellan and then GMT (JDE 2026-11-23). KiwiSpec
-   is the first instrument, not the only one: the instrument description
-   (arms, detectors, orders, fibres/slices), the wavelength reference
-   (iodine cell, or a simultaneous comb/etalon/ThAr reference) and the LSF
-   source (B stars, or calibration lamps) must be pluggable, not built
-   into the core.
+   is the first instrument, not the only one. We write both the
+   extraction and the Doppler code for G-CLEF. Its differences:
+   - no gas cell: simultaneous laser comb, etalon and ThAr reference
+     fibres (or early/late-night calibration for low precision);
+   - ~350-1100 nm on two detectors split by a dichroic;
+   - pupil-sliced fibres, one slice per mirror (seven on GMT); Magellan
+     uses one;
+   - optical model: Zemax/PyEchelle file on radish,
+     `~/Downloads/GCLEF_MF12032021_PyEchelle.zar` (not in any repo).
+
+   So the instrument description (arms, detectors, orders, fibres and
+   slices), the wavelength reference (iodine forward model, or drift from a
+   simultaneous reference) and the LSF source (B stars, or calibration
+   lines each exposure) must be pluggable, not built into the core.
 6. No silent failures, no hidden global state, no environment variables
    that change the science; every product records its provenance.
 
