@@ -34,16 +34,61 @@ def test_kiwispec_eras():
 
 
 @pytest.mark.parametrize("name, nslices", [("gclef_magellan", 1), ("gclef_gmt", 7)])
-def test_gclef_placeholders(name, nslices):
+def test_gclef(name, nslices):
     g = load_instrument(name)
-    assert g.status == "placeholder" and g.gas_cell == "none"
+    assert g.status == "provisional" and g.gas_cell == "none"
     assert len(g.science_channels()) == nslices
-    roles = {c.role for c in g.channels}
-    assert {"reference_comb", "reference_etalon", "reference_thar"} <= roles
-    assert [a.name for a in g.arms] == ["blue", "red"]
-    assert g.wavelength_range_nm == (350.0, 1100.0)
-    # unknowns stay unknown
-    assert all(a.detector.gain_e_per_adu is None for a in g.arms)
+    cal = [c for c in g.channels if c.role == "calibration"]
+    assert len(cal) == 2 and all({"comb", "etalon", "thar"} <= set(c.sources) for c in cal)
+    blue, red = g.arms
+    assert (blue.name, red.name) == ("blue", "red")
+    # the overlap order 114 is on both arms; blue holds the higher orders
+    assert blue.echelle_orders[0] > blue.echelle_orders[-1] == 114 == red.echelle_orders[0]
+    assert blue.wavelength_range_nm[1] < 545 < red.wavelength_range_nm[1]
+    for a in g.arms:
+        assert a.detector.pixel_size_um == 9.0 and a.detector.npix_dispersion == 10560
+        assert len(a.order_wavelength_ranges_nm) == len(a.orders) == len(a.echelle_orders)
+        # orders span about their free spectral range (lambda / m) or more
+        for m, (lo, hi) in zip(a.echelle_orders, a.order_wavelength_ranges_nm, strict=True):
+            assert hi - lo > 0.9 * 0.5 * (lo + hi) / m
+        assert set(a.channels) == {c.name for c in g.channels}
+        # unknowns stay unknown
+        assert a.detector.gain_e_per_adu is None and a.detector.read_noise_e is None
+    assert g.site is None
+
+
+def test_gclef_sites_differ_only_in_feed():
+    m, g = load_instrument("gclef_magellan"), load_instrument("gclef_gmt")
+    for am, ag in zip(m.arms, g.arms, strict=True):
+        assert am.echelle_orders == ag.echelle_orders
+        assert am.order_wavelength_ranges_nm == ag.order_wavelength_ranges_nm
+        assert am.detector == ag.detector
+
+
+def test_arm_layout_validation(tmp_path):
+    f = tmp_path / "x.yaml"
+    base = (
+        "name: x\ndescription: d\nstatus: provisional\n"
+        "channels: [{name: A, role: calibration, sources: [comb]}]\n"
+    )
+    f.write_text(
+        base + "arms: [{name: m, channels: [A], orders: [0, 1], detector: {name: d},"
+        " order_wavelength_ranges_nm: [[500, 510]]}]\n"
+    )
+    with pytest.raises(ConfigError, match="order_wavelength_ranges_nm/orders length"):
+        load_instrument(f)
+    f.write_text(
+        base + "arms: [{name: m, channels: [A], orders: [0], detector: {name: d},"
+        " order_wavelength_ranges_nm: [[510, 500]]}]\n"
+    )
+    with pytest.raises(ConfigError, match=r"\[min, max\]"):
+        load_instrument(f)
+    f.write_text(
+        base.replace("[comb]", "[laser]")
+        + "arms: [{name: m, channels: [A], orders: [0], detector: {name: d}}]\n"
+    )
+    with pytest.raises(ConfigError, match="not one of"):
+        load_instrument(f)
 
 
 def test_validation(tmp_path):

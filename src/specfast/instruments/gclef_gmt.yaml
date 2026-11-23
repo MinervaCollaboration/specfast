@@ -1,17 +1,20 @@
-# G-CLEF on GMT. PLACEHOLDER: only public headline facts are recorded;
-# every unknown number is null. Nothing here derives from the
-# (collaboration-private) optical design.
+# G-CLEF on GMT. PROVISIONAL. Numbers marked "derived from the G-CLEF optical
+# design (2021-12 model)" were computed from the collaboration-private design
+# (chief-ray trace) by specfast-zemax2instrument; no prescription data is
+# recorded here. Other facts: JDE (2026-11-23) and the public G-CLEF papers
+# (Ben-Ami et al. 2018, SPIE 10702, 107029K; gclef.cfa.harvard.edu). Unknown
+# numbers are null.
 name: gclef_gmt
 description: >-
-  G-CLEF on GMT: fibre-fed echelle, two arms split by a dichroic,
-  ~350-1100 nm in total, no gas cell; simultaneous laser-comb, etalon and
-  ThAr reference channels; pupil-sliced science fibre with seven slices (one per
-  GMT mirror segment).
-status: placeholder
+  G-CLEF on GMT: fibre-fed R4 echelle in a vacuum enclosure, no gas cell; a
+  dichroic splits blue (orders 175-114) and red (orders 114-64) arms, each with
+  a VPH cross-disperser and one 95 mm CCD. PRV pseudo-slit of nine fibres:
+  seven pupil slices (one per GMT mirror segment) and two calibration/sky
+  fibres fed by laser comb, etalon or ThAr.
+status: provisional
 gas_cell: none
-wavelength_range_nm: [350.0, 1100.0]    # approximate, both arms together
-site: null                              # TODO
-
+wavelength_range_nm: [347.3, 967.2]  # derived from the G-CLEF optical design (2021-12 model)
+site: null
 channels:
   - {name: S0, role: science, telescope: GMT, slice_index: 0}
   - {name: S1, role: science, telescope: GMT, slice_index: 1}
@@ -20,21 +23,116 @@ channels:
   - {name: S4, role: science, telescope: GMT, slice_index: 4}
   - {name: S5, role: science, telescope: GMT, slice_index: 5}
   - {name: S6, role: science, telescope: GMT, slice_index: 6}
-  - {name: COMB, role: reference_comb}
-  - {name: ETALON, role: reference_etalon}
-  - {name: THAR, role: reference_thar}
-
+  - name: CAL0
+    role: calibration
+    sources: [comb, etalon, thar, sky]
+  - name: CAL1
+    role: calibration
+    sources: [comb, etalon, thar, sky]
 arms:
   - name: blue
-    channels: [S0, S1, S2, S3, S4, S5, S6, COMB, ETALON, THAR]
-    orders: []                   # TODO
-    wavelength_range_nm: null    # TODO: dichroic split
-    detector: {name: blue}       # TODO: geometry, gain, read noise
+    channels: [S0, S1, S2, S3, S4, S5, S6, CAL0, CAL1]
+    orders:  # derived from the G-CLEF optical design (2021-12 model)
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+       25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+       48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61]
+    echelle_orders:  # derived from the G-CLEF optical design (2021-12 model)
+      [175, 174, 173, 172, 171, 170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158,
+       157, 156, 155, 154, 153, 152, 151, 150, 149, 148, 147, 146, 145, 144, 143, 142, 141, 140,
+       139, 138, 137, 136, 135, 134, 133, 132, 131, 130, 129, 128, 127, 126, 125, 124, 123, 122,
+       121, 120, 119, 118, 117, 116, 115, 114]
+    wavelength_range_nm: [347.3, 541.6]  # derived from the G-CLEF optical design (2021-12 model)
+    order_wavelength_ranges_nm:  # derived from the G-CLEF optical design (2021-12 model)
+      [[347.345, 353.47], [349.341, 355.501], [351.36, 357.557], [353.402, 359.636],
+       [355.468, 361.739], [357.559, 363.867], [359.674, 366.02], [361.815, 368.199],
+       [363.981, 370.404], [366.173, 372.636], [368.392, 374.895], [370.638, 377.181],
+       [372.911, 379.495], [375.213, 381.838], [377.543, 384.21], [379.902, 386.611],
+       [382.291, 389.043], [384.71, 391.505], [387.16, 393.999], [389.642, 396.525],
+       [392.155, 399.083], [394.701, 401.675], [397.281, 404.3], [399.894, 406.96],
+       [402.543, 409.655], [405.226, 412.386], [407.946, 415.154], [410.702, 417.959],
+       [413.496, 420.802], [416.328, 423.684], [419.199, 426.606], [422.11, 429.569],
+       [425.062, 432.573], [428.056, 435.619], [431.092, 438.708], [434.171, 441.841],
+       [437.295, 445.02], [440.464, 448.244], [443.68, 451.516], [446.943, 454.836],
+       [450.254, 458.204], [453.615, 461.623], [457.026, 465.094], [460.489, 468.616],
+       [464.005, 472.193], [467.576, 475.825], [471.201, 479.513], [474.884, 483.258],
+       [478.624, 487.062], [482.424, 490.927], [486.285, 494.853], [490.209, 498.843],
+       [494.196, 502.897], [498.249, 507.018], [502.369, 511.207], [506.557, 515.466],
+       [510.817, 519.796], [515.148, 524.199], [519.554, 528.678], [524.036, 533.233],
+       [528.596, 537.868], [533.237, 541.585]]
+    order_spacing_px: [105.4, 262.1]  # derived from the G-CLEF optical design (2021-12 model)
+    resolving_power: 73300.0  # derived from the G-CLEF optical design (2021-12 model)
+    slit_pitch_px: 13.3  # derived from the G-CLEF optical design (2021-12 model)
+    detector:
+      name: blue CCD (STA1600)
+      npix_dispersion: 10560  # derived from the G-CLEF optical design (2021-12 model)
+      npix_cross_dispersion: 10560  # derived from the G-CLEF optical design (2021-12 model)
+      pixel_size_um: 9.0
+      raw_shape: null
+      gain_e_per_adu: null
+      read_noise_e: null
+      saturation_adu: null
   - name: red
-    channels: [S0, S1, S2, S3, S4, S5, S6, COMB, ETALON, THAR]
-    orders: []                   # TODO
-    wavelength_range_nm: null    # TODO
-    detector: {name: red}        # TODO
-
+    channels: [S0, S1, S2, S3, S4, S5, S6, CAL0, CAL1]
+    orders:  # derived from the G-CLEF optical design (2021-12 model)
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+       25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+       48, 49, 50]
+    echelle_orders:  # derived from the G-CLEF optical design (2021-12 model)
+      [114, 113, 112, 111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101, 100, 99, 98, 97, 96,
+       95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73,
+       72, 71, 70, 69, 68, 67, 66, 65, 64]
+    wavelength_range_nm: [534.4, 967.2]  # derived from the G-CLEF optical design (2021-12 model)
+    order_wavelength_ranges_nm:  # derived from the G-CLEF optical design (2021-12 model)
+      [[534.431, 543.272], [539.154, 548.077], [543.962, 552.968], [548.856, 557.948],
+       [553.839, 563.017], [558.913, 568.18], [564.081, 573.438], [569.345, 578.795],
+       [574.709, 584.252], [580.175, 589.813], [585.746, 595.481], [591.425, 601.259],
+       [597.215, 607.15], [603.119, 613.158], [609.142, 619.286], [615.286, 625.537],
+       [621.556, 631.916], [627.954, 638.427], [634.486, 645.073], [641.155, 651.858],
+       [647.965, 658.788], [654.922, 665.867], [662.031, 673.099], [669.295, 680.49],
+       [676.72, 688.046], [684.312, 695.77], [692.077, 703.671], [700.02, 711.752],
+       [708.147, 720.021], [716.465, 728.485], [724.981, 737.15], [733.703, 746.023],
+       [742.636, 755.113], [751.79, 764.426], [761.173, 773.972], [770.793, 783.76],
+       [780.659, 793.797], [790.782, 804.096], [801.171, 814.664], [811.836, 825.514],
+       [822.789, 836.657], [834.042, 848.105], [845.608, 859.87], [857.499, 871.965],
+       [869.729, 884.406], [882.314, 897.206], [895.269, 910.382], [908.61, 923.951],
+       [922.355, 937.93], [936.523, 952.337], [952.542, 967.194]]
+    order_spacing_px: [115.6, 367.2]  # derived from the G-CLEF optical design (2021-12 model)
+    resolving_power: 72900.0  # derived from the G-CLEF optical design (2021-12 model)
+    slit_pitch_px: 13.37  # derived from the G-CLEF optical design (2021-12 model)
+    detector:
+      name: red CCD (STA1600)
+      npix_dispersion: 10560  # derived from the G-CLEF optical design (2021-12 model)
+      npix_cross_dispersion: 10560  # derived from the G-CLEF optical design (2021-12 model)
+      pixel_size_um: 9.0
+      raw_shape: null
+      gain_e_per_adu: null
+      read_noise_e: null
+      saturation_adu: null
 notes:
-  - Which reference channels feed which arm is not recorded here (TODO).
+  - >-
+    Dichroic split ~540 nm: echelle order 114 (533-543 nm) is designed onto
+    both arms as the overlap order; orders on the chips beyond the dichroic
+    edge (blue 113, red 115-116) are left out.
+  - >-
+    Adjacent orders overlap in wavelength (blue by 4.1-4.7 nm) except for a 0.2
+    nm gap near 952.4 nm between red orders 65 and 64.
+  - >-
+    Wavelengths are the design's (vacuum enclosure); the design's red limit is
+    ~967 nm (order 64), not 1100 nm.
+  - >-
+    resolving_power is lambda over the dispersion times the projected width of
+    a 100 um PRV core (geometric, full width). The public papers quote R =
+    108,000 for PRV; the FWHM of a round core image is ~0.87 of its width.
+  - >-
+    Traces: within an order, adjacent PRV fibre positions are slit_pitch_px
+    apart across the dispersion; a 100 um core images to ~8 px. The design
+    models four of the nine PRV fibres, spanning 7 pitches (~93 px). Nine
+    fibres at this pitch would span 8 pitches (~107 px), as much as the bluest
+    order spacing (105 px). Which slit position each fibre occupies is not in
+    the design (slit_position null).
+  - >-
+    Pixel size 9 um: STA1600 (public); the design gives the 95.04 mm square
+    detector, which is 10560 such pixels.
+  - >-
+    Other modes in the same pseudo-slit (NS-PRV, MR, HT) are offset along the
+    dispersion and are not described here.

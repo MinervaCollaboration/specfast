@@ -16,6 +16,9 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.scripts]
+specfast-zemax2instrument = "specfast.optics.cli:main"
+
 [dependency-groups]
 # scipy is used only by the tests (least_squares outside the model).
 test = ["pytest>=8", "pytest-xdist>=3.5", "pytest-timeout>=2.3", "scipy>=1.11"]

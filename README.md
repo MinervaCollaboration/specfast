@@ -34,7 +34,8 @@ behind it.
 ## Status
 
 Skeleton (2026-11). Working and tested: conventions, run config, provenance,
-instrument descriptions (KiwiSpec provisional; G-CLEF placeholders), the
+instrument descriptions (KiwiSpec and G-CLEF provisional), the Zemax-design
+to instrument-description tool (`specfast-zemax2instrument`), the
 `ExtractedSpectrum` FITS format, and the Doppler forward model with its
 injection-recovery tests. Interfaces only: extraction, the multi-block
 fitting engine, combination.
@@ -53,6 +54,26 @@ doppler:
   wavelength: {degree: 3}
   reference: {model: iodine, atlas: iodine_atlas.fits}
 ```
+
+## Instrument descriptions from an optical design
+
+`specfast-zemax2instrument` (package `specfast.optics`) reads a Zemax
+design (`.zar` archive or `.zmx` lens file), traces it (3-D sequential ray
+trace with Zemax coordinate-break, grating and multi-configuration rules)
+and writes an instrument YAML: per arm, the echelle orders on the detector,
+their wavelength ranges, detector format, resolving power, order spacing
+and slit pitch. Facts the design lacks (names, channel roles, gain, read
+noise, site, pixel size) come from an overrides YAML; encrypted black boxes
+are never decrypted, and need a stand-in in the parameters YAML.
+
+```sh
+specfast-zemax2instrument design.zar --params trace.yaml \
+    --overrides facts.yaml --out instrument.yaml [--echellogram e.npz]
+```
+
+Design files, stand-in parameters derived from them and the echellogram
+belong to the design's owner: keep them out of this repository. Only the
+derived description is committed. See `python -m specfast.optics.cli -h`.
 
 ## Tests
 
