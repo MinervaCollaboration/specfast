@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "specfast"
+version = "0.0.1"
+description = "Precise radial velocities from echelle spectra: extraction and Doppler forward modelling (MINERVA/KiwiSpec first, G-CLEF later)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "astropy>=6.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# scipy is used only by the tests (least_squares outside the model).
+dev = ["pytest>=8", "ruff>=0.5", "scipy>=1.11"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+specfast = ["instruments/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "NPY"]
