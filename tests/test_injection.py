@@ -82,8 +82,10 @@ def test_noisy_pulls(scene):
         pulls.append((best["star"]["v"][0] - v) / s)
         chi2.append(2 * res.cost / (data.size - layout.size))
     pulls = np.array(pulls)
-    print(f"noisy: sigma_v ~ {np.median(sig_v):.2f} m/s, pull mean {pulls.mean():.2f}, "
-          f"pull std {pulls.std(ddof=1):.2f}, chi2_r {np.mean(chi2):.3f}")
+    print(
+        f"noisy: sigma_v ~ {np.median(sig_v):.2f} m/s, pull mean {pulls.mean():.2f}, "
+        f"pull std {pulls.std(ddof=1):.2f}, chi2_r {np.mean(chi2):.3f}"
+    )
     assert abs(pulls.mean()) < 4 / np.sqrt(n)
     assert abs(pulls.std(ddof=1) - 1) < 4 / np.sqrt(2 * (n - 1))
     dof = scene.model.pixels.size - 9
@@ -101,6 +103,7 @@ def test_no_gas_cell_with_known_wavelength():
         data = sc.model.evaluate(sc.params(v=v), ctx)
         start = sc.params(v=0.0)
         start["continuum"]["coeffs"] = start["continuum"]["coeffs"] * 1.02
-        best, *_ = fit_block(sc.model, data, np.ones_like(data), ctx, start,
-                             exclude=[("wavelength", "coeffs")])
+        best, *_ = fit_block(
+            sc.model, data, np.ones_like(data), ctx, start, exclude=[("wavelength", "coeffs")]
+        )
         assert best["star"]["v"][0] == pytest.approx(v, abs=1e-3 * K)

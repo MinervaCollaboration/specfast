@@ -29,9 +29,7 @@ class LnGrid:
     n: int
 
     @classmethod
-    def covering(
-        cls, lam_min: float, lam_max: float, step_kms: float, margin_kms: float
-    ) -> LnGrid:
+    def covering(cls, lam_min: float, lam_max: float, step_kms: float, margin_kms: float) -> LnGrid:
         """Grid covering [lam_min, lam_max] Angstrom plus ``margin_kms`` each side."""
         step = step_kms / C_KMS
         lo = np.log(lam_min) - margin_kms / C_KMS

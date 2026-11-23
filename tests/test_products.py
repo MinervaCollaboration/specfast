@@ -77,8 +77,9 @@ def test_exact_round_trip(tmp_path):
             assert np.array_equal(x, y)
         assert a.wavelength_source == b.wavelength_source
         for f in ("width_px", "centroid_px", "profile_chi2", "halo_fraction"):
-            assert np.array_equal(getattr(a.diagnostics, f), getattr(b.diagnostics, f),
-                                  equal_nan=True)
+            assert np.array_equal(
+                getattr(a.diagnostics, f), getattr(b.diagnostics, f), equal_nan=True
+            )
 
 
 def test_format_version_checked(tmp_path):
@@ -101,8 +102,17 @@ def test_shape_validation():
     rng = np.random.default_rng(0)
     a = _arm("main", ("T1",), (0,), 8, rng, wave=False)
     with pytest.raises(ValueError, match="uint32"):
-        ArmSpectrum(a.arm, a.channels, a.orders, a.flux, a.variance,
-                    a.mask.astype(np.int32), a.diagnostics)
+        ArmSpectrum(
+            a.arm, a.channels, a.orders, a.flux, a.variance, a.mask.astype(np.int32), a.diagnostics
+        )
     with pytest.raises(ValueError, match="wavelength_source"):
-        ArmSpectrum(a.arm, a.channels, a.orders, a.flux, a.variance, a.mask,
-                    a.diagnostics, wavelength=a.flux.copy())
+        ArmSpectrum(
+            a.arm,
+            a.channels,
+            a.orders,
+            a.flux,
+            a.variance,
+            a.mask,
+            a.diagnostics,
+            wavelength=a.flux.copy(),
+        )

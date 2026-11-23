@@ -56,8 +56,7 @@ def test_validation(tmp_path):
     with pytest.raises(ConfigError, match="unknown channels"):
         load_instrument(f)
     f.write_text(
-        "name: x\ndescription: d\nstatus: provisional\nwhatever: 1\n"
-        "channels: []\narms: []\n"
+        "name: x\ndescription: d\nstatus: provisional\nwhatever: 1\nchannels: []\narms: []\n"
     )
     with pytest.raises(ConfigError, match="unknown key"):
         load_instrument(f)

@@ -85,8 +85,12 @@ def test_pixel_integration_is_not_point_sampling():
     def cdf(x):
         return 0.5 * (1 + math.erf((x - mid) / (sig * math.sqrt(2))))
 
-    exact = np.array([(cdf(b) - cdf(a)) * sig * math.sqrt(2 * math.pi) / (b - a)
-                      for a, b in zip(edges[:-1], edges[1:], strict=True)])
+    exact = np.array(
+        [
+            (cdf(b) - cdf(a)) * sig * math.sqrt(2 * math.pi) / (b - a)
+            for a, b in zip(edges[:-1], edges[1:], strict=True)
+        ]
+    )
     assert np.allclose(pix, exact, rtol=2e-4, atol=1e-6)
     centres = 0.5 * (edges[1:] + edges[:-1])
     point = np.exp(-0.5 * ((centres - mid) / sig) ** 2)

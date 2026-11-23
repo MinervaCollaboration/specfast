@@ -1,0 +1,11 @@
+# Lint for specfast ([tool.ruff] in pyproject.toml).
+default_install_hook_types: [pre-commit]
+repos:
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+    -   id: ruff-check
+        args: [--fix, --fixable, I]
+        files: ^(src|tests|scripts)/
+    -   id: ruff-format
+        files: ^(src|tests|scripts)/

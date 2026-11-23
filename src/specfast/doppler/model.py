@@ -93,11 +93,13 @@ class ParameterLayout:
     def free(cls, model: ForwardModel, exclude: Iterable[tuple[str, str]] = ()) -> ParameterLayout:
         """All parameters not declared ``fixed`` and not in ``exclude``."""
         skip = set(exclude)
-        return cls(tuple(
-            (comp, s.name, s.size)
-            for comp, s in model.parameter_specs()
-            if not s.fixed and (comp, s.name) not in skip
-        ))
+        return cls(
+            tuple(
+                (comp, s.name, s.size)
+                for comp, s in model.parameter_specs()
+                if not s.fixed and (comp, s.name) not in skip
+            )
+        )
 
     @property
     def size(self) -> int:
@@ -106,15 +108,16 @@ class ParameterLayout:
     def pack(self, params: ModelParams) -> np.ndarray:
         if not self.entries:
             return np.zeros(0)
-        return np.concatenate([np.asarray(params[c][p], dtype=np.float64).reshape(n)
-                               for c, p, n in self.entries])
+        return np.concatenate(
+            [np.asarray(params[c][p], dtype=np.float64).reshape(n) for c, p, n in self.entries]
+        )
 
     def unpack(self, theta: np.ndarray, base: ModelParams) -> dict[str, dict[str, np.ndarray]]:
         """``base`` with the free parameters replaced from ``theta``."""
         out = {c: dict(v) for c, v in base.items()}
         i = 0
         for c, p, n in self.entries:
-            out.setdefault(c, {})[p] = np.asarray(theta[i:i + n], dtype=np.float64)
+            out.setdefault(c, {})[p] = np.asarray(theta[i : i + n], dtype=np.float64)
             i += n
         if i != len(theta):
             raise ValueError(f"theta has {len(theta)} values, layout needs {i}")

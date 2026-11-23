@@ -59,8 +59,15 @@ class Scene:
         return p
 
 
-def make_scene(seed=1, step_kms=0.25, gas_cell=True, template_step_kms=0.05, npix=NPIX,
-               iodine_sigma_kms=0.8, star_sigma_kms=3.0):
+def make_scene(
+    seed=1,
+    step_kms=0.25,
+    gas_cell=True,
+    template_step_kms=0.05,
+    npix=NPIX,
+    iodine_sigma_kms=0.8,
+    star_sigma_kms=3.0,
+):
     """A KiwiSpec-like order: synthetic star + synthetic iodine lines."""
     rng = np.random.default_rng(seed)
     disp = LAM0 * PIX_KMS / C_KMS  # Angstrom / px at the centre
@@ -131,9 +138,18 @@ def fit_block(model, data, sigma, ctx, start, exclude=()):
         p = layout.unpack(p0 + theta * scale, start)
         return (data - model.evaluate(p, ctx)) / sigma
 
-    res = least_squares(resid, np.zeros_like(p0), method="trf", jac="3-point",
-                        diff_step=1e-4, x_scale="jac", xtol=1e-14, ftol=1e-14,
-                        gtol=1e-14, max_nfev=2000)
+    res = least_squares(
+        resid,
+        np.zeros_like(p0),
+        method="trf",
+        jac="3-point",
+        diff_step=1e-4,
+        x_scale="jac",
+        xtol=1e-14,
+        ftol=1e-14,
+        gtol=1e-14,
+        max_nfev=2000,
+    )
     best = layout.unpack(p0 + res.x * scale, start)
     # Jacobian at the solution by central differences (fixed steps of 1e-3
     # parameter scales), for the covariance.
@@ -178,8 +194,7 @@ def exposures(n, seed, K=50.0, gamma=-1234.5, zb_kms=30.0):
 
 def recover_K(v_fit, phase):
     """Least-squares (gamma, K sin, K cos) fit to recovered velocities."""
-    A = np.column_stack([np.ones_like(phase), np.sin(2 * np.pi * phase),
-                         np.cos(2 * np.pi * phase)])
+    A = np.column_stack([np.ones_like(phase), np.sin(2 * np.pi * phase), np.cos(2 * np.pi * phase)])
     coef, *_ = np.linalg.lstsq(A, v_fit, rcond=None)
     return coef
 

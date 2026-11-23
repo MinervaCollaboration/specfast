@@ -64,8 +64,13 @@ class PolynomialWavelength(_PixelPolynomial):
 
     def parameters(self) -> tuple[ParameterSpec, ...]:
         return (
-            ParameterSpec("coeffs", self.degree + 1, PER_TRACE, "Angstrom",
-                          "polynomial coefficients in the scaled pixel t"),
+            ParameterSpec(
+                "coeffs",
+                self.degree + 1,
+                PER_TRACE,
+                "Angstrom",
+                "polynomial coefficients in the scaled pixel t",
+            ),
         )
 
     def evaluate(self, params: Params, coords, ctx: ExposureContext) -> np.ndarray:
@@ -85,8 +90,13 @@ class PolynomialContinuum(_PixelPolynomial):
 
     def parameters(self) -> tuple[ParameterSpec, ...]:
         return (
-            ParameterSpec("coeffs", self.degree + 1, PER_TRACE, "flux",
-                          "polynomial coefficients in the scaled pixel t"),
+            ParameterSpec(
+                "coeffs",
+                self.degree + 1,
+                PER_TRACE,
+                "flux",
+                "polynomial coefficients in the scaled pixel t",
+            ),
         )
 
     def evaluate(self, params: Params, coords, ctx: ExposureContext) -> np.ndarray:
@@ -114,8 +124,15 @@ class GaussianLSF:
 
     def parameters(self) -> tuple[ParameterSpec, ...]:
         return (
-            ParameterSpec("sigma", 1, Scope.CHANNEL | Scope.ORDER, "m/s",
-                          "Gaussian sigma in velocity", lower=0.0, fixed=True),
+            ParameterSpec(
+                "sigma",
+                1,
+                Scope.CHANNEL | Scope.ORDER,
+                "m/s",
+                "Gaussian sigma in velocity",
+                lower=0.0,
+                fixed=True,
+            ),
         )
 
     def evaluate(self, params: Params, coords: LnGrid, ctx: ExposureContext) -> np.ndarray:
@@ -149,8 +166,13 @@ class StarTemplate:
 
     def parameters(self) -> tuple[ParameterSpec, ...]:
         return (
-            ParameterSpec("v", 1, Scope.EXPOSURE | Scope.SEGMENT, "m/s",
-                          "barycentric redshift velocity c*z (positive = receding)"),
+            ParameterSpec(
+                "v",
+                1,
+                Scope.EXPOSURE | Scope.SEGMENT,
+                "m/s",
+                "barycentric redshift velocity c*z (positive = receding)",
+            ),
         )
 
     def evaluate(self, params: Params, coords: np.ndarray, ctx: ExposureContext) -> np.ndarray:
@@ -187,9 +209,7 @@ class IodineCell:
         return cls(lnlam=lnlam, tau=-np.log(t), **kw)
 
     def parameters(self) -> tuple[ParameterSpec, ...]:
-        return (
-            ParameterSpec("k", 1, PER_TRACE, "", "optical-depth scale", lower=0.0),
-        )
+        return (ParameterSpec("k", 1, PER_TRACE, "", "optical-depth scale", lower=0.0),)
 
     def evaluate(self, params: Params, coords: np.ndarray, ctx: ExposureContext) -> np.ndarray:
         return np.exp(-params["k"][0] * np.interp(coords, self.lnlam, self.tau))

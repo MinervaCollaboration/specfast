@@ -9,8 +9,7 @@ GOOD = {
     "schema_version": 1,
     "instrument": "kiwispec",
     "paths": {"output": "out", "raw": "raw"},
-    "doppler": {"wavelength": {"degree": 4}, "reference": {"model": "none"},
-                "orders": [1, 2, 3]},
+    "doppler": {"wavelength": {"degree": 4}, "reference": {"model": "none"}, "orders": [1, 2, 3]},
 }
 
 

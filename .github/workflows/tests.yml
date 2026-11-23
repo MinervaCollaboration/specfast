@@ -1,0 +1,99 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  # No `branches:` filter: a PR against any base gets CI.
+  pull_request:
+  workflow_dispatch:
+
+# A new push to a PR supersedes the run for the previous push; pushes to
+# main always run to completion.
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # NOTE ON JOB NAMES: branch rules require the check named `test` (the gate
+  # job at the bottom), never the matrix checks ("pytest (3.12)", ...), so a
+  # matrix change never breaks the rule.
+
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # One BLAS/OpenMP thread per process: pytest-xdist supplies the parallelism.
+    env:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # provenance tests read `git describe`
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade "pip>=25.1"
+          python -m pip install -e . --group test
+      - name: Run tests
+        run: python -m pytest -n auto --durations=10
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Cache the pre-commit hook environments
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Install pre-commit
+        run: python -m pip install "pre-commit>=4,<5"
+      - name: Run the pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  # Packaging: `pip install .` into a clean venv (no checkout on the path)
+  # gives an importable specfast with its instrument descriptions.
+  install:
+    name: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install the package into a clean venv and smoke-test it
+        run: scripts/check_install.sh "${{ runner.temp }}/install-venv"
+
+  # The one check branch rules should require.
+  test:
+    name: test
+    if: always()
+    needs: [pytest, lint, install]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any required job did not succeed
+        run: |
+          echo "pytest:  ${{ needs.pytest.result }}"
+          echo "lint:    ${{ needs.lint.result }}"
+          echo "install: ${{ needs.install.result }}"
+          test "${{ needs.pytest.result }}" = "success"
+          test "${{ needs.lint.result }}" = "success"
+          test "${{ needs.install.result }}" = "success"

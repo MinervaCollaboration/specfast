@@ -191,8 +191,11 @@ class ExtractedSpectrum:
         prim.header["DATE-OBS"] = (hdr.date_obs_utc, "shutter open, UTC")
         prim.header["EXPTIME"] = (hdr.exptime_s, "[s]")
         prim.header["SFVERSN"] = (self.provenance.package_version, "specfast version")
-        hdus = [prim, _json_hdu("HEADER", hdr.to_json()),
-                _json_hdu("PROVENANCE", self.provenance.to_json())]
+        hdus = [
+            prim,
+            _json_hdu("HEADER", hdr.to_json()),
+            _json_hdu("PROVENANCE", self.provenance.to_json()),
+        ]
         for a in self.arms:
             tag = a.arm.upper()
             for ext, data in (("FLUX", a.flux), ("VAR", a.variance), ("MASK", a.mask)):
@@ -226,7 +229,7 @@ class ExtractedSpectrum:
             for h in hl:
                 if not h.name.startswith("TRACES_"):
                     continue
-                tag = h.name[len("TRACES_"):]
+                tag = h.name[len("TRACES_") :]
                 arms.append(_read_arm(hl, tag, h))
         return cls(header=header, arms=tuple(arms), provenance=prov)
 
@@ -253,8 +256,11 @@ def _traces_hdu(a: ArmSpectrum) -> fits.BinTableHDU:
         fits.Column(name="ORDER", format="K", array=order),
     ]
     for name in _DIAG_COLUMNS:
-        cols.append(fits.Column(name=name.upper(), format="D",
-                                array=getattr(a.diagnostics, name).reshape(-1)))
+        cols.append(
+            fits.Column(
+                name=name.upper(), format="D", array=getattr(a.diagnostics, name).reshape(-1)
+            )
+        )
     h = fits.BinTableHDU.from_columns(cols, name=f"TRACES_{a.arm.upper()}")
     h.header["ARM"] = a.arm
     return h
@@ -267,10 +273,12 @@ def _read_arm(hl: fits.HDUList, tag: str, traces: fits.BinTableHDU) -> ArmSpectr
     channels = tuple(dict.fromkeys(chan))
     orders = tuple(dict.fromkeys(order))
     shape = (len(channels), len(orders))
-    diag = TraceDiagnostics(**{
-        n: np.asarray(traces.data[n.upper()], dtype=np.float64).reshape(shape)
-        for n in _DIAG_COLUMNS
-    })
+    diag = TraceDiagnostics(
+        **{
+            n: np.asarray(traces.data[n.upper()], dtype=np.float64).reshape(shape)
+            for n in _DIAG_COLUMNS
+        }
+    )
     wave, src = None, None
     if f"WAVE_{tag}" in hl:
         wave = np.asarray(hl[f"WAVE_{tag}"].data, dtype=np.float64)
