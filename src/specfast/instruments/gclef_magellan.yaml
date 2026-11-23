@@ -1,0 +1,34 @@
+# G-CLEF on Magellan. PLACEHOLDER: only public headline facts are recorded;
+# every unknown number is null. Nothing here derives from the
+# (collaboration-private) optical design.
+name: gclef_magellan
+description: >-
+  G-CLEF on Magellan: fibre-fed echelle, two arms split by a dichroic,
+  ~350-1100 nm in total, no gas cell; simultaneous laser-comb, etalon and
+  ThAr reference channels; pupil-sliced science fibre with one slice on
+  Magellan.
+status: placeholder
+gas_cell: none
+wavelength_range_nm: [350.0, 1100.0]    # approximate, both arms together
+site: null                              # TODO
+
+channels:
+  - {name: S0, role: science, telescope: Magellan, slice_index: 0}
+  - {name: COMB, role: reference_comb}
+  - {name: ETALON, role: reference_etalon}
+  - {name: THAR, role: reference_thar}
+
+arms:
+  - name: blue
+    channels: [S0, COMB, ETALON, THAR]
+    orders: []                   # TODO
+    wavelength_range_nm: null    # TODO: dichroic split
+    detector: {name: blue}       # TODO: geometry, gain, read noise
+  - name: red
+    channels: [S0, COMB, ETALON, THAR]
+    orders: []                   # TODO
+    wavelength_range_nm: null    # TODO
+    detector: {name: red}        # TODO
+
+notes:
+  - Which reference channels feed which arm is not recorded here (TODO).
