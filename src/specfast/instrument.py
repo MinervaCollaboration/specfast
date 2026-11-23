@@ -3,7 +3,10 @@
 An :class:`Instrument` has arms (one detector each, with an order range),
 channels (a telescope fibre, a pupil slice, or a reference/calibration
 fibre) and traces (channel x order on an arm), plus era breaks, both
-instrument-wide and per channel. Descriptions are YAML files: the shipped
+instrument-wide and per channel. An instrument with several observing
+modes (fibre sets of different core size, resolving power or slicing)
+lists them as :class:`Mode`; a run selects one, and only that mode's
+channels carry light. Descriptions are YAML files: the shipped
 ones live in ``specfast/instruments/`` and are loaded by name; any other
 file can be loaded by path.
 
@@ -124,6 +127,51 @@ class Arm:
     notes: str = ""
 
 
+FibreShape = Literal["round", "hexagonal", "octagonal", "square", "rectangular"]
+
+
+@dataclass(frozen=True)
+class ModeArm:
+    """What one observing mode looks like on one arm (derived from an
+    optical design, or None when unknown)."""
+
+    #: Arm name.
+    name: str
+    #: Resolving power of this mode's fibre on this arm, by the same
+    #: definition as ``Arm.resolving_power`` (None = unknown).
+    resolving_power: float | None = None
+    #: Distance across the dispersion between adjacent slit positions of
+    #: this mode [pixels] (None = unknown).
+    slit_pitch_px: float | None = None
+    #: Offset along the dispersion of this mode's fibre row from the arm's
+    #: reference trace, at the same wavelength [pixels] (None = unknown).
+    dispersion_offset_px: float | None = None
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class Mode:
+    """An observing mode: which channels carry light, and through what
+    fibres. Channels are logical (the first science fibre is ``S0`` in
+    every mode); the fibres behind them differ from mode to mode."""
+
+    name: str
+    #: Channels that carry light in this mode (a subset of the instrument's).
+    channels: tuple[str, ...]
+    #: Telescope interface feeding this mode (e.g. "natural seeing", "MagAO-X").
+    interface: str | None = None
+    #: Fibre core diameter (flat to flat for polygons) [um] (None = unknown).
+    fibre_core_um: float | None = None
+    fibre_shape: FibreShape | None = None
+    #: Sky field of each science fibre [arcsec] (None = unknown).
+    field_of_view_arcsec: float | None = None
+    #: Resolving power as published for the mode (None = unknown). Design
+    #: values per arm, by this package's definition, are in ``arms``.
+    resolving_power_quoted: float | None = None
+    arms: tuple[ModeArm, ...] = ()
+    notes: str = ""
+
+
 @dataclass(frozen=True)
 class Trace:
     """One extracted spectrum: a channel in an order on an arm."""
@@ -210,6 +258,11 @@ class Instrument:
     eras: tuple[Era, ...] = ()
     excluded: tuple[ExcludedWindow, ...] = ()
     channel_breaks: tuple[ChannelBreak, ...] = ()
+    #: Observing modes; empty = one implicit mode using every channel.
+    modes: tuple[Mode, ...] = ()
+    #: Mode used when a run names none (None = a run must name one, if
+    #: there are modes).
+    default_mode: str | None = None
     notes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -231,15 +284,36 @@ class Instrument:
     def science_channels(self) -> tuple[Channel, ...]:
         return tuple(c for c in self.channels if c.role == "science")
 
-    def traces(self, arm: str) -> tuple[Trace, ...]:
-        """Every live trace on an arm, order-major, channels in arm order."""
+    def mode(self, name: str | None = None) -> Mode | None:
+        """The named mode, or the default when ``name`` is None. None for an
+        instrument without modes (every channel carries light)."""
+        if not self.modes:
+            if name is not None:
+                raise KeyError(f"{self.name}: has no modes (asked for {name!r})")
+            return None
+        name = name if name is not None else self.default_mode
+        if name is None:
+            raise ConfigError(
+                f"{self.name}: no default mode; choose one of {[m.name for m in self.modes]}"
+            )
+        for m in self.modes:
+            if m.name == name:
+                return m
+        raise KeyError(f"{self.name}: no mode {name!r}")
+
+    def traces(self, arm: str, mode: str | None = None) -> tuple[Trace, ...]:
+        """Every live trace on an arm, order-major, channels in arm order.
+        With modes, only the selected mode's channels (``mode`` None = the
+        default mode)."""
         a = self.arm(arm)
         absent = set(a.absent_traces)
+        md = self.mode(mode)
+        lit = set(md.channels) if md is not None else set(a.channels)
         return tuple(
             Trace(a.name, ch, o)
             for o in a.orders
             for ch in a.channels
-            if TraceRef(ch, o) not in absent
+            if ch in lit and TraceRef(ch, o) not in absent
         )
 
     # ------------------------------------------------------------------ eras
@@ -312,6 +386,27 @@ class Instrument:
             bad = set(b.channels) - known
             if bad:
                 raise ConfigError(f"{where}: channel break {b.date} names {sorted(bad)}")
+        mnames = [m.name for m in self.modes]
+        if len(set(mnames)) != len(mnames):
+            raise ConfigError(f"{where}: duplicate mode names {mnames}")
+        if self.default_mode is not None and self.default_mode not in mnames:
+            raise ConfigError(f"{where}: default_mode {self.default_mode!r} is not a mode")
+        on_arms = {c for a in self.arms for c in a.channels}
+        arm_names = {a.name for a in self.arms}
+        for m in self.modes:
+            if not m.channels:
+                raise ConfigError(f"{where}: mode {m.name!r} has no channels")
+            bad = set(m.channels) - known
+            if bad:
+                raise ConfigError(f"{where}: mode {m.name!r} has unknown channels {sorted(bad)}")
+            off = set(m.channels) - on_arms
+            if off:
+                raise ConfigError(f"{where}: mode {m.name!r} channels {sorted(off)} on no arm")
+            for ma in m.arms:
+                if ma.name not in arm_names:
+                    raise ConfigError(f"{where}: mode {m.name!r} names unknown arm {ma.name!r}")
+            if len({ma.name for ma in m.arms}) != len(m.arms):
+                raise ConfigError(f"{where}: mode {m.name!r} repeats an arm")
 
 
 def load_instrument(name_or_path: str | Path) -> Instrument:

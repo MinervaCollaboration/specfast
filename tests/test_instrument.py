@@ -37,13 +37,15 @@ def test_kiwispec_eras():
     assert k.channel_epoch("T1", dt.date(2018, 12, 22)) == 1
 
 
-@pytest.mark.parametrize("name, nslices", [("gclef_magellan", 1), ("gclef_gmt", 7)])
-def test_gclef(name, nslices):
+@pytest.mark.parametrize("name", ["gclef_magellan", "gclef_gmt"])
+def test_gclef(name):
     g = load_instrument(name)
     assert g.status == "provisional" and g.gas_cell == "none"
-    assert len(g.science_channels()) == nslices
-    cal = [c for c in g.channels if c.role == "calibration"]
-    assert len(cal) == 2 and all({"comb", "etalon", "thar"} <= set(c.sources) for c in cal)
+    # simultaneous references ride selectable fibres: GMT calibration fibres,
+    # Magellan sky fibres
+    role = "calibration" if name == "gclef_gmt" else "sky"
+    cal = [c for c in g.channels if c.role == role]
+    assert cal and all({"comb", "etalon", "thar"} <= set(c.sources) for c in cal)
     blue, red = g.arms
     assert (blue.name, red.name) == ("blue", "red")
     # the overlap order 114 is on both arms; blue holds the higher orders
@@ -59,6 +61,65 @@ def test_gclef(name, nslices):
         # unknowns stay unknown
         assert a.detector.gain_e_per_adu is None and a.detector.read_noise_e is None
     assert g.site is None
+
+
+def test_gclef_gmt_modes():
+    g = load_instrument("gclef_gmt")
+    assert [m.name for m in g.modes] == ["PRV", "NS-PRV", "MR", "HT"]
+    prv = g.mode()
+    assert prv.name == "PRV" and prv.fibre_core_um == 100.0
+    assert len([c for c in prv.channels if g.channel(c).role == "science"]) == 7
+    mr = g.mode("MR")
+    assert len(g.traces("blue", "MR")) == 3 * len(g.arm("blue").orders)
+    for a in g.arms:
+        r = {m.name: next(x for x in m.arms if x.name == a.name) for m in g.modes}
+        # resolving power scales as 1 / core
+        assert r["MR"].resolving_power * mr.fibre_core_um == pytest.approx(
+            r["PRV"].resolving_power * prv.fibre_core_um, rel=0.03
+        )
+        # each mode is its own fibre row, apart along the dispersion
+        offs = sorted(abs(x.dispersion_offset_px) for x in r.values())
+        assert offs[0] > 5
+
+
+def test_gclef_magellan_modes():
+    g = load_instrument("gclef_magellan")
+    assert {m.name for m in g.modes} == {"MR", "HR", "XHR", "MagAO-X", "MagAO-X-IFU"}
+    with pytest.raises(ConfigError, match="no default mode"):
+        g.mode()
+    xhr = g.mode("XHR")
+    assert len([c for c in xhr.channels if g.channel(c).role == "science"]) == 4
+    assert {t.channel for t in g.traces("red", "HR")} == {"S0", "K0"}
+    assert len({t.channel for t in g.traces("red", "MagAO-X-IFU")}) == 16
+
+
+def test_no_modes():
+    k = load_instrument("kiwispec")
+    assert k.mode() is None
+    with pytest.raises(KeyError):
+        k.mode("PRV")
+
+
+def test_mode_validation(tmp_path):
+    f = tmp_path / "m.yaml"
+    base = (
+        "name: x\ndescription: d\nstatus: provisional\n"
+        "channels: [{name: A, role: science}, {name: B, role: sky}]\n"
+        "arms: [{name: m, channels: [A], orders: [0], detector: {name: d}}]\n"
+    )
+    cases = [
+        ("modes: [{name: a, channels: [C]}]", "unknown channels"),
+        ("modes: [{name: a, channels: [B]}]", "on no arm"),
+        ("modes: [{name: a, channels: []}]", "no channels"),
+        ("modes: [{name: a, channels: [A]}, {name: a, channels: [A]}]", "duplicate mode"),
+        ("modes: [{name: a, channels: [A]}]\ndefault_mode: b", "not a mode"),
+        ("modes: [{name: a, channels: [A], arms: [{name: z}]}]", "unknown arm"),
+        ("modes: [{name: a, channels: [A], fibre_shape: oval}]", "not one of"),
+    ]
+    for extra, msg in cases:
+        f.write_text(base + extra + "\n")
+        with pytest.raises(ConfigError, match=msg):
+            load_instrument(f)
 
 
 def test_gclef_sites_differ_only_in_feed():

@@ -157,6 +157,14 @@ def test_cli_writes_loadable_yaml(tmp_path):
         ],
         "reference_point": "axis",
         "core_mm": 0.05,
+        "modes": [
+            {"name": "wide", "point": "a", "core_mm": 0.1},
+            {
+                "name": "pair",
+                "point": "axis",
+                "slit_pitch": {"from": "a", "to": "b", "positions": 2},
+            },
+        ],
         "arms": [
             {
                 "name": "main",
@@ -182,6 +190,11 @@ def test_cli_writes_loadable_yaml(tmp_path):
                 "detector": {"name": "ccd", "pixel_size_um": 10.0, "gain_e_per_adu": None},
             }
         ],
+        "modes": [
+            {"name": "wide", "channels": ["A"], "fibre_core_um": 100.0},
+            {"name": "pair", "channels": ["A", "B"]},
+        ],
+        "default_mode": "pair",
     }
     (tmp_path / "p.yaml").write_text(yaml.safe_dump(params))
     (tmp_path / "o.yaml").write_text(yaml.safe_dump(overrides))
@@ -221,3 +234,14 @@ def test_cli_writes_loadable_yaml(tmp_path):
     assert arm.slit_pitch_px == pytest.approx(0.1 * 2 / 0.01 / np.sqrt(1 - 0.1**2), rel=2e-3)
     assert arm.resolving_power > 0
     assert np.load(tmp_path / "e.npz")["main_xy_mm"].shape[1] == 3
+    wide, pair = inst.modes
+    assert inst.mode() is pair and inst.mode("wide").fibre_core_um == 100.0
+    (wa,) = wide.arms
+    # twice the core of the arm's reference fibre: half the resolving power
+    assert wa.resolving_power == pytest.approx(arm.resolving_power / 2, rel=0.02)
+    # point "a" is offset across the slit only: no offset along the dispersion
+    assert abs(wa.dispersion_offset_px) < 0.5
+    assert pair.arms[0].resolving_power is None
+    assert pair.arms[0].slit_pitch_px == arm.slit_pitch_px
+    assert {t.channel for t in inst.traces("main", "wide")} == {"A"}
+    assert {t.channel for t in inst.traces("main")} == {"A", "B"}

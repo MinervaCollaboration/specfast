@@ -284,3 +284,22 @@ def _resolving_power(sys, p, m, lam_c, dxy_dlam, core_mm):
     J = np.stack([(xy[0] - xy[1]) / (2 * h), (xy[2] - xy[3]) / (2 * h)], axis=1)
     width = core_mm * float(np.linalg.norm(J.T @ e))
     return float(lam_c * np.hypot(*dxy_dlam) / width)
+
+
+def point_facts(
+    sys: System, eg: Echellogram, point: int, core_mm: float | None
+) -> list[tuple[float | None, float]]:
+    """Per order of ``eg``: (resolving power of a fibre of diameter
+    ``core_mm`` at ``point``, or None without a core; offset of ``point``'s
+    image along the dispersion from the reference point's at the same
+    wavelength [mm]). Both at each order's centre wavelength."""
+    p = eg.points[point]
+    out = []
+    for o in eg.orders:
+        lam_c = o.lam_centre
+        h = 1e-5 * lam_c
+        xy = _positions(sys, [p, eg.points[eg.ref]], np.array([lam_c - h, lam_c, lam_c + h]), o.m)
+        dxy = (xy[0, 2] - xy[0, 0]) / (2 * h)
+        R = _resolving_power(sys, p, o.m, lam_c, dxy, core_mm) if core_mm else None
+        out.append((R, float(xy[0, 1, eg.disp_axis] - xy[1, 1, eg.disp_axis])))
+    return out

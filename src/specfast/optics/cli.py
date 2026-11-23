@@ -33,6 +33,12 @@ optional unless marked:
 ``arms``             ``[{name, config, m_range: [lo, hi], m_lambda_um,
                      slit_pitch: {from, to, positions}, complete_only}]``
                      (default: one arm per ``--config``)
+``modes``            ``[{name, point, core_mm, slit_pitch: {from, to,
+                     positions}}]``: observing modes whose fibres the design
+                     models; per arm, the tool derives each mode's
+                     resolving power (fibre of ``core_mm`` at ``point``),
+                     its row's offset along the dispersion and its slit
+                     pitch. The overrides must give each mode's channels.
 
 The overrides file (YAML) is merged on top of the generated description:
 names, channels and roles, gain, read noise, site and so on. Each arm's
@@ -88,7 +94,7 @@ def air_index(lam_um: float, t_c: float, p_atm: float) -> float:
 
 
 def trace_arms(lens: Lens, glasses: GlassLibrary, params: dict, configs: list[int]):
-    """Echellogram per arm: list of (arm spec, Echellogram)."""
+    """Echellogram per arm: list of (arm spec, Echellogram, System)."""
     arms = params.get("arms") or [{"name": f"arm{c}", "config": c} for c in configs]
     standins = {int(k): StandIn(**v) for k, v in (params.get("standins") or {}).items()}
     if params.get("points"):
@@ -133,14 +139,14 @@ def trace_arms(lens: Lens, glasses: GlassLibrary, params: dict, configs: list[in
             core_mm=params.get("core_mm"),
             m_range=mr,
         )
-        out.append((spec, eg))
+        out.append((spec, eg, system))
     return out, points
 
 
-def save_echellogram(path: Path, results: list[tuple[dict, Echellogram]], points) -> None:
+def save_echellogram(path: Path, results: list[tuple[dict, Echellogram, System]], points) -> None:
     """All traced positions (private product: derived from the design)."""
     data = {"point_names": np.array([p.name for p in points])}
-    for spec, eg in results:
+    for spec, eg, _ in results:
         a = spec["name"]
         data[f"{a}_m"] = np.array([o.m for o in eg.orders])
         data[f"{a}_lam_um"] = np.array([o.lam for o in eg.orders])
@@ -157,7 +163,7 @@ def save_echellogram(path: Path, results: list[tuple[dict, Echellogram]], points
 
 def summary(results, pixel_um: dict[str, float]) -> str:
     lines = []
-    for spec, eg in results:
+    for spec, eg, _ in results:
         a = spec["name"]
         pix = pixel_um.get(a)
         lines.append(
@@ -219,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ov_arms = {a["name"]: a for a in overrides.get("arms", []) if isinstance(a, dict)}
     pixel_um = {}
-    for spec, _ in results:
+    for spec, _, _ in results:
         p = (ov_arms.get(spec["name"], {}).get("detector") or {}).get(
             "pixel_size_um", args.pixel_um
         )
@@ -231,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
         scale = air_index(0.55, lens.temperature_c, lens.pressure_atm)
     names = [p.name for p in points]
     gen_arms = []
-    for spec, eg in results:
+    for spec, eg, _ in results:
         sp = spec.get("slit_pitch")
         pitch = (
             (names.index(sp["from"]), names.index(sp["to"]), float(sp["positions"])) if sp else None
@@ -241,6 +247,29 @@ def main(argv: list[str] | None = None) -> int:
         )
         gen_arms.append({"name": spec["name"], **facts})
     generated = {"arms": gen_arms}
+    gen_modes = []
+    for mspec in params.get("modes") or []:
+        mp = mspec.get("slit_pitch")
+        mpitch = (
+            (names.index(mp["from"]), names.index(mp["to"]), float(mp["positions"])) if mp else None
+        )
+        if mspec["point"] not in names:
+            raise SystemExit(f"mode {mspec['name']}: no point {mspec['point']!r}")
+        marms = []
+        for spec, eg, system in results:
+            f = emit.mode_arm_facts(
+                system,
+                eg,
+                pixel_um[spec["name"]],
+                names.index(mspec["point"]),
+                mspec.get("core_mm"),
+                mpitch,
+                spec.get("complete_only", True),
+            )
+            marms.append({"name": spec["name"], **f})
+        gen_modes.append({"name": mspec["name"], "arms": marms})
+    if gen_modes:
+        generated["modes"] = gen_modes
     lo = min(a["wavelength_range_nm"][0] for a in gen_arms)
     hi = max(a["wavelength_range_nm"][1] for a in gen_arms)
     generated["wavelength_range_nm"] = [lo, hi]
