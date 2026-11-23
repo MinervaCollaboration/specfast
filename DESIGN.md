@@ -32,8 +32,8 @@ in the Wilson+19 window (3 telescopes).
    - ~350-1100 nm on two detectors split by a dichroic;
    - pupil-sliced fibres, one slice per mirror (seven on GMT); Magellan
      uses one;
-   - optical model: Zemax/PyEchelle file on radish,
-     `~/Downloads/GCLEF_MF12032021_PyEchelle.zar` (not in any repo).
+   - optical model: the G-CLEF Zemax/PyEchelle design
+     (collaboration-private; never in this repo).
 
    So the instrument description (arms, detectors, orders, fibres and
    slices), the wavelength reference (iodine forward model, or drift from a
@@ -181,10 +181,9 @@ high-S/N exposures, with the instrument calibration held fixed.
 
 ## KiwiSpec optical model (first results, 2026-11-20)
 
-Reconstructed from the Zemax lens file (three encrypted black boxes: the
-input relay, the VPH grating of the grism cross-disperser, the camera)
-and the SPIE papers; code and write-up in the collaboration's private
-docs area (not in this repo yet).
+Reconstructed from the instrument's optical design and the SPIE papers.
+The design files, code and write-up are collaboration-private and stay
+out of this repo.
 
 - 7 physical constants per hardware era (camera focal length, one
   distortion term, detector rotation, fibre-line angle, echelle gamma

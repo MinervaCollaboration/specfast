@@ -94,9 +94,8 @@ below, local only); results `/pool/radish1/minerva-rv/work/results/`.
 
 - 7 constants per era fit iodine-anchored wavelength solutions to
   0.04-0.05 px. Details in DESIGN.md.
-- The model is in the collaboration-private docs area
-  (`/pool/radish1/minerva-rv/docs/kiwispec/`), which must not leave the
-  collaboration.
+- The model and its write-up are collaboration-private and stay out of
+  this repo.
 
 ## 2026-11-20 Wavelength ladder and stitching search (branch wavemodel)
 
@@ -205,17 +204,17 @@ Results: `work/results/freelsf/`; plots in `work/plots/freelsf/`.
   this; specfast's extraction requirements go in DESIGN.md.
 - Legacy pipeline: v0.x fits each trace alone and zeroes windows below
   20 counts; v1.0.0 fits all 116 profiles per column jointly, plus a
-  polynomial background. Raw 2D frames: gateway /nas/kiwispec/nYYYYMMDD/.
+  polynomial background. Raw 2D frames are in the observatory archive.
 - Results: `work/xtalk/`. Raw frames: `data/raw2d/`.
 
 ## 2026-11-21 Guiding and flux-weighted midpoints (branch fluxmid)
 
-Data found on the gateway NAS:
-- FAU guide images, `/nas/t{1-4}/nYYYYMMDD/*.FAU.*`, 2015-2026. 2,324 of
+Data found in the observatory archive:
+- FAU guide images, 2015-2026. 2,324 of
   the 2,451 (exposure, telescope) pairs are usable.
-- Guide-loop logs, `/nas/log/<night>/control.log`: star and fibre
+- Guide-loop logs (minerva-control): star and fibre
   position per guide frame.
-- Exposure meter, `/nas/kiwilog/<night>/expmeter.dat`: 1 Hz, summed over
+- Exposure-meter logs: 1 Hz, summed over
   all four fibres, 2016-2020 only.
 - FLUXMID: minerva-control writes UNKNOWN. The old IDL values are
   unreliable (r = 0.04 against the FAU). The code uses DATE-OBS +
@@ -266,12 +265,12 @@ Paths: `data/fau_stamps/`, `data/fau_logs/`, `data/expmeter/`,
 
 ## 2026-11-21 Pre-2018 extractions were never redone
 
-- In our copies and in the gateway's `/Data/kiwispec-proc`, 2016 to
+- In our copies and in the archived pipeline products, 2016 to
   mid-2018 is still v0.1-v0.6: per-trace +/-5 px window fits that zero
   low-flux windows. Five versions in two years.
 - v1.0.0 (joint fit of all traces in a column, plus background) was
   only ever run forward from mid-2018.
-- Raw 2D frames for every night are on `/nas/kiwispec/`. A re-extraction
+- Raw 2D frames for every night are in the archive. A re-extraction
   test is proposed.
 
 ## 2026-11-21 Literature: MAROON-X (what it says about our suspects)
@@ -329,7 +328,7 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
 
 ## 2026-11-21: The two iodine atlases differ by air dispersion
 
-Both atlases are in the gateway's `~/minerva-pipeline/minerva_dopcode/templates/`:
+Both atlases ship with the legacy pipeline (`minerva_dopcode/templates/`):
 
 - `MINERVA_I2_0.1_nm.npy`:
   - 500-620 nm, resampled to a uniform grid in wavelength;
@@ -430,11 +429,11 @@ L0 RVs, same exposures (rms / nightly / within-night, m/s):
 Verdict: don't reprocess the archive with v1.0.0. It fixes the stale
 wavelength (already handled by the preshift) but loses faint frames and
 doesn't improve bright ones. A full redo would be ~10,000 frames, ~430
-CPU-h and ~190 GB from the gateway. Keep these products as an alternative
+CPU-h and ~190 GB from the archive. Keep these products as an alternative
 for the two stars; wait for specfast's extraction (see DESIGN "Extraction").
 
 Originals verified unchanged (sha256 of 1,423 local files; size, mtime and
-inode of 741 gateway files). Products and README:
+inode of 741 archive files). Products and README:
 `/pool/radish1/minerva-rv/data/reextract_v1/`; RV results:
 `work/results/reextract/`; Charlie branch `reextract` (f35bb48, 8595a84).
 
@@ -548,7 +547,7 @@ tau Cet nightly 6.19, sqrt(chi2_r) 2.23, BC slope +0.26 m/s per km/s.
   6.03, clean model with shared column 4.65 (still BC-correlated through
   orders 18-19). Matches the mask; doesn't beat it.
 
-**CAMAL** (gateway `/nas/camal/data`, 154 nights 2017-05..2018-06; 780 /
+**CAMAL** (archived data, 154 nights 2017-05..2018-06; 780 /
 823 / 860 nm photometry): as reduced (every 15th triplet, per-star
 Langley), its water index correlates only r ~ 0.3 with the spectral column
 and surface humidity on 21 overlap nights. The spectral column is the
@@ -638,7 +637,7 @@ conclusion that they add more noise than signal):**
 
 Full-run cost if ever wanted: ~10,000 frames; ~64 CPU-h extraction (22 s
 per frame against v1.0.0's ~155 s) plus ~42 CPU-h of L0 fits; ~190 GB
-streamed from the gateway (~18 h); ~73 GB of products; ~1 day of wall time
+streamed from the archive (~18 h); ~73 GB of products; ~1 day of wall time
 at 8 processes.
 
 Code: Charlie branch `extract2` (ee8441b..4e256fd, local). Data:
@@ -672,11 +671,11 @@ log.
 ### Full run result (2026-11-23)
 
 - **Frames:** 10,433 of 10,435 pre-2018-07 frames extracted (5,341
-  daytime, 5,092 stellar). The 2 failures are bad raw files on the gateway
+  daytime, 5,092 stellar). The 2 failures are bad raw files in the archive
   (n20171027.daytimeSkyExpmeter.0032 is 0 bytes; n20170410.HD97601.0024 has
   no FITS header). Flagged: 1,454 nearest-night biases, 2016 frames on the
   2018-19 flat stack, 1,442 frames with all four telescopes dark.
-- **Cost:** ~17 h wall (gateway transfer 0.6-2 MB/s), ~105 GB streamed,
+- **Cost:** ~17 h wall (archive transfer 0.6-2 MB/s), ~105 GB streamed,
   ~22 s CPU per frame, 48 GB of products.
 - **Faint frames:** with the 150-count floor removed, all 21 HD 122064
   frames v1.0.0 lost come back (288 exposures vs 213 original). The 60
