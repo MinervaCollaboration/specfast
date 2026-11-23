@@ -790,7 +790,23 @@ Nightly / total rms m/s:
 
 specfast: allow per-telescope offsets at the 2018-07-01, 2018-12-22 and
 2019-09-18 breaks, and a static per-(tel, era) h3; test both on all
-standards. Test 2 on the full re-extraction is pending.
+standards.
+
+**Test 2 on the full re-extraction** (216 of 501 nights, 1,627 exposure-tel
+rows; re-run when the full run completes): cross-dispersion core width
+tracks the spectral LSF width on every telescope (r 0.52-0.61, within-night
+0.35-0.62). Cross-dispersion width vs own throughput: T3 -1.6 +/- 0.35%/dex
+(clouds +0.3, a feed effect), T2 -1.2 (clouds -0.44, partly), T4 -1.0
+(clouds -0.84, mostly counts). Halo at 3-7 px vs throughput: T2 r = -0.37,
+T3 -0.25 (weaker than the pilot's -0.46), T4 opposite sign (+0.28).
+
+**Final verdict (feed thread):** the feed effect is real on T3 (LSF and
+near-field width) and T2 (h3), but too small to matter for RV. The post-trip
+T2 count slope is a count-level h3 effect, not the feed. Guide offset and
+seeing don't predict the LSF. The T3 results still support a cladding-mode
+stripper as a hardware fix. Code: Charlie branch `feed` (local); results
+`work/results/feed/`, fetched FAU stamp sizes and autofocus records in
+`data/feed/`.
 
 ## 2026-11-22: LSF width gradient along each order (branch lsfgrad)
 
