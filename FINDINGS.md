@@ -919,3 +919,20 @@ a quadratic per trace per exposure may suffice once D is fixed. Template
 per-order zero-points are a nuisance for per-order offsets or a
 self-consistent (inferred) template. A comb (G-CLEF) measures D(p) and the
 per-trace solution, but not the template's zero-points.
+
+## 2026-11-23: specfast skeleton and the injection test (PR #1)
+
+- A self-consistent synthetic test (star with 3 km/s lines plus a dense
+  iodine forest, K = 50 m/s, barycentric shifts to +/-30 km/s; v, iodine
+  strength, cubic wavelength and quadratic continuum free) recovers K to
+  -7e-8 noise-free, and -1.5e-5 when the truth is made on a 5x finer grid.
+  Noisy pulls have std 0.99-1.00.
+- **Pixel integration matters at the test bed's grid.** A piecewise-linear
+  (trapezoid) pixel integral on a 0.25 km/s grid biases K by -0.3% and
+  leaves ~0.1 m/s rms of barycentric-dependent error; the size scales with
+  the stellar line width, not the iodine's. The integral of a cubic Hermite
+  interpolant cuts it ~200x at the same cost; specfast uses it.
+- So the test bed's 96.5% recovery is not a property of a self-consistent
+  forward model: it is model mismatch (template, atlas or LSF), with at
+  most ~0.3% from the pixel integration if the test bed integrates the
+  same way (unchecked).
