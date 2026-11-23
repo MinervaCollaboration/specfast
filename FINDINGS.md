@@ -706,6 +706,43 @@ log.
   `extract2` (e69a5cd, local). `reextract_v1/raw/` deleted; originals'
   checksums re-verified.
 
+### x2-0.4: detector fixes, validated (2026-11-23)
+
+Tag x2-0.4 (testbed commit 062e8b2). The partial x2-0.3 tree was deleted;
+only its manifest and logs are kept.
+
+Fixes:
+- Saturation is flagged at 62,000 ADU raw.
+- Bias comes from the overscan (first 6 columns skipped, saturated or
+  bleeding rows rejected), with an era level where no overscan is usable.
+- Read noise is fixed at 2.85 ADU (4.8 in 2016-03-22..04-01) and gain at
+  1.265.
+- The raw layout is read from the data shape; every odd layout and the
+  camera-native frames were tested end to end.
+- Warm-CCD frames are extracted but flagged.
+- The 2016 nightly pixel flats are saturated and are dropped; 2016 frames
+  use the 2018-19 stack.
+- Two post-2018 profiles had dry-run or warm-CCD inputs and were rebuilt
+  without them.
+
+Validation on 555 frames (L0):
+
+| | x2-0.4 | x2-0.3 | Original extraction |
+|---|---|---|---|
+| tau Cet rms / nightly / sqrt(chi2_r) (error < 6 m/s, 68 exposures) | 3.44 / 3.10 / 1.14 | 3.43 / 3.11 / 1.14 | 3.61 / 3.24 / 1.23 |
+| HD 122064 faint pull (6-15 m/s class) | 1.15 | 1.15 | 1.58 |
+
+- HD 122064 bright frames are unchanged.
+- The fixes did not move the faint pulls measurably closer to 1, within
+  the scatter of 12-18 exposures.
+- 51 Peg K = 55.3 +- 1.7 m/s.
+
+The fixes matter for correctness (saturation, read noise, odd layouts),
+not for bright-star precision. Robofast dry runs (from n20261108) are
+excluded by date and listed in the manifest with a reason. The
+whole-archive run is in progress: pre-2018 first, then 11,302 post-2018
+frames.
+
 ## 2026-11-22: Fibre feed (JDE) and what it implies
 
 Each telescope feeds an octagonal fibre butt-coupled to a circular fibre.
