@@ -936,3 +936,34 @@ per-trace solution, but not the template's zero-points.
   forward model: it is model mismatch (template, atlas or LSF), with at
   most ~0.3% from the pixel integration if the test bed integrates the
   same way (unchecked).
+
+## 2026-11-23: KiwiSpec detector and order constants (specfast PR #2)
+
+- **Echelle orders:** m = 122 - product index (0..28 -> 122..94); m*lambda
+  is constant to 1e-5 across orders. A 31.6 l/mm R4 echelle. Pipeline
+  wavelengths are vacuum. The arm covers 498.9-648.9 nm; RV orders 1-23
+  cover 503.0-619.9 nm.
+- **The unassigned trace (trace 0) is T4 of m = 123**, one order bluer than
+  product order 0 (single-fibre flats, trace gaps and spectra agree). At
+  the red edge, m = 94 keeps only T1 (T3 of index 28 is off the chip in
+  every era). The test-bed extractor's `to_proc` is right; its docstring
+  is wrong.
+- **Detector:** 2052 x 2090 raw (42 serial overscan columns; skip the first
+  6, trailing charge). Gain 1.265 +/- 0.02 e-/ADU (photon transfer,
+  2016-2021). Read noise 2.85 ADU = 3.6 e-, stable 2016-2026 except
+  2016-03-22..04-01 (6.1 e-); header RDNOISE = 3.63 is in electrons.
+  Saturation plateau 62,300-63,030 ADU raw (use 62,000); linearity checked
+  to 28k ADU only.
+- **Consequences for x2:** SAT_ADU = 64000 never flagged saturation; the
+  MAD read noise (3.145 ADU) is an integer-rounding artefact; 2016-03..06
+  slit flats are saturated, so the pixel flats built from them are
+  meaningless. Fixes sent to the x2-0.3 run, which had just started.
+- **Odd periods:** a warm CCD (+23 C) on 2023-03-27..04-04, 2023-06-13..24
+  and 2023-09-06..2024-03-13, with saturated science frames; other readout
+  layouts (extra overclocked rows 2016-09-28..30, 2019-03-26,
+  2023-03-23..04-04; 2096 x 2052 in 2022-01-28..03-16; no overscan in 2015
+  and some 2023-04/05 frames); 1,761 frames in the camera's native format
+  (exposure time in PARAM24 ms; all of 2016-09-15..27).
+- **Header keywords:** TARGRAT/TARGDECT were used 2018-02-24..06-14;
+  SPECPRES = -999 means missing; I2POSAS takes in/out/flat; robofast frames
+  (2026-11 on) have no SPECPRES or target coordinates.
