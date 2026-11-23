@@ -237,7 +237,9 @@ Pilot results (extract2, 2026-11-22) settle the recipe:
   per era by held-out chi2;
 - the 2D scattered-light model and per-trace re-centring are both
   essential for per-telescope stability;
-- calibrations: bias only; **no darks**; **no nightly slit flats**;
+- calibrations: a long-term stacked bias (or overscan only), not a
+  nightly 3-frame master, which adds ~3.5 e- of pixel noise; **no darks**;
+  **no nightly slit flats**;
   optionally a multi-night stacked pixel-to-pixel flat for bright and
   daytime frames;
 - extraction alone gives < 1 m/s for bright stars; its value is faint

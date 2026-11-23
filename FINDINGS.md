@@ -669,6 +669,44 @@ pre-mid-2018 run started 2026-11-22: 10,435 frames over 501 nights, to
 `/pool/radish1/minerva-rv/data/extract2/full/`, with a manifest and failure
 log.
 
+### Full run result (2026-11-23)
+
+- **Frames:** 10,433 of 10,435 pre-2018-07 frames extracted (5,341
+  daytime, 5,092 stellar). The 2 failures are bad raw files on the gateway
+  (n20171027.daytimeSkyExpmeter.0032 is 0 bytes; n20170410.HD97601.0024 has
+  no FITS header). Flagged: 1,454 nearest-night biases, 2016 frames on the
+  2018-19 flat stack, 1,442 frames with all four telescopes dark.
+- **Cost:** ~17 h wall (gateway transfer 0.6-2 MB/s), ~105 GB streamed,
+  ~22 s CPU per frame, 48 GB of products.
+- **Faint frames:** with the 150-count floor removed, all 21 HD 122064
+  frames v1.0.0 lost come back (288 exposures vs 213 original). The 60
+  additions have median error 49 m/s and rms z 1.12, so they are honest.
+- **L0 vs original, same exposures (m/s):**
+
+  | Set | Original | x2-0.2 |
+  |---|---|---|
+  | tau Cet pre-2018, all 80: rms / nightly / within | 5.65 / 6.07 / 3.08 | 7.42 / 8.24 / 4.42 |
+  | tau Cet pre-2018, err < 6 (68): rms / nightly / weighted / sqrt(chi2_r) | 3.61 / 3.24 / 3.12 / 1.23 | 3.41 / 3.01 / 2.89 / 1.13 |
+  | HD 122064, all 187: rms / nightly / within | 5.85 / 5.61 / 5.24 | 4.94 / 4.68 / 3.54 |
+  | HD 122064, err < 6 (168): rms / nightly | 4.26 / 3.92 | 4.56 / 4.19 |
+  | 51 Peg K / residual rms | 54.3 +/- 2.0 / 4.8 | 55.2 +/- 1.7 / 3.8 |
+
+  The tau Cet all-exposure row is one exposure (n20170929.0010, error 33
+  m/s, moves +47 m/s). Bright exposures move a few tenths of a m/s; the
+  gains are faint frames and robustness, as the pilot said.
+- **Bias:** the mean of 479 nightly bias masters has no 2D structure (0.09
+  ADU rms), so the nightly 3-frame master only adds ~2.7 ADU (3.5 e-) of
+  pixel noise. A stacked bias (or overscan only) removes the n20170929
+  outlier (tau Cet all-exposure rms 7.42 -> 5.62, nightly 8.24 -> 6.15),
+  bright frames unchanged. Same pattern as darks and nightly flats. Not in
+  the full products (x2-0.3 would be another ~17 h).
+- Coverage note: only pre-2018-07 frames were re-extracted; later data are
+  still the original v1.0.0 products.
+- Products: `/pool/radish1/minerva-rv/data/extract2/full/` (manifest,
+  failures, run log); results `work/results/extract2/`; code Charlie branch
+  `extract2` (e69a5cd, local). `reextract_v1/raw/` deleted; originals'
+  checksums re-verified.
+
 ## 2026-11-22: Fibre feed (JDE) and what it implies
 
 Each telescope feeds an octagonal fibre butt-coupled to a circular fibre.
