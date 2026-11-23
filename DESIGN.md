@@ -24,7 +24,13 @@ in the Wilson+19 window (3 telescopes).
 4. Out of scope: daytime-sky solar analysis (JDE). Any recheck of
    Charlie's daytime results is a one-off in the test bed, not a
    specfast feature.
-5. No silent failures, no hidden global state, no environment variables
+5. Eventually G-CLEF, on Magellan and then GMT (JDE 2026-11-23). KiwiSpec
+   is the first instrument, not the only one: the instrument description
+   (arms, detectors, orders, fibres/slices), the wavelength reference
+   (iodine cell, or a simultaneous comb/etalon/ThAr reference) and the LSF
+   source (B stars, or calibration lamps) must be pluggable, not built
+   into the core.
+6. No silent failures, no hidden global state, no environment variables
    that change the science; every product records its provenance.
 
 ## The forward model
