@@ -992,3 +992,21 @@ offset from air/vacuum index handling.
   science slice.
 - The design's PRV slit has 7 science + 2 calibration/sky fibres, which
   conflicts with simultaneous comb + etalon + ThAr as three channels.
+
+### G-CLEF modes and resolution (public sources, 2026-11-23)
+
+- Ben-Ami et al. 2018 (SPIE 10702, 107029K), GMT modes: PRV R = 108,000,
+  hexagonal 100 um core, 7 science + 2 calibration/sky fibres; NS-PRV the
+  same with circular fibres; MR R = 35,000, 300 um; HT 450 um.
+- G-CLEF@Magellan (EPRV5 poster, 2023-03): natural-seeing MR R = 100,000
+  (1.12 arcsec, science + sky fibre) and HR R = 140,000 (0.8 arcsec,
+  science + sky), plus a MagAO-X-fed pupil-sliced extreme-HR mode,
+  R > 300,000 with 4 x 2 fibres. Calibration light goes in through a pair
+  of calibration fibres into science/sky fibre pairs. So Magellan is not
+  only "one slice": the MagAO-X mode slices into 4.
+- The design's chief-ray trace gives R ~73,000 for the full width of a
+  100 um core image (8.2 px); the quoted numbers are higher by factors that
+  don't follow from one simple definition (a uniform disk's FWHM is 0.87
+  of its width, giving ~85,000). The fibre sizes for the Magellan modes
+  aren't public. Unresolved; specfast measures the LSF empirically
+  (comb/etalon), so R in the config is informational only.

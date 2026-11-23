@@ -26,9 +26,13 @@ in the Wilson+19 window (3 telescopes).
 5. Eventually G-CLEF, on Magellan and then GMT (JDE 2026-11-23). KiwiSpec
    is the first instrument, not the only one. We write both the
    extraction and the Doppler code for G-CLEF. Its differences:
-   - no gas cell: simultaneous laser comb, etalon and ThAr reference
-     fibres (or early/late-night calibration for low precision);
-   - ~350-1100 nm on two detectors split by a dichroic;
+   - no gas cell: simultaneous laser comb, etalon or ThAr through the
+     calibration fibres, with the source chosen per fibre and per run
+     (configuration, not instrument description); or early/late-night
+     calibration for low precision;
+   - two detectors split by a dichroic at ~540 nm; the 2021-12 optical
+     design (the authority, JDE) covers 347-967 nm, not the ~1100 nm once
+     quoted;
    - pupil-sliced fibres, one slice per mirror (seven on GMT); Magellan
      uses one;
    - optical model: the G-CLEF Zemax/PyEchelle design
@@ -323,6 +327,10 @@ static h3 for tau Cet and the 2019-09-18 step. The break list is configuration.
 
 - Calibrate the optical model from B-star frames (the first fit used
   daytime sky) and test structure above quadratic within an order.
+- G-CLEF blue orders (m ~175-165): the slit is longer than the order
+  spacing, so the end traces of adjacent orders blend. The plan of record
+  was to discard those orders; specfast's goal (not a requirement) is to
+  model the blend by fitting neighbouring orders' end traces jointly.
 - G-CLEF: pupil-slice traces are closely packed; does the joint
   all-traces-in-a-column fit carry over, or is a slice-combined profile
   needed? Reference-channel bleed into science traces (comb lines are
