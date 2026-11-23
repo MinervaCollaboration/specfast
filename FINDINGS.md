@@ -967,3 +967,28 @@ per-trace solution, but not the template's zero-points.
 - **Header keywords:** TARGRAT/TARGDECT were used 2018-02-24..06-14;
   SPECPRES = -999 means missing; I2POSAS takes in/out/flat; robofast frames
   (2026-11 on) have no SPECPRES or target coordinates.
+
+## 2026-11-23: G-CLEF from its optical design (specfast PR #3)
+
+`specfast-zemax2instrument` (new `specfast.optics`: archive unpacking,
+lens-file parser, sequential ray tracer, echellogram, YAML writer) traced
+the 2021-12 G-CLEF design in full (no black boxes). On KiwiSpec, with
+stand-ins for its black boxes, it agrees with the earlier private model to
+2.4 um median along dispersion, with a constant 2.8 px cross-dispersion
+offset from air/vacuum index handling.
+
+- Blue arm: echelle orders 175-114, 347.3-541.6 nm; red arm: 114-64,
+  534.4-967.2 nm; dichroic ~540 nm with order 114 on both arms. 10560^2 x
+  9 um detectors. Red coverage ends at ~967 nm, not 1100 nm, with a 0.2 nm
+  gap near 952 nm.
+- Resolving power from the full 100 um core is ~73,000 (8.2 px); the public
+  papers quote 108,000 at 7.5 px per resolution element, so the definitions
+  differ. To pin down.
+- Fibres 13.3 px apart along the slit (~7.8 px cores); orders 105 px apart
+  at m = 175. Nine PRV fibres at that pitch span ~107 px, so in the blue
+  (m ~175-165) the end traces of adjacent orders overlap or are closer than
+  one pitch: extraction must model neighbouring orders' end traces, and a
+  bright comb/etalon fibre at a slit end would sit on the next order's end
+  science slice.
+- The design's PRV slit has 7 science + 2 calibration/sky fibres, which
+  conflicts with simultaneous comb + etalon + ThAr as three channels.
