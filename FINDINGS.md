@@ -887,3 +887,35 @@ along-order width variation dominate the exposure-to-exposure variation?
 Verdict: keep the constant-width production LSF. If an LSF term is ever
 added per exposure, make it h3. Correction: the interim "T1" width jump
 and "T1" r = -0.48 were 0-based index 1, i.e. **T2**; fixed above.
+
+## 2026-11-23: Wavelength distortion and the order pattern (branch wavedist, interim)
+
+Test-bed branch `wavedist` (private test-bed repo). The fixed per-era
+along-order distortion D(p) (from the wavemodel branch) goes inside the
+wavelength solution; variants quadratic (Q), Q + D, quartic (R), R + D.
+
+- **51 Peg, NIST chain (16 exposures):** K = 54.46 +/- 1.79 (Q),
+  54.45 +/- 1.53 (Q + D), 54.67 +/- 1.77 (R), 54.78 +/- 1.64 (R + D) m/s;
+  residual rms 4.22 / 3.64 / 4.22 / 3.89; sqrt(chi2_r) 1.04 / 0.90 / 1.03 /
+  0.96. D cuts the residual rms by 14% without moving K; the quartic adds
+  nothing with or without D.
+- **Old I2_0.1 chain (wavemodel W5, unlogged until now; HD 122064
+  2016-2020, 209 exposures):** Q 10.14, Q + D 10.28, R 9.40 m/s rms. Under
+  that atlas D didn't help the RVs, though it improves the spectral fit
+  more than the quartic does (median chi2_r -1.4% vs -0.6%).
+- **The 41-59 m/s order pattern is the DSST templates.** Swapping HD
+  122064's template (rj08 -> rj122) changes the per-order offsets by 83 m/s
+  rms, zigzagging -109 to +150 m/s, common to all telescopes (per-(tel,
+  order) remainder 3.3 m/s): ~59 m/s per template if independent, the size
+  of the pattern. 51 Peg DSST vs solar atlas: 90 m/s rms per order (a
+  blue-to-red tilt of about -60 to +160 m/s plus ~45 m/s scatter). tau Cet
+  and sigma Dra share a Keck template run, which would explain their r =
+  0.64; a 7-star check is running.
+- Pending: HD 122064, tau Cet and sigma Dra under NIST; per-segment
+  structure with D fixed; residual stacks.
+
+Provisional design consequence: D(p) is a per-era calibration product;
+a quadratic per trace per exposure may suffice once D is fixed. Template
+per-order zero-points are a nuisance for per-order offsets or a
+self-consistent (inferred) template. A comb (G-CLEF) measures D(p) and the
+per-trace solution, but not the template's zero-points.
