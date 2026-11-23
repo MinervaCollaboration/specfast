@@ -307,6 +307,17 @@ Pilot results (extract2, 2026-11-22) settle the recipe:
 - extraction alone gives < 1 m/s for bright stars; its value is faint
   frames, daytime frames and robustness (no crashes, no lost frames).
 
+Frame selection (robofast headers, 2026-11-23): skip any frame with
+`SIMULATE = T` or `IMAGETYP = test` (robofast marks dry-run frames this
+way from 2026-11-22; their names also contain `.test`), and skip
+non-FITS sidecars (robofast writes `<raw name>.json` next to each
+spectrum). Earlier dry-run frames are unmarked, so the dated exclusion
+window in `kiwispec.yaml` stays. robofast frames will also carry
+per-telescope target coordinates, proper motion, epoch, parallax and RV
+(`TARGRAn`, `PMRAn`, `TARGEPOn`, `PARLAXn`, `RVn`, ...) and `SPECPRES`;
+"UNKNOWN" means absent. Use these for the barycentric correction when
+present.
+
 ## Era breaks
 
 Dated from the vacuum and thermometer logs and the frame headers

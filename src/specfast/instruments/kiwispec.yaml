@@ -210,8 +210,10 @@ excluded:
   - {start: 2023-03-27, end: 2023-04-04, notes: warm CCD}
   - {start: 2023-06-13, end: 2023-06-24, notes: warm CCD}
   - {start: 2023-09-06, end: 2024-03-13, notes: warm CCD}
-  # robofast dry runs (simulated nights, not sky data; JDE 2026-11-23). Extend
-  # this window until robofast marks simulated frames in their headers.
+  # robofast dry runs (simulated nights, not sky data; JDE 2026-11-23).
+  # From 2026-11-22 robofast marks them (SIMULATE = T, IMAGETYP = test,
+  # ".test" in the name; see DESIGN "Frame selection"); frames before that
+  # are unmarked, so keep this window. Skip *.json sidecars always.
   - {start: 2026-11-08, end: 2026-11-30, notes: robofast simulated dry runs}
 
 # Per-telescope breaks (LSF width, offsets, throughput).
