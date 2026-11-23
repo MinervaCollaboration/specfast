@@ -17,9 +17,13 @@ def test_kiwispec_layout():
     (arm,) = k.arms
     assert len(arm.orders) == 29 and arm.detector.npix_dispersion == 2048
     assert arm.rv_orders == tuple(range(1, 24))
+    assert arm.echelle_orders == tuple(122 - o for o in arm.orders)
     traces = k.traces(arm.name)
-    assert len(traces) == 4 * 29 - 1  # T4 of the last order is absent
-    assert ("T4", 28) not in {(t.channel, t.order) for t in traces}
+    assert len(traces) == 4 * 29 - 2  # T3 (off the chip) and T4 (dummy) of the last order
+    live = {(t.channel, t.order) for t in traces}
+    assert ("T4", 28) not in live and ("T3", 28) not in live and ("T1", 28) in live
+    d = arm.detector
+    assert d.raw_shape == (2052, 2090) and d.saturation_adu < 65535
 
 
 def test_kiwispec_eras():
