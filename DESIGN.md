@@ -1,7 +1,6 @@
-# specfast: architecture (draft 0, 2026-11-20)
+# specfast: architecture (draft 1, 2026-11-23)
 
-Status: proposal for discussion. Nothing here is implemented yet. The
-test bed for experiments is Charlie's code; this repository is the
+Status: the skeleton is being built (2026-11-23). The test bed for experiments is Charlie's code; this repository is the
 replacement. Regression targets come from reproducing Charlie's code:
 51 Peg K = 54.0 +/- 1.9 m/s (DSST); HD 122064 2.3 m/s per-exposure RMS
 in the Wilson+19 window (3 telescopes).
@@ -42,6 +41,44 @@ in the Wilson+19 window (3 telescopes).
 6. No silent failures, no hidden global state, no environment variables
    that change the science; every product records its provenance.
 
+## Two stages, one repository (JDE 2026-11-23)
+
+specfast holds both the extraction and the Doppler code, as two stages
+that meet only at a documented on-disk product:
+
+    raw frames --[extract]--> ExtractedSpectrum --[doppler]--> velocities
+                    ^                                  ^
+                    +-------- Instrument description --+
+
+- **Instrument description** (shared, data not code): arms (each with a
+  detector and its order range), channels (a telescope fibre, a pupil
+  slice, or a calibration fibre: comb, etalon, ThAr, sky), traces
+  (channel x order), detector geometry, gain and read noise, and era
+  breaks. KiwiSpec: one arm, four telescope channels. G-CLEF: two arms
+  (blue/red, dichroic), one or seven science slices, plus reference
+  channels. Optical-model parameters are calibration products, not part
+  of the public description when they derive from private design files.
+- **Stage 1, extract**: raw frame plus calibration products (stacked bias,
+  profiles, traces, scattered light, optional stacked flat) to an
+  ExtractedSpectrum. Reference channels are extracted like any other.
+- **ExtractedSpectrum** (the contract): per arm, arrays over
+  (channel, order, pixel) of flux, variance and a bitmask; per-trace
+  diagnostics (cross-dispersion width and centroid, profile chi2, halo);
+  a normalized header (times, target, barycentric inputs, environment);
+  optional wavelength per (channel, order, pixel) with its source; and
+  provenance. One multi-extension FITS file per exposure. Either stage
+  can be replaced: the Doppler stage can run on another pipeline's
+  extraction if it is converted to this product.
+- **Stage 2, doppler**: forward model and fit (below), then combination.
+  The wavelength reference is a component: an iodine cell inside the
+  forward model (KiwiSpec), or a simultaneous reference whose drift is
+  measured from the reference channels and applied to a calibration-lamp
+  solution (G-CLEF). The LSF source is likewise pluggable: B-star frames
+  (KiwiSpec) or calibration lines in the same exposure (G-CLEF).
+- Package layout: `specfast.instrument`, `specfast.products`,
+  `specfast.extract`, `specfast.doppler`, `specfast.combine`, plus shared
+  `conventions`, `config` and `provenance` modules.
+
 ## The forward model
 
 For one exposure e, fibre (telescope) f, order o, at detector pixel x:
@@ -59,7 +96,9 @@ For one exposure e, fibre (telescope) f, order o, at detector pixel x:
 - `C`: continuum and blaze.
 
 The model is evaluated on a fine uniform grid in ln(lambda), convolved,
-then integrated onto pixels.
+then integrated onto pixels. Without a gas cell (G-CLEF) `I2 = 1`, and
+`lam(x)` is the calibration solution shifted by the drift measured from
+the simultaneous reference channels.
 
 ## Components
 
@@ -228,10 +267,10 @@ Wavelength component, production form:
 - D(x) is a per-era calibration product. A detector map stays possible
   if better data (a comb) ever demands it.
 
-## Extraction (if specfast re-extracts)
+## Stage 1: extraction
 
 Cross-talk is not a driver: measured leakage is <= 1e-3, worth under
-0.2 m/s. If specfast takes over extraction from the legacy pipeline:
+0.2 m/s. Requirements:
 
 - Fit all traces in a column simultaneously, with an empirical profile
   per trace from fibre flats.
@@ -279,4 +318,7 @@ static h3 for tau Cet and the 2019-09-18 step. The break list is configuration.
 
 - Calibrate the optical model from B-star frames (the first fit used
   daytime sky) and test structure above quadratic within an order.
-- Repository: specfast, in the MinervaCollaboration org (not created yet).
+- G-CLEF: pupil-slice traces are closely packed; does the joint
+  all-traces-in-a-column fit carry over, or is a slice-combined profile
+  needed? Reference-channel bleed into science traces (comb lines are
+  bright) must be measured, not assumed negligible as on KiwiSpec.
