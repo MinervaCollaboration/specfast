@@ -456,7 +456,14 @@ The break list is configuration.
 
 ## Error budget toward 10 cm/s (G-CLEF)
 
-G-CLEF's goal is 10 cm/s (JDE 2026-11-24).
+G-CLEF's goal is 10 cm/s (JDE 2026-11-24). That is the TOTAL budget, so
+no single term may use it (JDE 2026-11-24). With ~15 independent terms
+adding in quadrature each gets ~2.5 cm/s; terms that are correlated
+between exposures (static or BERV-dependent) add linearly in the worst
+case and must be held lower still. Working allocation until the G-CLEF
+project's own error budget is adopted: 2 cm/s per instrument or analysis
+term, 1 cm/s for terms that do not average down over a season. Results
+below are graded against that, not against 10 cm/s.
 
 The ~0.5-1 m/s floor of the best iodine programmes is treated as a
 limit of their modelling, not of iodine (JDE 2026-11-24): independent
