@@ -7,6 +7,17 @@ in the Wilson+19 window (3 telescopes).
 
 ## Goals
 
+**Definition of done (JDE 2026-11-24).** The work ends with a plausible
+explanation of the precision actually achieved, backed by simulations:
+an error budget whose terms are each measured on the data or injected and
+recovered in realistic simulations, adding up to the observed scatter,
+and naming the limiting factor. That factor may be photon noise, an
+irreducible noise term (stellar, atmospheric), or a time variation we
+did not measure (illumination, temperature, an unlogged change). "Not at
+the photon limit" is an acceptable ending only with the reason
+identified; an unexplained residual is not. The photon limit remains the
+aim for everything specfast itself controls.
+
 1. Precise relative RVs from KiwiSpec iodine-in spectra, with honest
    error bars, across the whole 2015-2026 baseline (eras included).
 2. Two stellar-template modes: an external template (DSST) and a
