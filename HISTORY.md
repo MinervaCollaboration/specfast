@@ -40,6 +40,43 @@ table):
   is realigned, its data are suspect (vignetted, aberrated: low
   throughput and a different LSF).
 
+## 2019-09 site trip (unsent draft summary, 2019-09-20)
+
+At the end of the 2019 monsoon gap (no science 2019-07-25..09-18); the
+instrument era e2019 starts 2019-09-18.
+
+- **Spectrograph room HVAC:** for about two weeks before the trip it had not
+  been cooling the spectrograph room, and the spectrograph warmed by ~3 C.
+  A faulty contactor was replaced. The unit has little heating capacity (it
+  was designed for data centres); a duct heater was to be quoted. Earlier
+  space heaters had broken quickly.
+- **Temperature sensors:** they had dropped out, and the watchdog ignored
+  the failed readings, so the excursion went unnoticed. The watchdog now
+  warns when a critical sensor is silent for more than 10 minutes.
+- **Rotation calibration bug:** the rotator calibration script had saved the
+  same image under two names and computed the rotation angle from the
+  pair. This gave an erroneous rotator offset and probably lengthened
+  acquisition; how widespread it was is unknown. Fixed, at the cost of
+  0.3 s more overhead per guide exposure.
+- Windows 10 control computers in preparation (mini PCs in the telescope
+  bases; they arrived with the 2021-09 "back online").
+- MINERVA Red's FAU working with the MINERVA software (no KiwiSpec effect).
+
+What it means for specfast:
+- This is the e2019 break (2019-09-18). The instrument-log analysis found
+  thermal regulation lost across the 2019 monsoon gap: bench 25.11 C in
+  2019-02, then 25.6-26.2 C and drifting until 2020-02. The
+  contactor fix did not restore the earlier regulation, so within e2019,
+  regress on bench temperature (as for e2021).
+- The sensor dropout explains the PT100 logging gap (2019-02-26..09-18) and
+  the missing TEMP* headers (2019-03..07): spectrograph temperature is
+  unknown for most of 2019 H1. The HVAC failure itself fell in the monsoon
+  gap, so no science frames were taken warm.
+- Rotator offsets were wrong before this trip, for an unknown period. They
+  set where the star lands relative to the fibre at acquisition, so they
+  are a candidate cause of slow acquisition and the guide-start stalls
+  before 2019-09. They are not a direct RV term.
+
 ## 2018-12 site trip (summaries 2018-12-18 and 2018-12-21)
 
 No science 2018-12-15..19; robotic operation resumed 2018-12-21 (the first
