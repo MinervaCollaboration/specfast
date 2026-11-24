@@ -786,6 +786,10 @@ Base nightly rms: tau Cet / sigma Dra / HD 122064 = 4.63 / 11.24 / 9.23 m/s.
 ## 2026-11-22: Fibre feed (JDE) and what it implies
 
 Each telescope feeds an octagonal fibre butt-coupled to a circular fibre.
+(As designed, Bottom et al. 2014, SPIE 9147, 91472E: 50 um octagonal
+fibres, 2.3 arcsec on the sky, fed directly at the telescope's f/6.6 with
+no focal-ratio conversion; closed-loop guiding at ~0.2 arcsec rms, i.e.
+~9% of the fibre diameter; no mode scrambler or agitator is described.)
 Light travels in the octagonal leg's cladding as well as its core, and the
 circular fibre's core cuts part of that cladding light at the joint.
 
