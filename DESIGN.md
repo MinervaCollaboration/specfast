@@ -136,7 +136,9 @@ through priors and airmass/water scaling. Optics and detector separate
 through optical changes (remounts, drifts) and, on a comb instrument,
 through comb lines sampling every pixel phase.
 
-The model is evaluated on a fine uniform grid in ln(lambda), convolved,
+The model is evaluated on a fine uniform grid in ln(lambda) (step about
+0.05 km/s below 30 cm/s: a 0.25 km/s grid with the raw iodine scan
+leaves 0.69 m/s; FINDINGS 2026-11-24, iodinfo), convolved,
 then integrated onto pixels. Without a gas cell (G-CLEF) `I2 = 1`, and
 `lam(x)` is the calibration solution shifted by the drift measured from
 the simultaneous reference channels.
@@ -159,7 +161,7 @@ Each factor is a component behind one small interface. A component:
 | Component | First implementation | Later implementations |
 |---|---|---|
 | Wavelength | polynomial in pixel, per (exposure, fibre, order); degree configurable (default > 2) | optical model: grating equation plus a camera/distortion map derived from the Zemax design, with a few low-order perturbation terms shared by all orders and fibres, per exposure or night |
-| LSF | (with a resolution matrix in the product: apply it, no free LSF) Gaussian, sigma per (fibre, order) frozen from the B-star calibration, constant in km/s (a static along-order width gradient was tested 2026-11-22 and gains nothing; see FINDINGS) | Gauss-Hermite or sum of Gaussians; shape from the optical model times a fitted perturbation |
+| LSF | (with a resolution matrix in the product: apply it, no free LSF) Gaussian, sigma per (fibre, order) frozen from the B-star calibration, constant in km/s (a static along-order width gradient was tested 2026-11-22 and gains nothing; see FINDINGS) | Gauss-Hermite or sum of Gaussians; shape from the optical model times a fitted perturbation. Required for 1 m/s and below: a per-exposure h3 shared smoothly across orders (an unfitted h3 change of 0.01 is 17 m/s; fitting it costs 8-14% in sigma); static shape pooled over exposures to ~0.002 (30 cm/s) |
 | Iodine | NIST 2018-08 FTS scan (exact vacuum, native wavenumber grid; 4950-6450 A), optical-depth strength. Never I2_0.1 uncorrected (+/-300 m/s air-dispersion error) | per-era atlas, cell temperature term; optional learned observer-frame correction (halves chi2, no RV gain so far) |
 | Telluric | static mask from the atlas at T < 0.98-0.99 (threshold barely matters); orders 18-20 (590 nm water band) masked harder or down-weighted; per-exposure spectral water column saved as a diagnostic | fitted H2O columns from a line-by-line model (TAPAS / molecfit style) with its own line shapes; an atlas raised to a power fails (atlas noise, and one column can't fit the water band) |
 | Star | DSST template; inferred template | Korg synthetic spectrum from (Teff, logg, abundances, vsini, macroturbulence) |
@@ -435,7 +437,12 @@ from B-star frames and the optical model). How far the modelling can go
 is measured, not assumed: an information-content study (simulated
 KiwiSpec star + iodine frames fitted with the full model family; the
 Cramer-Rao bound, plus each model component's error sensitivity) gives
-the attainable precision and ranks the modelling terms. Each term below is assigned a frame, the specfast
+the attainable precision and ranks the modelling terms. Result
+(FINDINGS 2026-11-24, iodinfo): ~1.1 m/s per trace at S/N 200 for a
+Sun-like star with the LSF shared across orders and a per-exposure h3;
+the legacy chunk LSF costs 30-45% in sigma; the floor comes from h3 and
+template-depth errors. 10 cm/s needs at least six terms held to ~5
+cm/s each, several by external calibration. Each term below is assigned a frame, the specfast
 component that carries it, and where it can be tested. Sizes are
 MINERVA measurements where we have them; the rest are to be quantified
 (G-CLEF optical model, public comb-calibrated data, injection tests)
@@ -448,7 +455,7 @@ before they are trusted.
 | Stellar activity, granulation, oscillations | star | line-by-line velocities, activity-sensitive line selection, exposure strategy | not separated yet | public solar data |
 | Micro-tellurics (lines < 1% deep) | observatory | modelled telluric component, per-exposure water and airmass | masked at 0.98 (too crude for 10 cm/s) | injection; public comb data |
 | Sky emission, moonlight | observatory | sky component from sky fibres | [O I] 5577 masked | G-CLEF sky fibres |
-| Iodine model (atlas, cell temperature, LSF-velocity degeneracy) | observatory | iodine atlas + learned correction, LSF shared through the optical model and pooled over exposures | atlas choice 0-5 m/s on order pattern | MINERVA; iodine information-content simulation |
+| Iodine model (atlas, cell temperature, LSF-velocity degeneracy) | observatory | iodine atlas + learned correction, LSF shared through the optical model and pooled over exposures | atlas choice 0-5 m/s on order pattern; simulation: per-feature depths 1% -> 0.25 m/s, atlas noise 0.3% -> 0.18 m/s, cell temperature negligible | MINERVA; iodinfo simulation done |
 | Barycentric correction | star/observatory | flux-weighted midpoint per colour, catalogue astrometry | flux-weighted midpoint per exposure (fluxmid) | exposure-meter data |
 | Wavelength solution and drift | optics | comb/etalon per exposure, D(p), quadratic per trace | D(p) 0.1 px, residual 0.015 px | G-CLEF design; public comb data |
 | Calibration-vs-science differential drift | optics | per-fibre drift model | n/a (iodine is in the science light) | G-CLEF lab data |

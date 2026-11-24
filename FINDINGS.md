@@ -1080,6 +1080,77 @@ them all along.
   offsets. A comb should also show whether the ~38 m/s common floor is
   iodine-side.
 
+## 2026-11-24: Iodine information content and modelling tolerances (testbed branch iodinfo)
+
+Test-bed branch `iodinfo` (private test-bed repo, commit 3ca5715).
+Synthetic, noise-free, linear response, one trace: all 23 iodine orders
+(503-620 nm, 2048 px), specfast's forward model and the PR #7 template
+code, NIST 2018-08 iodine scan, B-star LSF widths, D(p) fixed. Templates:
+Kurucz solar atlas, and a K-dwarf proxy (solar depths x1.85). Flat S/N,
+no blaze or read noise; BERV averaged over +/-25 km/s.
+
+**Cramer-Rao bound on the exposure RV, per trace (m/s; S/N 100 / 200):**
+
+| Model family | Sun | K dwarf |
+|---|---|---|
+| Only v free (photon limit) | 1.78 / 0.89 | 1.19 / 0.60 |
+| (c) LSF known, wavelength per order | 2.07 / 1.04 | 1.57 / 0.79 |
+| (b) LSF smooth across orders, per-exposure h3; any N | 2.24-2.27 / 1.12-1.13 | 1.79-1.81 / 0.90-0.91 |
+| (d) as (b), template inferred, N = 30 / 100 / 300 | 2.41 / 2.29 / 2.25 (S/N 100) | 1.93 / 1.83 / 1.81 |
+| (a) legacy chunk LSF (sigma, h3, h4) | 2.67 / 1.34 | 2.18 / 1.09 |
+| (a) legacy chunk sum of Gaussians | 2.98 / 1.49 | 2.45 / 1.23 |
+
+- The LSF-velocity degeneracy breaks: symmetric LSF terms cost nothing
+  once shared across orders; only a per-exposure mean h3 couples to v
+  (r -0.32), costing 8% (Sun) to 14% (K dwarf) in sigma. Pooling beyond
+  N = 3 adds nothing: 23 orders of iodine already pin the shape.
+- Inferring the template costs < 10% more by N ~ 30 with a BERV spread of
+  >= +/-5 km/s; within 5% of the known template by N ~ 100.
+- Legacy chunk fitting costs 30-45% in sigma: real but not a floor.
+- Iodine's information is not the limit: everything but v known is only
+  1.2-1.3x better than (b). More orders or bluer light would gain more.
+
+**Sensitivity (bias at plausible error sizes; Sun):**
+
+| Rank | Error | Bias, m/s | Tolerance for 1 m/s / 30 cm/s / 10 cm/s |
+|---|---|---|---|
+| 1 | LSF h3 change per exposure, 0.01 (if not fitted) | 17.2 | 6e-4 / 1.7e-4 / 6e-5; zero if fitted per exposure |
+| 2 | h3 change across orders, 0.01 | 5.1 | 2e-3 / 6e-4 / 2e-4; zero if fitted |
+| 3 | Model grid 0.25 km/s with the raw NIST scan | 0.69 | needs ~0.05 km/s grid (or a pre-smoothed atlas) |
+| 4 | Template line depths 1% | 0.42-0.46 | 2% / 0.7% / 0.2%; zero with an inferred template |
+| 5 | D(p) error, 0.01 px | 0.33 | 0.03 / 0.009 / 0.003 px |
+| 6 | Iodine per-feature depth 1% | 0.25 | 4% / 1.2% / 0.4% |
+| 7 | Static LSF shape (h3, h4 0.01; width 1%) | 0.14-0.21 | ~0.006 / 0.002 / 0.0006 |
+| 8 | Iodine atlas noise 0.3% per sample | 0.18 | 1.7% / 0.5% / 0.17% |
+| 9 | Stitching step 0.02 px | 0.14 | 0.15 / 0.044 / 0.015 px |
+| 10 | Micro-tellurics (synthetic: 1 line per 2 A, 0.1-1% deep) | 0.09 | 10x / 3x / 1x this population |
+| 13 | Detector dx, 3e-3 px rms per edge | 0.05 | 0.057 / 0.017 / 0.006 px |
+| 14 | Cell temperature 1 K | 0.001 | negligible |
+
+- An atlas wavelength-scale error only moves the zero point.
+- A telluric correction from an atlas's sub-1% structure (noise and solar
+  residuals) would inject up to 1.5 m/s: an upper bound, not a
+  measurement.
+
+**Verdict (supports JDE's view).** The 0.5-1 m/s floor of iodine
+programmes is a modelling limit, chiefly LSF asymmetry (h3) varying per
+exposure and template line-depth errors, not iodine's information
+content. Attainable per trace at S/N 200: ~1.1 m/s (Sun-like), ~0.9 m/s
+(K dwarf); a season of N = 100 averages to ~0.1 m/s photon-limited.
+- 1 m/s: fit a per-exposure h3 shared across orders (the measured T2 h3
+  jump of 0.008 would otherwise cost ~14 m/s).
+- 30 cm/s: also an inferred template, D(p) to 0.01 px, a model grid
+  finer than 0.25 km/s, iodine depths to ~1%, static LSF shape pooled to
+  ~0.002, stitching to 0.04 px.
+- 10 cm/s: at least six terms each held to ~5 cm/s, several of them (D,
+  detector dx, static LSF, atlas depths) needing external calibration
+  that iodine data alone cannot supply. Not impossible, but not from
+  iodine data alone.
+
+Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
+scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
+grid artefact should be checked on real data before sub-30 cm/s work.
+
 ## 2026-11-24: Do residuals depend on barycentric velocity? (testbed branch bervcheck)
 
 Test-bed branch `bervcheck` (private test-bed repo, commit 7a43294), on the
