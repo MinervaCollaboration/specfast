@@ -339,8 +339,8 @@ bench was not regulated: regress on bench temperature within the era.
 Hardware history (site trips) is in HISTORY.md.
 Per-telescope breaks (LSF width, offsets, throughput), not
 spectrograph-wide, as tested on the data (telbreaks, 2026-11-23): only
-2018-12-17 for T2 and T3 (the site trip: mirrors cleaned and re-collimated,
-ZWO guide cameras, T3 hard stop and cable wrap repaired), each with an RV
+2018-12-17 for T2 and T3 (the site trip: T3 recabled after a cable-wrap
+failure, ZWO guide cameras replaced the SBIGs, FAUs refocused), each with an RV
 offset; a static h3 offset there is plausible (T2 h3 +0.008) but untested.
 The earlier guesses (T3 2018-07-01, 2018-12-22 for all four telescopes,
 2019-09-18 per telescope) did not help or made things worse. Guiding

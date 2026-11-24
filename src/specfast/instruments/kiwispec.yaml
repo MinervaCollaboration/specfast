@@ -232,8 +232,9 @@ channel_breaks:
   - date: 2018-12-17
     channels: [T2, T3]
     notes: >-
-      Site trip (no data 12-15..19): mirrors cleaned and re-collimated, ZWO
-      guide cameras installed, T3 hard stop and cable wrap repaired. T2
+      Site trip (no data 12-15..19; HISTORY.md): T3 cabling replaced after a
+      cable-wrap failure; ZWO guide cameras replaced the SBIGs (FAUs
+      refocused, pointing models redone; robotic again 12-21). T2
       throughput +1.3 dex, LSF width +1.5%, h3 +0.008, RV +10.6 m/s.
 notes:
   - Order indices are those of the extracted product; echelle_orders holds m = 122 - index.

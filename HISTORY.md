@@ -6,6 +6,37 @@ Each entry gives the date, what changed and what it means for specfast
 the exact day of a change is not known. Telescopes are T1-T4; "MINERVA Red"
 is the separate fifth telescope, which does not feed KiwiSpec.
 
+## 2018-12 site trip (summaries 2018-12-18 and 2018-12-21)
+
+No science 2018-12-15..19; robotic operation resumed 2018-12-21 (the first
+science frames are on 12-20).
+
+- **T3:** repaired after a cable-wrap failure: the telescope had wrapped up
+  about 7 times. Every cable in the telescope conduit (and a few others)
+  was replaced. A PlaneWave software upgrade was still pending.
+- **Guide cameras:** ZWOs replaced the SBIGs on the FAUs. They could not
+  communicate through the black boxes (no fix from ZWO), so the telescope
+  computers were moved back into the domes (they had been moved out after
+  three motherboards died) and talk through the mount's USB hub.
+- **FAUs refocused and pointing models redone** for the ZWOs. The larger
+  field of view and better QE made a big difference to guiding, but they
+  cause source confusion for some targets (55 Cnc), which confuses
+  acquisition.
+- MINERVA Red (not a KiwiSpec feed): dome gearboxes replaced; east shutter
+  sticking.
+
+What it means for specfast:
+- This is the per-telescope break 2018-12-17 (T2 and T3) in
+  `kiwispec.yaml`. T2's starlight throughput rose by 1.3 dex (~20x
+  relative to the other telescopes) and its FAU star size fell 2.1": the
+  new guide cameras and refocus fixed T2's acquisition and guiding, which
+  the 2018-09 refocus had not. T3's step is the recabling, after a mostly
+  dark 2018 H2.
+- The header fibre positions change units on 2018-12-20 (ZWO pixels):
+  any guide-offset or fibre-position quantity needs a per-camera scale.
+- 55 Cnc after 2018-12: check for acquisition failures (wrong star or
+  off-fibre frames) before trusting its RVs.
+
 ## 2018-09 site trip (summary 2018-09-07)
 
 During the 2018 monsoon gap (no science 2018-06-29..10-10). Spectroscopy
