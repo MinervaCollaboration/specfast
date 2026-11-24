@@ -84,8 +84,9 @@ that meet only at a documented on-disk product:
   (channel, order, pixel) of flux, variance and a bitmask; per-trace
   diagnostics (cross-dispersion width and centroid, profile chi2, halo);
   a normalized header (times, target, barycentric inputs, environment);
-  optional wavelength per (channel, order, pixel) with its source; and
-  provenance. One multi-extension FITS file per exposure. Either stage
+  optional wavelength per (channel, order, pixel) with its source;
+  optionally, per trace, a sparse resolution matrix and flux covariance
+  (spectro-perfectionism; see "Extraction modes"); and provenance. One multi-extension FITS file per exposure. Either stage
   can be replaced: the Doppler stage can run on another pipeline's
   extraction if it is converted to this product.
 - **Stage 2, doppler**: forward model and fit (below), then combination.
@@ -158,7 +159,7 @@ Each factor is a component behind one small interface. A component:
 | Component | First implementation | Later implementations |
 |---|---|---|
 | Wavelength | polynomial in pixel, per (exposure, fibre, order); degree configurable (default > 2) | optical model: grating equation plus a camera/distortion map derived from the Zemax design, with a few low-order perturbation terms shared by all orders and fibres, per exposure or night |
-| LSF | Gaussian, sigma per (fibre, order) frozen from the B-star calibration, constant in km/s (a static along-order width gradient was tested 2026-11-22 and gains nothing; see FINDINGS) | Gauss-Hermite or sum of Gaussians; shape from the optical model times a fitted perturbation |
+| LSF | (with a resolution matrix in the product: apply it, no free LSF) Gaussian, sigma per (fibre, order) frozen from the B-star calibration, constant in km/s (a static along-order width gradient was tested 2026-11-22 and gains nothing; see FINDINGS) | Gauss-Hermite or sum of Gaussians; shape from the optical model times a fitted perturbation |
 | Iodine | NIST 2018-08 FTS scan (exact vacuum, native wavenumber grid; 4950-6450 A), optical-depth strength. Never I2_0.1 uncorrected (+/-300 m/s air-dispersion error) | per-era atlas, cell temperature term; optional learned observer-frame correction (halves chi2, no RV gain so far) |
 | Telluric | static mask from the atlas at T < 0.98-0.99 (threshold barely matters); orders 18-20 (590 nm water band) masked harder or down-weighted; per-exposure spectral water column saved as a diagnostic | fitted H2O columns from a line-by-line model (TAPAS / molecfit style) with its own line shapes; an atlas raised to a power fails (atlas noise, and one column can't fit the water band) |
 | Star | DSST template; inferred template | Korg synthetic spectrum from (Teff, logg, abundances, vsini, macroturbulence) |
@@ -352,6 +353,38 @@ Pilot results (extract2, 2026-11-22) settle the recipe:
 - extraction alone gives < 1 m/s for bright stars; its value is faint
   frames, daytime frames and robustness (no crashes, no lost frames).
 
+### Extraction modes (JDE 2026-11-24)
+
+At 1 m/s the 1D recipe above suffices. At 10 cm/s the extracted
+spectrum's line-spread function itself depends on the extraction
+(weights, illumination, flux) wherever the 2D PSF does not separate into
+a cross-dispersion profile times a spectrum: tilted or curved fibre
+images, a PSF varying over the detector, G-CLEF's seven adjacent pupil
+slices with overlapping wings. Three modes, sharing one calibration
+product, a 2D PSF model per (channel, arm) measured from comb/etalon and
+flat frames and interpolated with the optical model:
+
+1. **1D profile fitting** (current; KiwiSpec): simultaneous fit of all
+   traces in a column with empirical cross-dispersion profiles. The
+   Doppler stage fits its own LSF.
+2. **Spectro-perfectionism** (Bolton & Schlegel 2010): solve for the
+   spectra of all traces jointly through the 2D PSF, then reconvolve to a
+   well-conditioned resolution matrix R. The product carries R and the
+   flux covariance per trace; the Doppler stage applies R instead of
+   fitting an LSF.
+3. **Full 2D forward model**: no extraction product for science; the
+   Doppler stage evaluates its model through the 2D PSF onto the raw
+   pixels (with the detector frame: dx(p), R(p), charge-transfer terms)
+   and fits the image. Stage 1 then reduces to calibration (bias,
+   scattered light, PSF, traces). Most exact, most expensive.
+
+Which mode G-CLEF needs is decided by simulation, not opinion: render
+raw frames from the G-CLEF optical model (PyEchelle; collaboration-
+private) with star, comb and sky light and injected velocities, run each
+mode, and measure the RV error each leaves against the 10 cm/s budget.
+KiwiSpec is the wrong test bed for this: its iodine floor hides the
+differences.
+
 Frame selection (robofast headers, 2026-11-23): skip any frame with
 `SIMULATE = T` or `IMAGETYP = test` (robofast marks dry-run frames this
 way from 2026-11-22; their names also contain `.test`), and skip
@@ -403,10 +436,11 @@ before they are trusted.
 | Barycentric correction | star/observatory | flux-weighted midpoint per colour, catalogue astrometry | flux-weighted midpoint per exposure (fluxmid) | exposure-meter data |
 | Wavelength solution and drift | optics | comb/etalon per exposure, D(p), quadratic per trace | D(p) 0.1 px, residual 0.015 px | G-CLEF design; public comb data |
 | Calibration-vs-science differential drift | optics | per-fibre drift model | n/a (iodine is in the science light) | G-CLEF lab data |
-| LSF variation (2D, per fibre, in time) | optics | LSF from comb lines; 2D extraction | static along-order gradient gains nothing at 1 m/s | G-CLEF design; comb data |
+| LSF variation (2D, per fibre, in time) | optics | 2D PSF from comb lines; extraction mode 2 or 3 | static along-order gradient gains nothing at 1 m/s | G-CLEF design; comb data |
 | Pixel-position and size irregularities, stitching | detector | detector map dx(p), R(p) | stitching < 0.02 px | comb data; injection |
 | Charge-transfer and brighter-fatter effects (flux-dependent shifts) | detector | flux-dependent pixel-shift term | not measured | lab and comb data at several fluxes |
 | Fibre modal noise, scrambling, slicer illumination | optics | per-fibre/slice terms, error model | per-telescope breaks after feed changes | G-CLEF lab data |
+| Extraction-induced LSF changes (non-separable 2D PSF, slice overlap) | optics/detector | extraction modes 2-3 (resolution matrix, or 2D forward model) | < 1 m/s for bright stars (1D mode) | PyEchelle simulations |
 | Cross-contamination (calibration light in science traces) | detector/extraction | simultaneous trace fitting | leakage <= 1e-3, < 0.2 m/s (too large at 10 cm/s) | G-CLEF design; comb data |
 
 Consequences for the code: every term has a frame and a component; no
