@@ -21,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 specfast-zemax2instrument = "specfast.optics.cli:main"
+specfast-doppler = "specfast.doppler.cli:main"
 
 [dependency-groups]
 test = ["pytest>=8", "pytest-xdist>=3.5", "pytest-timeout>=2.3"]

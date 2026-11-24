@@ -192,6 +192,10 @@ def _build(tp: Any, value: Any, where: str) -> Any:
         if not isinstance(value, dict):
             raise ConfigError(f"{where}: expected a mapping, got {type(value).__name__}")
         return build_dataclass(tp, value, where)
+    if tp is dict or origin is dict:
+        if not isinstance(value, dict):
+            raise ConfigError(f"{where}: expected a mapping, got {type(value).__name__}")
+        return dict(value)
     if tp is datetime.date:
         if isinstance(value, datetime.datetime):
             raise ConfigError(f"{where}: expected a date, got a datetime {value!r}")

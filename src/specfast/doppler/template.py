@@ -146,6 +146,7 @@ __all__ = [
     "TemplateResult",
     "TemplateSolver",
     "banded_inverse_diagonal",
+    "block_pixel_operator",
     "check_separability",
     "combine_velocities",
     "infer_template",
@@ -328,6 +329,84 @@ def convolution_matrix(kernel: np.ndarray, n: int) -> sp.csr_matrix:
     hw = kernel.size // 2
     offsets = np.arange(-hw, hw + 1)
     return sp.diags([np.full(n, kernel[hw - d]) for d in offsets], offsets, shape=(n, n)).tocsr()
+
+
+def block_pixel_operator(
+    model: ForwardModel, params: Mapping, ctx: ExposureContext, include_cti: bool = True
+):
+    """``diag(R C) . P . K`` of one block (npix x fine grid) as a sparse
+    matrix; for an LSF varying along the order, ``sum_k diag(R C W_k) P K_k``
+    over its nodes (:meth:`~specfast.doppler.model.ForwardModel.node_kernels`)."""
+    P = pixel_matrix(model.grid, model.ln_edges(params, ctx)).tocsr()
+    pf = model.pixel_factor(params, ctx)
+    ks, w = model.node_kernels(params, ctx)
+    # P is banded (contiguous columns per row): convolve each row's band with
+    # the (reversed) kernels directly instead of multiplying sparse matrices
+    npix, n = P.shape
+    P.sort_indices()
+    starts = np.array(
+        [P.indices[P.indptr[i]] if P.indptr[i + 1] > P.indptr[i] else 0 for i in range(npix)]
+    )
+    width = int(np.max(np.diff(P.indptr)))
+    Pb = np.zeros((npix, width))
+    for i in range(npix):
+        a, b = P.indptr[i], P.indptr[i + 1]
+        Pb[i, P.indices[a:b] - starts[i]] = P.data[a:b]
+    L = ks[0].size
+    hw = L // 2
+    band = np.zeros((npix, width + L - 1))
+    weights = [np.ones(npix)] if w is None else list(w)
+    for k, ker in enumerate(ks):
+        kr = ker[::-1]
+        pk = np.zeros_like(band)
+        for a in range(width):
+            pk[:, a : a + L] += Pb[:, a : a + 1] * kr[None, :]
+        band += (pf * weights[k])[:, None] * pk
+    cols = starts[:, None] - hw + np.arange(width + L - 1)[None, :]
+    band = np.where((cols >= 0) & (cols < n), band, 0.0)
+    cols = np.clip(cols, 0, n - 1)
+    out = sp.csr_matrix(
+        (band.ravel(), cols.ravel(), np.arange(npix + 1) * band.shape[1]), shape=(npix, n)
+    )
+    out.sum_duplicates()
+    if model.cti is not None and include_cti:
+        out = cti_matrix(model, params, ctx) @ out
+    return out.tocsr()
+
+
+def cti_offset(model: ForwardModel, params: Mapping, ctx: ExposureContext) -> np.ndarray:
+    """``model with CTI - model without CTI`` at ``params`` (zero without
+    CTI). The CTI perturbation is ~1e-3 of the flux; the template solver
+    subtracts it from the data at the current model instead of carrying the
+    CTI operator (a wide band) in its normal equations."""
+    if model.cti is None:
+        return np.zeros(model.pixels.size)
+    flux = model.pixel_factor(params, ctx) * model.broaden_and_bin(
+        model.fine_spectrum(params, ctx),
+        *model.node_kernels(params, ctx),
+        model.ln_edges(params, ctx),
+    )
+    return model.evaluate(params, ctx) - flux
+
+
+def cti_matrix(model: ForwardModel, params: Mapping, ctx: ExposureContext) -> sp.csr_matrix:
+    """The linearized CTI operator of a block (npix x npix; loss fraction at
+    the current model)."""
+    cti = model.cti
+    cp = params[cti.name]
+    loss = model.cti_loss(params, ctx)
+    n = loss.size
+    tau = cti.trail(cp)
+    rows, cols, vals = [np.arange(n)], [np.arange(n)], [1.0 - loss]
+    sign = 1 if cti.amplifier_column <= float(np.min(model.pixels)) else -1
+    for k in range(1, min(tau.size, n - 1) + 1):
+        src = np.arange(n - k) if sign > 0 else np.arange(k, n)
+        rows.append(src + sign * k)
+        cols.append(src)
+        vals.append(tau[k - 1] * loss[src])
+    return sp.csr_matrix(
+        (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))), shape=(n, n)
+    )
 
 
 def interpolation_matrix(grid: LnGrid, ln_x: np.ndarray) -> sp.csr_matrix:
@@ -625,6 +704,12 @@ class TemplateSolver:
         self.velocities: dict = {}
         self.history: list = []
         self._ops: dict = {}
+        #: Cache each block's pixel operator between instrument updates
+        #: (memory: ~1 MB per block; switch off for large problems).
+        self.cache_operators = True
+        #: Compute the template's own variance (selected inversion) at every
+        #: template step; switch off to save time until the last one.
+        self.want_sigma = True
         self._sync()
 
     # ----------------------------------------------------------- state sync
@@ -642,13 +727,13 @@ class TemplateSolver:
     def _pixel_operator(self, i: int) -> sp.csr_matrix:
         """diag(R C) . P . K for block ``i`` (npix x fine grid), cached until
         the block's instrument parameters change."""
-        if i not in self._ops:
-            b, p = self.blocks[i], self.params[i]
-            m = b.model
-            P = pixel_matrix(m.grid, m.ln_edges(p, b.ctx))
-            K = convolution_matrix(m.kernel(p, b.ctx), m.grid.n)
-            self._ops[i] = sp.diags(m.pixel_factor(p, b.ctx)) @ P @ K
-        return self._ops[i]
+        if i in self._ops:
+            return self._ops[i]
+        b, p = self.blocks[i], self.params[i]
+        op = block_pixel_operator(b.model, p, b.ctx, include_cti=False)
+        if self.cache_operators:
+            self._ops[i] = op
+        return op
 
     @staticmethod
     def _weights(b: Block) -> np.ndarray:
@@ -713,7 +798,7 @@ class TemplateSolver:
                 w = self._weights(b)
                 Aw = A.T @ sp.diags(w)
                 N = N + Aw @ A
-                rhs += Aw @ np.asarray(b.data, dtype=np.float64)
+                rhs += Aw @ (np.asarray(b.data, dtype=np.float64) - cti_offset(m, p, b.ctx))
             D = second_difference(g.n)
             R = sp.identity(g.n) / self.prior_sigma**2 + (D.T @ D) / cfg.smooth_sigma**2
             # Gauge: the update must not shift the template (a shift is the
@@ -724,9 +809,12 @@ class TemplateSolver:
             ref = self.prior[o] if self.mode == "modify" else self.flux[o]
             gvec = N @ np.gradient(ref)
             con = (gvec, float(gvec @ ref)) if np.any(gvec) else None
-            x, var = solve_banded_spd(N + R, rhs + R @ self.prior[o], constraint=con)
+            x, var = solve_banded_spd(
+                N + R, rhs + R @ self.prior[o], want_diag=self.want_sigma, constraint=con
+            )
             self.flux[o] = x
-            self.flux_sigma[o] = np.sqrt(var)
+            if var is not None:
+                self.flux_sigma[o] = np.sqrt(var)
         self._sync()
 
     def observatory_step(self) -> None:
