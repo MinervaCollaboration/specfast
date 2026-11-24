@@ -192,10 +192,14 @@ class Era:
 
 @dataclass(frozen=True)
 class ExcludedWindow:
-    """Dates (inclusive) whose data are excluded by default."""
+    """Dates (inclusive) whose data are excluded by default: for every
+    channel, or only for ``channels`` (e.g. one telescope's guiding
+    episode)."""
 
     start: datetime.date
     end: datetime.date
+    #: Channels excluded; empty = all.
+    channels: tuple[str, ...] = ()
     notes: str = ""
 
 
@@ -326,8 +330,13 @@ class Instrument:
         i = bisect.bisect_right(self._era_starts, date) - 1
         return self.eras[i] if i >= 0 else None
 
-    def is_excluded(self, date: datetime.date) -> bool:
-        return any(w.start <= date <= w.end for w in self.excluded)
+    def is_excluded(self, date: datetime.date, channel: str | None = None) -> bool:
+        """Whether ``date`` is excluded: instrument-wide windows only when
+        ``channel`` is None, else also that channel's own windows."""
+        return any(
+            w.start <= date <= w.end and (not w.channels or channel in w.channels)
+            for w in self.excluded
+        )
 
     def channel_epoch(self, channel: str, date: datetime.date) -> int:
         """Number of per-channel breaks of ``channel`` on or before ``date``:
@@ -382,6 +391,9 @@ class Instrument:
         for w in self.excluded:
             if w.end < w.start:
                 raise ConfigError(f"{where}: excluded window ends before it starts: {w}")
+            bad = set(w.channels) - known
+            if bad:
+                raise ConfigError(f"{where}: excluded window {w.start} names {sorted(bad)}")
         for b in self.channel_breaks:
             bad = set(b.channels) - known
             if bad:
