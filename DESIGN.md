@@ -456,14 +456,29 @@ The break list is configuration.
 
 ## Error budget toward 10 cm/s (G-CLEF)
 
-G-CLEF's goal is 10 cm/s (JDE 2026-11-24). That is the TOTAL budget, so
-no single term may use it (JDE 2026-11-24). With ~15 independent terms
-adding in quadrature each gets ~2.5 cm/s; terms that are correlated
-between exposures (static or BERV-dependent) add linearly in the worst
-case and must be held lower still. Working allocation until the G-CLEF
-project's own error budget is adopted: 2 cm/s per instrument or analysis
-term, 1 cm/s for terms that do not average down over a season. Results
-below are graded against that, not against 10 cm/s.
+G-CLEF's published PRV error budget (Podgorski et al. 2014, SPIE 9147,
+91478W; concept-design stage) sets a single-measurement instrument
+requirement of 40-50 cm/s with a goal of 20 cm/s; 10 cm/s is the
+precision expected for a series of measurements on a quiet star. 10 cm/s
+is therefore the total, and no single term may use it (JDE 2026-11-24).
+Its top level (37 cm/s RSS): post-calibration residual 33 (calibration
+source accuracy, 5 for a comb or etalon, 30 for ThAr, plus 10% of the
+calibratable instrument errors: internal pressure 4, mechanical 10,
+thermo-elastic 24, CCD block stitching 3), barycentric correction 2,
+non-calibratable instrument errors 14 (stray light 5, detector 10,
+micro-vibration 5, software fitting 6), external non-calibratable errors
+10 (guiding 8, assuming scrambling gain 10^4; focus 3; ADC 5).
+
+Terms specfast owns or carries: software fitting (6 cm/s; all numerical
+and model error, e.g. the model grid), stray light (5; includes comb
+light leaking into science traces), detector (10; pixel map, charge
+transfer), stitching (3), barycentric (2), calibration accuracy (5).
+Fibre illumination falls under guiding/focus (8, 3), which assumed
+scrambling makes guiding negligible; our simulations quantify that
+assumption. Results below are graded against these allocations at the
+goal level, scaled to the 20 cm/s goal where the published numbers are
+for the 40 cm/s requirement; correlated terms (static or BERV-dependent,
+which do not average) are held to half their allocation.
 
 The ~0.5-1 m/s floor of the best iodine programmes is treated as a
 limit of their modelling, not of iodine (JDE 2026-11-24): independent
