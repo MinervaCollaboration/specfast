@@ -1241,6 +1241,36 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-24: Charge-transfer inefficiency (testbed branch cti)
+
+Test-bed branch `cti` (private test-bed repo, 5c2a42b).
+- **Geometry:** dispersion runs along the serial register; the single
+  amplifier is at the blue end of every order, so a pixel makes 51-2098
+  serial transfers and deferred charge trails redward. Cross-dispersion
+  is the parallel direction (shifts no wavelengths to first order).
+- **CTE per era (serial EPER, 2016-2026):** charge lost per transfer
+  ~4e-6 at 1k ADU, ~1.3e-6 at 10k (CTE 0.999995 / 0.9999987); deferred
+  charge ~9 ADU x (S / 1000 ADU)^0.5 per row; trail 2.5e-4 S exp(-k/2.2) +
+  1.5e-4 S exp(-k/18-24). No era trend beyond +/-30% and no CCD-temperature
+  dependence over -85..-90 C. Parallel CTI not measurable.
+- **Prediction (specfast forward model, trap model calibrated to EPER):**
+  an apparent redshift falling with counts, +0.24..+0.29 m/s at tau Cet's
+  ~1e4 ADU per column; slope -0.2 to -0.46 m/s/dex locally (worst case -0.7
+  to -1.2), identical for all telescopes.
+- **Observed:** the count slope is T2-only (tau Cet T2 +2.8 +/- 1.1,
+  sigma Dra +5.6 +/- 1.0 m/s/dex; T1, T3, T4 consistent with zero), positive,
+  and has no dependence on the number of transfers (by order or quarter
+  along the order). The across-night exposure slope vanishes within nights
+  (a time confound).
+- **Trace-level correction:** tau Cet nightly 4.87 -> 4.92 m/s (slightly
+  worse); quadrature contribution ~0.26 m/s nightly, ~0.12 within-night
+  (sigma Dra 0.44, HD 122064 0.35 nightly).
+
+Verdict: CTI is real and minor (< 0.3 m/s at MINERVA's counts); the T2
+count slope is a T2-specific feed effect, not the detector. A per-pixel
+CTI term belongs in specfast's detector frame for faint targets and for
+G-CLEF, not in MINERVA's bright-star budget.
+
 ## 2026-11-24: Timing errors: photon-weighted midpoints (testbed branch timing)
 
 Test-bed branch `timing` (private test-bed repo, commit 764360e). A
