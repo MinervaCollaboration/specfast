@@ -1450,6 +1450,38 @@ the camera hardware.
   fibre-centred flux; re-measure each telescope's fibre-to-guider focus
   offset (T1 first).
 
+### Follow-up: 2016 fibre rasters and the 2016-02-05 backlight series (timing, 11e0e2d)
+
+- **Rasters found** (JDE with Samson Johnson, spring 2016): the 2016 guide
+  loop logged "applying offset to fiber position (x,y)" each cycle, and on
+  2016-03-10 (T1, T2), 03-11 (T3), 03-31, 04-01, 04-02 (T2, T4) and 04-27
+  (T4) it stepped through grids. The exposure meter (not gated by the
+  shutter) recorded the fibre-coupled light throughout.
+- **Coupling maps** (meter / FAU flux against star-fibre offset, fitted
+  with the 2.3" octagon convolved with the image the fibre sees):
+
+  | Night, tel | Peak vs logged fibre (") | FAU core FWHM (") | Extra blur at the fibre (disc D, ") | Quality |
+  |---|---|---|---|---|
+  | 03-10 T1 | (+0.2, -0.5) | 4.1 | < 1.4 (confocal) | good |
+  | 03-10 T2 (1-D) | (-0.1, +0.1) | 3.7 | 5.5-6 | good |
+  | 04-02 T2 | (-1.1, +0.2) | 4.2 | 7.5 | clean map |
+  | 04-02 T4 | (+2.8, +1.7) | 3.1 (saturated) | ~3 | fair |
+  | 03-31 T4 | (+1.2..+2.9, +1.4..+2.7) | 3.9 | ~6 | degenerate |
+  | 03-11 T3 | (-0.2, -0.2) | 4.6 | unconstrained | other tels dominate the meter |
+
+  Scintillation gives chi2_r 3-30, so the errors are underestimated. FAU
+  images in early 2016 were broad (3.7-4.6" core FWHM, vs ~3" from 2017).
+  No spectra were taken while stepping, so there is no RV-vs-offset slope.
+- **Backlight series 2016-02-05:** the index 73-92 is the I2 stage
+  position (mm), not a focus scan. Backlit fibre spot at its brightest: T2
+  near a sharp fibre image (half-flux radius 0.9"); T3 moderately blurred
+  (1.4"); T1 blurred (1.8", ~2.2x ideal); T4 worst (2.1", with a halo).
+- **Reading:** alignment changed after spring 2016. T2 and T4 were
+  blurred at the fibre then but T2 is confocal in 2017-20 (autofocus
+  test); T1 was confocal in March 2016 but is +600-900 um out in 2017-20.
+  JDE: every FAU has been refocused since. T1's current state is on the
+  site-visit list.
+
 ## 2026-11-24: Legacy production pipeline, tau Cet baseline
 
 The legacy Doppler code's last tau Cet output (run 2019-04-29 on the
