@@ -37,6 +37,44 @@ What it means for specfast:
 - 55 Cnc after 2018-12: check for acquisition failures (wrong star or
   off-fibre frames) before trusting its RVs.
 
+## 2017-02 site trip (summaries 2017-02-21 .. 2017-03-01)
+
+Closed from about 2017-02-20; full RV operation resumed 2017-03-01 (no
+science frames 2017-01-19..03-01).
+
+- **Science fibres re-terminated (all four):** the fibre ends were cut off,
+  re-epoxied and re-polished. A test fibre gave a little over 2x the
+  throughput of the original. Six fibres were made. The best four were
+  matched, fibre and end, to the telescope each suited best, so
+  fibre-to-telescope assignments may have changed. The test fibre was in
+  the bottom two and became the calibration fibre. Throughput was "well
+  over" 2x and roughly uniform across telescopes. End-to-end variability was
+  a factor of ~2, more than the ~30% expected from a 5 um decenter.
+- **Fibres refocused in their FAUs.** New data fibres for the black boxes
+  were run through the same conduits.
+- **Telescope computers moved into the control room.** USB devices now
+  go through each telescope's black box. Telescope control panels now
+  talk through the network switch, not USB.
+- Aqawan roof limit switches moved and the Aqawan 2 U-joint replaced
+  (enclosure only).
+- A focusing-routine bug was found and fixed on 03-01; pointing models
+  might need redoing.
+
+What it means for specfast:
+- **A candidate break for all four telescopes at 2017-02-27:** new fibre
+  ends (near- and far-field, throughput, possibly a different fibre per
+  telescope) change the trace profile, the LSF and the per-telescope
+  zero-point. The x2 extraction already starts a profile era on 2017-02-25
+  (e2017a). The data show steps across the 01-19..03-01 gap: header fibre
+  positions on all four telescopes on 03-01, and relative throughput and
+  trace-profile shape on T1, T3 and T4 on 03-04..15. `kiwispec.yaml` has
+  no RV-level break here: the instrument era e2016c runs 2016-11-22 ..
+  2017-10-01, with the vacuum outage excluded from 04-25. The telbreaks
+  RV test tried only T4 at 2017-03-08 (no gain). An all-telescope break at
+  2017-02-27 is untested.
+- Throughput per telescope roughly doubles here, so faint-frame selection
+  and S/N-based weights should not assume one throughput across the break.
+
 ## 2018-09 site trip (summary 2018-09-07)
 
 During the 2018 monsoon gap (no science 2018-06-29..10-10). Spectroscopy
