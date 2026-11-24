@@ -237,6 +237,24 @@ frame) and mapped to pixels for every exposure.
   preferred mode; on a comb-calibrated instrument (G-CLEF) they are the
   only way to avoid per-order template offsets.
 
+## Stellar signals (JDE 2026-11-24)
+
+The remaining MINERVA term is a night-to-night excess common to all
+telescopes; stellar jitter is a prime candidate and is first estimated
+from the literature for these well-studied stars. Mitigation is designed
+around what distinguishes the signals:
+- a planet's Doppler shift is achromatic and identical for every line;
+- spots and plage are chromatic and line-dependent (depth, formation
+  height, magnetic sensitivity), and change line shapes as they cross the
+  disc (Doppler-tomography-like distortions in the star frame);
+- optics vary with wavelength but not in time (the per-era maps);
+- the instrument's time variation lives in the instrument frame, the
+  star's in the star frame (separated by the barycentric spread).
+So the Doppler stage keeps line- or segment-level velocities with their
+covariance, supports masks chosen by activity sensitivity (selected on
+held-out data), fits an optional chromatic RV term, and carries a
+star-frame line-shape term separate from the instrument LSF.
+
 ## Combination
 
 - Joint solve of the per-segment velocities: v = RV_e + O_(group, era),
