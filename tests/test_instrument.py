@@ -32,9 +32,13 @@ def test_kiwispec_eras():
     assert k.era_of(dt.date(2017, 10, 2)).start == dt.date(2017, 10, 2)
     assert k.era_of(dt.date(2018, 6, 1)).start == dt.date(2017, 10, 2)
     assert k.is_excluded(dt.date(2017, 6, 1)) and not k.is_excluded(dt.date(2017, 10, 2))
-    assert k.channel_epoch("T3", dt.date(2018, 8, 1)) == 1
-    assert k.channel_epoch("T1", dt.date(2018, 8, 1)) == 0
-    assert k.channel_epoch("T1", dt.date(2018, 12, 22)) == 1
+    assert k.channel_epoch("T3", dt.date(2018, 8, 1)) == 0
+    assert k.channel_epoch("T3", dt.date(2018, 12, 17)) == 1
+    assert k.channel_epoch("T2", dt.date(2018, 12, 16)) == 0
+    assert k.channel_epoch("T1", dt.date(2019, 12, 1)) == 0
+    # per-telescope exclusion: T2's 2019 guiding episode only
+    d = dt.date(2019, 6, 1)
+    assert k.is_excluded(d, "T2") and not k.is_excluded(d, "T1") and not k.is_excluded(d)
 
 
 @pytest.mark.parametrize("name, nslices", [("gclef_magellan", 1), ("gclef_gmt", 7)])
@@ -92,6 +96,18 @@ def test_arm_layout_validation(tmp_path):
         + "arms: [{name: m, channels: [A], orders: [0], detector: {name: d}}]\n"
     )
     with pytest.raises(ConfigError, match="not one of"):
+        load_instrument(f)
+
+
+def test_excluded_channel_validation(tmp_path):
+    f = tmp_path / "x.yaml"
+    f.write_text(
+        "name: x\ndescription: d\nstatus: provisional\n"
+        "channels: [{name: A, role: science}]\n"
+        "arms: [{name: m, channels: [A], orders: [0], detector: {name: d}}]\n"
+        "excluded: [{start: 2020-01-01, end: 2020-01-02, channels: [B]}]\n"
+    )
+    with pytest.raises(ConfigError, match="excluded window"):
         load_instrument(f)
 
 

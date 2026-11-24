@@ -215,17 +215,26 @@ excluded:
   # ".test" in the name; see DESIGN "Frame selection"); frames before that
   # are unmarked, so keep this window. Skip *.json sidecars always.
   - {start: 2026-11-08, end: 2026-11-30, notes: robofast simulated dry runs}
+  # Per-telescope guiding episode: T2 held the star 7-11" off the fibre.
+  # Excluding it improved sigma Dra (nightly rms to 10.98 m/s, within-night
+  # 5.37 -> 4.70 m/s); an era made it worse.
+  - {start: 2019-05-08, end: 2019-07-14, channels: [T2], notes: T2 guiding episode}
 
-# Per-telescope breaks (LSF width, offsets, throughput).
+# Per-telescope breaks (LSF width, offsets, throughput), as tested on the RV
+# data (FINDINGS 2026-11-23, "Per-telescope era breaks from the data"). Only
+# the site trip helps, and only for T2 and T3; T1 and T4 merely react to T2
+# in relative quantities. Not breaks (tested): T3 2018-07-01, 2018-12-22 for
+# T1/T4, 2019-09-18 per telescope (instrument-wide era only).
+# Flagged, not excluded (no RV gain from excluding or an era):
+#   T2 2018-10-29..12-14 (mis-guiding, RV -12.6 m/s);
+#   T3 2019-11-05..12-04 (throughput -0.7 dex; exclusion untested).
 channel_breaks:
-  - {date: 2018-07-01, channels: [T3], notes: T3 effectively down}
-  - date: 2018-12-22
-    channels: [T1, T2, T3, T4]
+  - date: 2018-12-17
+    channels: [T2, T3]
     notes: >-
-      Site trip: mirrors cleaned and re-collimated, SBIG guide cameras
-      replaced by ZWOs, T3 hard stop and cable wrap repaired.
-  - {date: 2019-09-18, channels: [T1, T2, T3, T4]}
-
+      Site trip (no data 12-15..19): mirrors cleaned and re-collimated, ZWO
+      guide cameras installed, T3 hard stop and cable wrap repaired. T2
+      throughput +1.3 dex, LSF width +1.5%, h3 +0.008, RV +10.6 m/s.
 notes:
   - Order indices are those of the extracted product; echelle_orders holds m = 122 - index.
   - Telescope numbering is 1-based (T1-T4); legacy array index t = 0..3 maps to T(t+1).
