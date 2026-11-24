@@ -102,7 +102,7 @@ that meet only at a documented on-disk product:
 
 For one exposure e, fibre (telescope) f, order o, at detector pixel x:
 
-    F(x) = C(x) * Pixel[ LSF(x) (x) ( S(lam * D_e) * I2(lam) * T_e(lam) ) ](x)
+    F(x) = C(x) * R(x) * Pixel_dx[ LSF(x) (x) ( S(lam * D_e) * I2(lam) * T_e(lam) ) ](x)
 
 - `lam(x)`: the wavelength solution;
 - `S`: stellar spectrum, Doppler factor `D_e = 1 / (1 + v_e/c)`
@@ -111,8 +111,29 @@ For one exposure e, fibre (telescope) f, order o, at detector pixel x:
   depth, `I2 = exp(-k * tau_FTS)`;
 - `T_e`: telluric transmission (observed frame);
 - `(x)`: convolution with an LSF that can vary with x;
-- `Pixel[...]`: integration over the pixel, not point sampling;
+- `Pixel_dx[...]`: integration over the pixel, not point sampling, with
+  pixel edges displaced by the detector map dx(p);
+- `R`: detector response residual left after flat-fielding;
 - `C`: continuum and blaze.
+
+Four frames (JDE 2026-11-24). Each component lives in exactly one:
+
+| Frame | Moves with | Components |
+|---|---|---|
+| Star (stellar rest) | RV + barycentric correction | stellar template, stellar-line masks |
+| Observatory (observed wavelength) | nothing: fixed in wavelength | iodine, tellurics, sky emission |
+| Spectrograph optics | the spectrum, when the optics change (MINERVA: the ~68 px remount shift) | wavelength solution, along-order distortion D(p), LSF, blaze |
+| Detector (pixel) | nothing: fixed to the silicon | pixel-position map dx(p), response residual R(p), stitching, charge-transfer effects, bad pixels |
+
+The frames separate only through relative motion. The star crosses the
+pixels as the barycentric velocity changes over a year (KiwiSpec: about
+0.7-1 km/s per pixel, so tens of pixels); the observatory frame does not.
+A static detector-frame error therefore imitates a barycentric-velocity
+dependent template error, and a template inferred while ignoring the
+detector absorbs it. Iodine and tellurics share a frame and separate only
+through priors and airmass/water scaling. Optics and detector separate
+through optical changes (remounts, drifts) and, on a comb instrument,
+through comb lines sampling every pixel phase.
 
 The model is evaluated on a fine uniform grid in ln(lambda), convolved,
 then integrated onto pixels. Without a gas cell (G-CLEF) `I2 = 1`, and
@@ -142,6 +163,7 @@ Each factor is a component behind one small interface. A component:
 | Telluric | static mask from the atlas at T < 0.98-0.99 (threshold barely matters); orders 18-20 (590 nm water band) masked harder or down-weighted; per-exposure spectral water column saved as a diagnostic | fitted H2O columns from a line-by-line model (TAPAS / molecfit style) with its own line shapes; an atlas raised to a power fails (atlas noise, and one column can't fit the water band) |
 | Star | DSST template; inferred template | Korg synthetic spectrum from (Teff, logg, abundances, vsini, macroturbulence) |
 | Continuum | blaze function times a spline or higher-order term able to follow 10-20 A structure (a quadratic leaves ~1% rms) | per-era learned shape |
+| Detector | none: flat-fielded, bad pixels masked; stitching steps < 0.02 px measured on KiwiSpec (FINDINGS 2026-11-20) | pixel-position map dx(p) and response residual R(p) per detector, from comb/etalon lines or flats, as a calibration product with an optional fitted perturbation |
 | Masks / weights | telluric, sky emission ([O I] 5577), bad pixels, template artefacts | stellar-line masks chosen by activity sensitivity |
 
 Masks and weights compose as per-pixel layers, each defined in its own
@@ -360,6 +382,40 @@ The earlier guesses (T3 2018-07-01, 2018-12-22 for all four telescopes,
 episodes are per-telescope exclusion windows, not eras: T2 2019-05-08..07-14
 (excluding it improved sigma Dra).
 The break list is configuration.
+
+## Error budget toward 10 cm/s (G-CLEF)
+
+KiwiSpec with iodine floors at about 1 m/s; G-CLEF's goal is 10 cm/s
+(JDE 2026-11-24). Each term below is assigned a frame, the specfast
+component that carries it, and where it can be tested. Sizes are
+MINERVA measurements where we have them; the rest are to be quantified
+(G-CLEF optical model, public comb-calibrated data, injection tests)
+before they are trusted.
+
+| Term | Frame | specfast component | MINERVA (measured) | Test bed |
+|---|---|---|---|---|
+| Template wavelength zero-points (DSST) | star | per-(template, order) offsets; inferred template | 40-100 m/s per order, static, absorbed by offsets | MINERVA; injection |
+| Template noise and line errors that move with barycentric velocity | star | inferred template with its own covariance | check running (bervcheck) | MINERVA; injection |
+| Stellar activity, granulation, oscillations | star | line-by-line velocities, activity-sensitive line selection, exposure strategy | not separated yet | public solar data |
+| Micro-tellurics (lines < 1% deep) | observatory | modelled telluric component, per-exposure water and airmass | masked at 0.98 (too crude for 10 cm/s) | injection; public comb data |
+| Sky emission, moonlight | observatory | sky component from sky fibres | [O I] 5577 masked | G-CLEF sky fibres |
+| Iodine model | observatory | iodine atlas + learned correction | atlas choice 0-5 m/s on order pattern | MINERVA only (not G-CLEF) |
+| Barycentric correction | star/observatory | flux-weighted midpoint per colour, catalogue astrometry | flux-weighted midpoint per exposure (fluxmid) | exposure-meter data |
+| Wavelength solution and drift | optics | comb/etalon per exposure, D(p), quadratic per trace | D(p) 0.1 px, residual 0.015 px | G-CLEF design; public comb data |
+| Calibration-vs-science differential drift | optics | per-fibre drift model | n/a (iodine is in the science light) | G-CLEF lab data |
+| LSF variation (2D, per fibre, in time) | optics | LSF from comb lines; 2D extraction | static along-order gradient gains nothing at 1 m/s | G-CLEF design; comb data |
+| Pixel-position and size irregularities, stitching | detector | detector map dx(p), R(p) | stitching < 0.02 px | comb data; injection |
+| Charge-transfer and brighter-fatter effects (flux-dependent shifts) | detector | flux-dependent pixel-shift term | not measured | lab and comb data at several fluxes |
+| Fibre modal noise, scrambling, slicer illumination | optics | per-fibre/slice terms, error model | per-telescope breaks after feed changes | G-CLEF lab data |
+| Cross-contamination (calibration light in science traces) | detector/extraction | simultaneous trace fitting | leakage <= 1e-3, < 0.2 m/s (too large at 10 cm/s) | G-CLEF design; comb data |
+
+Consequences for the code: every term has a frame and a component; no
+term is folded into another frame's nuisance parameters without a test
+showing it is separable; the template's own uncertainty propagates into
+the RVs. MINERVA exercises the star and observatory frames and the
+combination stage; the optics and detector frames below 1 m/s need comb
+data, so a public comb- or etalon-calibrated dataset is the second test
+bed.
 
 ## Open questions
 
