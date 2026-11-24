@@ -1080,6 +1080,49 @@ them all along.
   offsets. A comb should also show whether the ~38 m/s common floor is
   iodine-side.
 
+## 2026-11-24: Do residuals depend on barycentric velocity? (testbed branch bervcheck)
+
+Test-bed branch `bervcheck` (private test-bed repo, commit 7a43294), on the
+wavedist level-1 joint fits (quadratic wavelength; Q + D agrees to ~10%).
+BERV rebuilt from the fitted velocity shift. Nulls: BERV shuffled within
+season; BERV series rotated within season (keeps slow drifts, the honest
+null); cross-season reproducibility of the BERV curve.
+
+- **Per order, yes.** Residuals carry a BERV-dependent pattern of 4-7 m/s
+  per order (4 km/s bins; sigma Dra 2.5), significant against the rotate
+  null (tau Cet +9.8 sd, HD 122064 +6-7 sd), repeating from season to
+  season (tau Cet r 0.58, HD 122064 0.42-0.46; sigma Dra 0.26, marginal,
+  its BERV range is only +/-4.7 km/s and most of its signal is drift).
+  Mostly non-linear in BERV; largest in orders 17-23 (11-15 m/s for tau
+  Cet); common to all four telescopes.
+- **Mostly not template-specific.** HD 122064 with rj08 vs rj122 on the
+  same 12,396 traces: the per-order BERV curves correlate at r 0.98. The
+  template-dependent part (rj08 - rj122) is ~1.6 m/s per order and ~0.75
+  m/s rms in the exposure RV.
+- **Small in the exposure RVs.** The per-order patterns largely cancel when
+  orders combine. BERV terms explain 8 +/- 5% of tau Cet's night-to-night
+  excess variance (~1.1 of 3.8 m/s; 95% upper limit ~1.7 m/s; not
+  significant within a season), ~3% for sigma Dra, ~0 for HD 122064.
+- **Confounders.** The pattern survives demeaning per (tel, order,
+  season) and does not line up across stars in day of year (no annual
+  instrument cycle); partial regression on airmass and temperature leaves
+  the slopes unchanged. Tellurics were not tested.
+- **Cause of the template-independent ~95% is open:** a detector-frame
+  error (the template-module injection test shows exactly this signature:
+  static pixel errors give BERV-repeating, telescope-common errors), the
+  LSF or wavelength model acting on the stellar lines, tellurics, or an
+  error shared by both DSSTs of the same star (both are deconvolved
+  spectra of HD 122064). Pixel shift vs BERV across stars was
+  inconclusive (only two stars overlap).
+
+Verdict: most of tau Cet's 3.8 m/s night-to-night excess is not BERV
+related. Inferred templates remain the right design (they remove the
+40-100 m/s zero-points and serve stars without DSSTs) but will not by
+themselves fix MINERVA's nightly scatter. Next checks on this pattern:
+the per-order BERV curve against a model of tellurics and against the
+detector-frame hypothesis once a pixel map exists (flats), and against
+an inferred template (PR #7) on real data.
+
 ## 2026-11-24: Template inference module, injection tests (specfast PR #7)
 
 Module `specfast.doppler.template`: per-order template on a fine ln(lambda)

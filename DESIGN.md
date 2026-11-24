@@ -444,7 +444,7 @@ before they are trusted.
 | Term | Frame | specfast component | MINERVA (measured) | Test bed |
 |---|---|---|---|---|
 | Template wavelength zero-points (DSST) | star | per-(template, order) offsets; inferred template | 40-100 m/s per order, static, absorbed by offsets | MINERVA; injection |
-| Template noise and line errors that move with barycentric velocity | star | inferred template with its own covariance | check running (bervcheck) | MINERVA; injection |
+| Template noise and line errors that move with barycentric velocity | star | inferred template with its own covariance | template-specific ~0.75 m/s in exposure RVs; a larger template-independent BERV pattern (4-7 m/s per order, mostly cancelling) of open cause | MINERVA; injection |
 | Stellar activity, granulation, oscillations | star | line-by-line velocities, activity-sensitive line selection, exposure strategy | not separated yet | public solar data |
 | Micro-tellurics (lines < 1% deep) | observatory | modelled telluric component, per-exposure water and airmass | masked at 0.98 (too crude for 10 cm/s) | injection; public comb data |
 | Sky emission, moonlight | observatory | sky component from sky fibres | [O I] 5577 masked | G-CLEF sky fibres |
