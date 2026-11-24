@@ -336,6 +336,7 @@ Dated from the vacuum and thermometer logs and the frame headers
 2021-09-12, 2024-03-15, 2026-01-21; excluded windows 2017-04-25..10-01,
 2019-10-01..10-21, 2020-09-05..09-30. Between 2021-09 and 2023-07 the
 bench was not regulated: regress on bench temperature within the era.
+Hardware history (site trips) is in HISTORY.md.
 Per-telescope breaks (LSF width, offsets, throughput), not
 spectrograph-wide, as tested on the data (telbreaks, 2026-11-23): only
 2018-12-17 for T2 and T3 (the site trip: mirrors cleaned and re-collimated,
