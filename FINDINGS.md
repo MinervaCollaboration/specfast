@@ -1391,6 +1391,38 @@ per telescope in the header (or the record itself, for the raw-redshift
 release), NTP on every PC with an alarm above 0.5 s, shutter times from
 the camera hardware.
 
+### Follow-up: FAU flux as a fibre-coupling record, and confocality (timing, adbf6df)
+
+- **Guide gaps were autofocus.** 788 FAU autofocus runs end inside
+  2016-2020 RV exposures, a median 176 s after shutter open; the header
+  DEFOCUS values (-1.5, -1.2, -0.8, +1.5 mm) are autofocus steps caught by
+  the header read. This is the main cause of the timing term.
+- **Sandberg's 2016 method** (aperture at XFIBER/YFIBER, flux-weighted
+  v_bary over FAU frames; JDE's undergraduate project): as run (10 px
+  radius = 3.3" in 2016-18) it works but trails our FAU source (tau Cet
+  refit nightly 4.55 vs 4.36); with a fibre-sized aperture his signed
+  weights fail (epochs far outside the exposure). Guider plate scale
+  0.334"/px to 2018-12-15, 0.265 after; fibre radius 3.4 / 4.3 px.
+- **Coupling profile fitted to the exposure meter** (2016-2020, tau Cet and
+  sigma Dra, 491 exposures): the meter is best predicted by a narrow kernel
+  centred within ~1" of the fibre position (Gaussian sigma 0.5" or the
+  fibre disc, R^2 0.915 with offsets; total star flux 0.71; rings never
+  win). Timing with it: tau Cet refit nightly 4.34, within 2.61 (baseline
+  4.92 / 2.96), slope ~1, quadrature 2.21 +/- 0.49 nightly. No FAU source
+  is "as good as the meter" (R^2 of epoch offsets 0.6-0.77).
+- **Confocality.** Autofocus sweeps inside exposures (558 runs) put the
+  fibre's best focus within ~100 um of the guider's (330 um at f/6.6 blurs
+  by one fibre diameter) for T2, T3 and T4, stable across eras. **T1 looks
+  defocused at the fibre by +600-900 um** in both camera eras, and its
+  coupling-vs-seeing slope in 2016-18 prefers a blurred (~8") fibre image.
+  T2 was badly defocused in 2018 (FAU half-flux size 10.7"; the E1
+  episode).
+- So a FAU-based per-telescope flux record is trustworthy for timing if it
+  uses a small kernel on the fibre and every frame. For robofast: no
+  autofocus during science exposures; log every FAU frame with a
+  fibre-centred flux; re-measure each telescope's fibre-to-guider focus
+  offset (T1 first).
+
 ## 2026-11-24: Legacy production pipeline, tau Cet baseline
 
 The legacy Doppler code's last tau Cet output (run 2019-04-29 on the
