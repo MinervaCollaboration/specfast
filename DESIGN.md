@@ -26,15 +26,19 @@ in the Wilson+19 window (3 telescopes).
 5. Eventually G-CLEF, on Magellan and then GMT (JDE 2026-11-23). KiwiSpec
    is the first instrument, not the only one. We write both the
    extraction and the Doppler code for G-CLEF. Its differences:
-   - no gas cell: simultaneous laser comb, etalon or ThAr through the
-     calibration fibres, with the source chosen per fibre and per run
-     (configuration, not instrument description); or early/late-night
-     calibration for low precision;
+   - no gas cell: simultaneous laser comb, etalon or ThAr, with the source
+     chosen per fibre and per run (configuration, not instrument
+     description); or early/late-night calibration for low precision. On
+     GMT it rides two calibration fibres on the slit; on Magellan it is
+     injected at the front end into the science/sky fibre pairs, so the
+     sky fibre carries it (EPRV5 2023 poster);
    - two detectors split by a dichroic at ~540 nm; the 2021-12 optical
      design (the authority, JDE) covers 347-967 nm, not the ~1100 nm once
      quoted;
-   - pupil-sliced fibres, one slice per mirror (seven on GMT); Magellan
-     uses one;
+   - several observing modes, each its own fibre set: GMT PRV (seven
+     pupil slices, one per mirror), NS-PRV, MR and HT; Magellan MR and HR
+     (one science + one sky fibre), a 4-slice extreme-HR mode, and
+     MagAO-X (one fibre, or a 16-spaxel IFU);
    - optical model: the G-CLEF Zemax/PyEchelle design
      (collaboration-private; never in this repo).
 
@@ -58,13 +62,19 @@ that meet only at a documented on-disk product:
   detector and its order range), channels (a telescope fibre, a pupil
   slice, or a calibration fibre: comb, etalon, ThAr, sky), traces
   (channel x order), detector geometry, gain and read noise, and era
-  breaks. KiwiSpec: one arm, four telescope channels. G-CLEF: two arms
-  (blue/red, dichroic), one or seven science slices, plus reference
-  channels. Optical-model parameters are calibration products, not part
+  breaks, and observing modes. KiwiSpec: one arm, four telescope
+  channels, no modes. G-CLEF: two arms (blue/red, dichroic) and several
+  modes. A mode names the channels that carry light, its fibre core,
+  shape and field, its quoted resolving power and, per arm, its design
+  resolving power, slit pitch and fibre-row offset along the dispersion.
+  Channels are logical (S0 is the first science fibre of whichever mode
+  is in use); a run selects the mode (`mode` in the run config, or the
+  instrument's `default_mode`; Magellan has none, so a run must choose). Optical-model parameters are calibration products, not part
   of the public description when they derive from private design files.
   `specfast-zemax2instrument` (`specfast.optics`) derives the public facts
   (orders and their wavelength ranges per arm, detector format, resolving
-  power, order spacing, slit pitch) from a Zemax design by ray tracing;
+  power, order spacing, slit pitch, and per mode its resolving power,
+  pitch and row offset) from a Zemax design by ray tracing;
   everything else comes from an overrides file. The G-CLEF descriptions
   were made this way from the 2021-12 design.
 - **Stage 1, extract**: raw frame plus calibration products (stacked bias,

@@ -1087,3 +1087,37 @@ offset from air/vacuum index handling.
   of its width, giving ~85,000). The fibre sizes for the Magellan modes
   aren't public. Unresolved; specfast measures the LSF empirically
   (comb/etalon), so R in the config is informational only.
+
+### G-CLEF observing modes in the instrument schema (2026-11-23)
+
+The descriptions now list observing modes (JDE: "update the schema").
+Tracing each GMT mode's fibre row through the 2021-12 design:
+
+| GMT mode | Core | R quoted | R design (blue / red) | Quoted / design | Row offset along dispersion (blue) |
+|---|---|---|---|---|---|
+| PRV | 100 um hex | 108,000 | 73,400 / 73,000 | 1.47 | +14 px |
+| NS-PRV | 100 um round | 108,000 | 73,300 / 72,900 | 1.47 | -15 px |
+| MR | 300 um | 35,000 | 24,700 / 24,500 | 1.42 | +85 px |
+| HT | 450 um | 19,000 | 16,300 / 16,200 | 1.17 | -53 px |
+
+- The design's R x core is constant (~7.3e6 um), as it must be for a
+  geometric definition. The quoted values are 1.17-1.47x higher, and not
+  by a constant factor, so the papers' definition is not one simple
+  rescaling (for the 100 um modes perhaps a slicer or sampling
+  convention). Still to ask the instrument team.
+- The Magellan fibre sizes follow from the poster: the f/11 beam is
+  converted to f/3 at the fibre, i.e. 10.6 arcsec/mm on 6.5 m, so MR
+  (1.12 arcsec) is ~106 um and HR (0.8 arcsec) ~76 um. With the quoted R,
+  R x core = 10.6e6 for both, matching GMT PRV (10.8e6). So the Magellan
+  MR/HR fibres are PRV-like and smaller, and the quoted R follow the
+  papers' PRV convention.
+- Correction to the subsection above: on Magellan the calibration light
+  is injected at the front end into science/sky fibre pairs; there are no
+  separate calibration fibres on the slit. The sky fibre of each pair
+  therefore carries the simultaneous reference (comb, etalon or ThAr)
+  when one is used. The poster also lists a MagAO-X single-fibre mode
+  (0.8 arcsec, R 140,000) and a 16-spaxel MagAO-X IFU (R > 200,000); the
+  4 x 2 pupil-sliced extreme-HR mode (1.05 arcsec, R > 300,000) is on the
+  natural-seeing interface, not MagAO-X.
+- The 2021-12 design models only the GMT fibre rows, so the Magellan modes
+  carry no per-arm design values yet.

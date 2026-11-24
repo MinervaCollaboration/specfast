@@ -111,6 +111,8 @@ class RunConfig:
     #: Shipped instrument name (e.g. ``kiwispec``) or a path to a YAML file.
     instrument: str
     paths: PathsConfig
+    #: Observing mode (instruments with modes); None = the instrument's default.
+    mode: str | None = None
     doppler: DopplerConfig = field(default_factory=DopplerConfig)
 
     def sha256(self) -> str:

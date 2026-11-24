@@ -18,7 +18,8 @@ from typing import Any
 
 import numpy as np
 
-from specfast.optics.echellogram import Echellogram
+from specfast.optics.echellogram import Echellogram, point_facts
+from specfast.optics.trace import System
 
 #: Overrides keys that are not part of the instrument schema.
 HEADER_KEY = "_header"
@@ -75,6 +76,37 @@ def arm_facts(
     return out
 
 
+def mode_arm_facts(
+    sys: System,
+    eg: Echellogram,
+    pixel_size_um: float,
+    point: int,
+    core_mm: float | None = None,
+    slit_pitch: tuple[int, int, float] | None = None,
+    complete_only: bool = True,
+) -> dict[str, Any]:
+    """Derived facts of one observing mode on one arm: the resolving power of
+    the mode's fibre (core ``core_mm`` at start-surface point ``point``), the
+    offset of its row along the dispersion from the arm's reference trace,
+    and its slit pitch (as in :func:`arm_facts`). Medians over orders."""
+    pix_mm = pixel_size_um / 1000.0
+    keep = [o.complete or not complete_only for o in eg.orders]
+    allf = point_facts(sys, eg, point, core_mm)
+    facts = [f for f, k in zip(allf, keep, strict=True) if k]
+    out: dict[str, Any] = {
+        "dispersion_offset_px": _r(np.median([f[1] for f in facts]) / pix_mm, 1),
+    }
+    rs = [f[0] for f in facts if f[0]]
+    if rs:
+        out["resolving_power"] = float(round(float(np.median(rs)), -2))
+    if slit_pitch is not None:
+        i, j, n = slit_pitch
+        orders = [o for o, k in zip(eg.orders, keep, strict=True) if k]
+        p = np.median([abs(o.cross_mm[i] - o.cross_mm[j]) for o in orders]) / n / pix_mm
+        out["slit_pitch_px"] = _r(p, 2)
+    return out
+
+
 def _r(x: float, nd: int) -> float:
     return float(round(float(x), nd))
 
@@ -118,11 +150,13 @@ def _mark(v, path, touched):
 
 
 def derived_paths(obj: Any, path: tuple = ()) -> set:
-    """Every leaf path of a generated mapping."""
+    """Every leaf path of a generated mapping (``name`` keys, which only
+    identify list items, excluded)."""
     if isinstance(obj, dict):
         out = set()
         for k, v in obj.items():
-            out |= derived_paths(v, path + (k,))
+            if k != "name":
+                out |= derived_paths(v, path + (k,))
         return out
     if _named_list(obj):
         out = set()
@@ -146,6 +180,8 @@ _ORDER = [
     "eras",
     "excluded",
     "channel_breaks",
+    "default_mode",
+    "modes",
     "notes",
 ]
 
@@ -210,9 +246,9 @@ def _emit_item(item: dict, ind: int, path, derived, prov) -> list[str]:
 
 
 #: Keys written first, in this order, wherever they occur (dicts keep their
-#: own order otherwise; ``detector`` and ``notes`` go last).
+#: own order otherwise; ``detector``, a mode's ``arms`` and ``notes`` go last).
 _FIRST = ["name", "role", "channels", "orders", "rv_orders", "echelle_orders"]
-_LAST = ["detector", "absent_traces", "notes"]
+_LAST = ["detector", "absent_traces", "arms", "notes"]
 
 
 def _ordered(d: dict):

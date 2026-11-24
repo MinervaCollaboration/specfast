@@ -108,6 +108,75 @@ arms:
       gain_e_per_adu: null
       read_noise_e: null
       saturation_adu: null
+default_mode: PRV
+modes:
+  - name: PRV
+    channels: [S0, S1, S2, S3, S4, S5, S6, CAL0, CAL1]
+    interface: natural seeing
+    fibre_core_um: 100.0
+    fibre_shape: hexagonal
+    resolving_power_quoted: 108000.0
+    arms:
+      - name: blue
+        dispersion_offset_px: 14.1  # derived from the G-CLEF optical design (2021-12 model)
+        resolving_power: 73400.0  # derived from the G-CLEF optical design (2021-12 model)
+        slit_pitch_px: 13.3  # derived from the G-CLEF optical design (2021-12 model)
+      - name: red
+        dispersion_offset_px: -15.2  # derived from the G-CLEF optical design (2021-12 model)
+        resolving_power: 73000.0  # derived from the G-CLEF optical design (2021-12 model)
+        slit_pitch_px: 13.37  # derived from the G-CLEF optical design (2021-12 model)
+    notes: >-
+      Precision RV: seven pupil slices (one per GMT segment) plus two
+      calibration/sky fibres.
+  - name: NS-PRV
+    channels: [S0, S1, S2, S3, S4, S5, S6, CAL0, CAL1]
+    interface: natural seeing
+    fibre_core_um: 100.0
+    fibre_shape: round
+    resolving_power_quoted: 108000.0
+    arms:
+      - name: blue
+        dispersion_offset_px: -14.7  # derived from the G-CLEF optical design (2021-12 model)
+        resolving_power: 73300.0  # derived from the G-CLEF optical design (2021-12 model)
+        slit_pitch_px: 13.3  # derived from the G-CLEF optical design (2021-12 model)
+      - name: red
+        dispersion_offset_px: 15.3  # derived from the G-CLEF optical design (2021-12 model)
+        resolving_power: 72900.0  # derived from the G-CLEF optical design (2021-12 model)
+        slit_pitch_px: 13.37  # derived from the G-CLEF optical design (2021-12 model)
+    notes: "Non-scrambled PRV: as PRV with round fibres, on its own fibre row."
+  - name: MR
+    channels: [S0, CAL0, CAL1]
+    interface: natural seeing
+    fibre_core_um: 300.0
+    fibre_shape: round
+    resolving_power_quoted: 35000.0
+    arms:
+      - name: blue
+        dispersion_offset_px: 85.2  # derived from the G-CLEF optical design (2021-12 model)
+        resolving_power: 24700.0  # derived from the G-CLEF optical design (2021-12 model)
+      - name: red
+        dispersion_offset_px: -90.7  # derived from the G-CLEF optical design (2021-12 model)
+        resolving_power: 24500.0  # derived from the G-CLEF optical design (2021-12 model)
+    notes: >-
+      Medium resolution: one science fibre plus two calibration/sky (and one
+      for GMTNIRS, not on this spectrograph). The design models 2 of its 3
+      fibres.
+  - name: HT
+    channels: [S0, CAL0, CAL1]
+    interface: natural seeing
+    fibre_core_um: 450.0
+    fibre_shape: round
+    resolving_power_quoted: 19000.0
+    arms:
+      - name: blue
+        dispersion_offset_px: -53.0  # derived from the G-CLEF optical design (2021-12 model)
+        resolving_power: 16300.0  # derived from the G-CLEF optical design (2021-12 model)
+      - name: red
+        dispersion_offset_px: 55.0  # derived from the G-CLEF optical design (2021-12 model)
+        resolving_power: 16200.0  # derived from the G-CLEF optical design (2021-12 model)
+    notes: >-
+      High throughput: one science fibre plus two calibration/sky (and one for
+      GMTNIRS). The design models 1 of its 3 fibres.
 notes:
   - >-
     Dichroic split ~540 nm: echelle order 114 (533-543 nm) is designed onto
@@ -134,5 +203,13 @@ notes:
     Pixel size 9 um: STA1600 (public); the design gives the 95.04 mm square
     detector, which is 10560 such pixels.
   - >-
-    Other modes in the same pseudo-slit (NS-PRV, MR, HT) are offset along the
-    dispersion and are not described here.
+    Modes: each is its own fibre row on the pseudo-slit, offset along the
+    dispersion (modes[*].arms[*].dispersion_offset_px, from the arm's reference
+    trace at the design axis). Channels are logical: S0 is the first science
+    fibre of whichever mode is in use. Fibre cores, shapes and quoted resolving
+    powers: Ben-Ami et al. 2018, Table 1.
+  - >-
+    Quoted versus design resolving power: R x core is ~10.8e6 um in the papers
+    for PRV, 10.5e6 for MR and 8.6e6 for HT; the design's geometric full-width
+    definition gives ~7.3e6 for every mode. The papers' definition is not
+    stated.
