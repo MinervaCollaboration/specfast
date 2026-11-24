@@ -743,6 +743,46 @@ excluded by date and listed in the manifest with a reason. The
 whole-archive run is in progress: pre-2018 first, then 11,302 post-2018
 frames.
 
+## 2026-11-23: Per-telescope era breaks from the data (testbed branch telbreaks)
+
+Asked: which per-telescope breaks do the data support? Method: one row per
+(exposure, telescope) from flux, header fibre positions, x2-0.2 trace
+diagnostics, LSF width/h3, FAU guide offset and star size, and
+per-telescope RV deviations for 8 standards. A changepoint search (BIC,
+bootstrap dates) proposed candidates. It finds ~0.5 false breaks per series
+on synthetic episodic noise, so only breaks where several quantities agree
+were kept. The deciding test was the RV chain (L0, joint_fit, common-mode
+zero-points) with per-telescope eras or exclusions, in 23 variants.
+
+Base nightly rms: tau Cet / sigma Dra / HD 122064 = 4.63 / 11.24 / 9.23 m/s.
+
+| Break | What steps | RV result |
+|---|---|---|
+| **2018-12-17, T2 + T3** (site trip; no data 12-15..19) | T2 relative throughput +1.3 dex, LSF width +1.5%, h3 +0.008, FAU star size -2.1", RV +10.6 m/s; T3 throughput -0.37 dex, RV -3.7 | **4.46 / 11.01 / 8.82** (best). T2 alone 4.42 / 11.09 / 9.05; all four telescopes 4.69 / 11.05 / 8.83 (T1, T4 only react to T2) |
+| 2018-07-01, T3 | - | 4.86 / 11.22 / 9.02: worse. Drop |
+| 2019-09-18 per telescope | - | No gain over the instrument-wide era. Keep instrument-wide only |
+| T2 2019-05-08..07-14 | star 7-11" off the fibre, throughput -1.3 dex | As an era: worse. **As an exclusion: sigma Dra 10.98, within-night rms 5.37 -> 4.70** |
+| T2 2018-10-29..12-14 | RV -12.6 m/s (known mis-guiding) | Era or exclusion: no gain. Flag |
+| T3 2019-11-05..12-04 | throughput -0.7 dex, RV -5 then +6 | Era: no gain. Flag (exclusion untested) |
+| 2019-10-20, all | LSF width +0.9% (end of the excluded window) | Covered by the common-mode zero-point |
+| T3 2017-12-16, T4 2017-03-08 | LSF width -3.6% / -1.8% | No gain |
+
+- The 2018-12-22 date was wrong: nights 12-20 and 12-21 are already in the
+  new state. It made no difference here only because the three test stars
+  have no RVs on those nights.
+- T2's 2017-10..2018-12 deficit (~10x fainter in starlight) was the
+  telescope feed, not the fibre: daytime sky shows only a 0.06-0.3 dex
+  deficit. The trip fixed it. The ZWO guide cameras went in on that trip:
+  header fibre positions change units on 2018-12-20.
+- The 2025-11 T1/T2 LSF step is the 2024-03-15 instrument era seen late (no
+  T1/T2 data 2022-11..2025-11). Some cross-dispersion steps coincide with
+  x2 profile-era boundaries, so they are extraction artefacts.
+- No 2015 era is needed: the archive starts 2016-01-15, and the first star
+  frames are on 2016-01-29.
+- Limits: only tau Cet, sigma Dra and HD 122064 were tested, and the last two
+  end in early 2020, so post-2020 per-telescope breaks are untestable. Static
+  h3 at the 2018-12-17 break (T2 h3 +0.008) is plausible but untested.
+
 ## 2026-11-22: Fibre feed (JDE) and what it implies
 
 Each telescope feeds an octagonal fibre butt-coupled to a circular fibre.
