@@ -8,9 +8,13 @@
 - :mod:`~specfast.doppler.model`: one fit block's forward model and the
   flat parameter-vector layout for an external solver.
 
-Not here yet: the fitting engine (problem assembly across blocks, per-segment
-velocities, block-sparse Jacobian), tellurics, templates other than a
-tabulated one.
+- :mod:`~specfast.doppler.fit`: per-block weighted least squares;
+- :mod:`~specfast.doppler.template`: stellar-template inference (modify a
+  prior or infer from a flat start), with learned observatory-frame
+  corrections and detector maps.
+
+Not here yet: the joint fitting engine (problem assembly across blocks,
+per-segment velocities, block-sparse Jacobian), sky emission.
 """
 
 from specfast.doppler import library  # noqa: F401  (registers the components)
@@ -26,22 +30,27 @@ from specfast.doppler.components import (
 )
 from specfast.doppler.grid import LnGrid
 from specfast.doppler.library import (
+    DetectorMap,
     GaussianLSF,
+    GriddedTemplate,
     IodineCell,
     NoGasCell,
     PolynomialContinuum,
     PolynomialWavelength,
     StarTemplate,
+    Telluric,
 )
 from specfast.doppler.model import ForwardModel, ParameterLayout
 
 __all__ = [
     "REGISTRY",
     "Component",
+    "DetectorMap",
     "ExposureContext",
     "ForwardModel",
     "Frame",
     "GaussianLSF",
+    "GriddedTemplate",
     "IodineCell",
     "LnGrid",
     "NoGasCell",
@@ -51,6 +60,7 @@ __all__ = [
     "PolynomialWavelength",
     "Scope",
     "StarTemplate",
+    "Telluric",
     "lookup",
     "register",
 ]

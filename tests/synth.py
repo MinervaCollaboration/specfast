@@ -1,15 +1,15 @@
 """Synthetic spectra made by the forward model itself, and a small fitter.
 
-Not part of the package: the fitter (scipy.optimize.least_squares) lives
-outside the model, as the real fitting engine will.
+Not part of the package. The fitter is the package's per-block
+least squares (:mod:`specfast.doppler.fit`).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import SimpleNamespace
 
 import numpy as np
-from scipy.optimize import least_squares
 
 from specfast.conventions import C_KMS
 from specfast.doppler import (
@@ -19,11 +19,11 @@ from specfast.doppler import (
     IodineCell,
     LnGrid,
     NoGasCell,
-    ParameterLayout,
     PolynomialContinuum,
     PolynomialWavelength,
     StarTemplate,
 )
+from specfast.doppler.fit import fit_block as _fit_block
 
 LAM0 = 5500.0  # Angstrom
 NPIX = 1024
@@ -129,37 +129,10 @@ SCALES = {
 
 def fit_block(model, data, sigma, ctx, start, exclude=()):
     """Weighted least squares of the free parameters; returns
-    (params, covariance of theta in physical units, layout, result)."""
-    layout = ParameterLayout.free(model, exclude=exclude)
-    p0 = layout.pack(start)
-    scale = np.concatenate([np.full(n, SCALES[(c, p)]) for c, p, n in layout.entries])
-
-    def resid(theta):
-        p = layout.unpack(p0 + theta * scale, start)
-        return (data - model.evaluate(p, ctx)) / sigma
-
-    res = least_squares(
-        resid,
-        np.zeros_like(p0),
-        method="trf",
-        jac="3-point",
-        diff_step=1e-4,
-        x_scale="jac",
-        xtol=1e-14,
-        ftol=1e-14,
-        gtol=1e-14,
-        max_nfev=2000,
-    )
-    best = layout.unpack(p0 + res.x * scale, start)
-    # Jacobian at the solution by central differences (fixed steps of 1e-3
-    # parameter scales), for the covariance.
-    jac = np.empty((len(data), len(p0)))
-    for j in range(len(p0)):
-        h = np.zeros_like(p0)
-        h[j] = 1e-3
-        jac[:, j] = (resid(res.x + h) - resid(res.x - h)) / (2e-3 * scale[j])
-    cov = np.linalg.inv(jac.T @ jac)
-    return best, cov, layout, res
+    (params, covariance of theta in physical units, layout, result with
+    ``cost`` = chi2 / 2). A thin wrapper of the package's fit_block."""
+    fit = _fit_block(model, data, sigma, ctx, start, exclude=exclude, scales=SCALES)
+    return fit.params, fit.cov, fit.layout, SimpleNamespace(cost=0.5 * fit.chi2)
 
 
 def index_of(layout, comp, name):

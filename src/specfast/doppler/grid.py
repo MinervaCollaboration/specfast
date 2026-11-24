@@ -126,3 +126,60 @@ def pixel_integrate(values: np.ndarray, grid: LnGrid, ln_edges: np.ndarray) -> n
     """
     a = integral_at(values, grid, ln_edges)
     return np.diff(a) / np.diff(ln_edges)
+
+
+def cubic_weights(grid: LnGrid, ln_x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Cubic-convolution (Keys, a = -1/2) interpolation weights from the
+    nodes of ``grid`` to the points ``ln_x``.
+
+    Returns ``(idx, w)``, both shaped ``ln_x.shape + (4,)``: the value at
+    ``ln_x`` is ``sum(w * values[idx], axis=-1)``. The interpolant passes
+    through the node values, is C1 and third-order accurate, and is linear
+    in the node values, so the same weights give both the forward model and
+    the sparse operator a template solver needs. Indices are clipped to the
+    grid (points beyond the ends see the end nodes; the weights still sum to
+    one).
+    """
+    pos = (np.asarray(ln_x, dtype=np.float64) - grid.ln_start) / grid.step
+    i = np.floor(pos)
+    t = pos - i
+    t2 = t * t
+    t3 = t2 * t
+    w = np.stack(
+        [
+            0.5 * (-t3 + 2.0 * t2 - t),
+            0.5 * (3.0 * t3 - 5.0 * t2 + 2.0),
+            0.5 * (-3.0 * t3 + 4.0 * t2 + t),
+            0.5 * (t3 - t2),
+        ],
+        axis=-1,
+    )
+    idx = i.astype(np.int64)[..., None] + np.arange(-1, 3)
+    return np.clip(idx, 0, grid.n - 1), w
+
+
+def cubic_interpolate(values: np.ndarray, grid: LnGrid, ln_x: np.ndarray) -> np.ndarray:
+    """Node ``values`` on ``grid`` interpolated to ``ln_x``; the same
+    interpolant as :func:`cubic_weights`, written out for speed."""
+    v = np.asarray(values, dtype=np.float64)
+    pos = (np.asarray(ln_x, dtype=np.float64) - grid.ln_start) / grid.step
+    i = np.floor(pos)
+    t = pos - i
+    i = i.astype(np.int64)
+    last = grid.n - 1
+    a = v[np.clip(i - 1, 0, last)]
+    b = v[np.clip(i, 0, last)]
+    c = v[np.clip(i + 1, 0, last)]
+    d = v[np.clip(i + 2, 0, last)]
+    # Keys (a = -1/2) in Horner form: b + t (c - a)/2 + t^2 (...) + t^3 (...)
+    return b + 0.5 * t * (
+        (c - a) + t * ((2.0 * a - 5.0 * b + 4.0 * c - d) + t * (3.0 * (b - c) + d - a))
+    )
+
+
+def kernel_sigma_mps(kernel: np.ndarray, step_mps: float) -> float:
+    """RMS width [m/s] of a sampled kernel (its second moment)."""
+    k = np.asarray(kernel, dtype=np.float64)
+    u = (np.arange(k.size) - 0.5 * (k.size - 1)) * step_mps
+    mu = np.sum(u * k) / np.sum(k)
+    return float(np.sqrt(np.sum((u - mu) ** 2 * k) / np.sum(k)))

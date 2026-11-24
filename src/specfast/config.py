@@ -81,10 +81,48 @@ class ReferenceConfig:
 
 
 @dataclass(frozen=True)
+class TemplateConfig:
+    """Template inference (:mod:`specfast.doppler.template`)."""
+
+    #: ``modify``: regularized correction to a prior spectrum (DSST, solar
+    #: atlas, synthetic); ``infer``: flat or weak prior.
+    mode: Literal["modify", "infer"] = "modify"
+    #: Template nodes per detector pixel (sets the node step).
+    oversample: float = 4.0
+    #: L2 prior width per node on the correction (template - prior);
+    #: None = 0.05 (modify) or 1.0 (infer).
+    prior_sigma: float | None = None
+    #: Prior width of the correction's second difference per node.
+    smooth_sigma: float = 0.01
+    #: Fit per-order template zero points (a template property).
+    fit_zero_points: bool = True
+    #: Maximum alternation sweeps, and the convergence tolerance [m/s] on
+    #: the velocities and order offsets between sweeps.
+    iterations: int = 8
+    tol_mps: float = 0.01
+    #: Fit the learned observatory-frame corrections the components declare.
+    learn_observatory: bool = True
+    observatory_prior_sigma: float = 0.01
+    observatory_smooth_sigma: float = 0.01
+    #: Fit the detector maps (default: fixed calibration), with these priors.
+    fit_detector: bool = False
+    detector_dx_sigma_px: float = 0.002
+    detector_response_sigma: float = 0.001
+    #: Separability threshold (0-1) for the degeneracy check, and the template
+    #: resolution it is checked at [km/s] (None = the LSF FWHM).
+    min_separability: float = 0.5
+    resolution_kms: float | None = None
+    #: ``alternate`` (template / velocities+nuisances); ``joint`` is a hook.
+    strategy: Literal["alternate", "joint"] = "alternate"
+
+
+@dataclass(frozen=True)
 class StarConfig:
     mode: Literal["dsst", "inferred", "synthetic"] = "dsst"
     #: Template file (relative to ``paths.templates`` if not absolute).
     template: str | None = None
+    #: Settings of the inferred mode.
+    inference: TemplateConfig = field(default_factory=TemplateConfig)
 
 
 @dataclass(frozen=True)
@@ -231,6 +269,24 @@ def parse_config(data: dict, base_dir: str | Path | None = None) -> RunConfig:
         raise ConfigError("doppler.grid: step_kms must be > 0 and margin_kms >= 0")
     if d.lsf.nsigma <= 0:
         raise ConfigError("doppler.lsf.nsigma: must be > 0")
+    t = d.star.inference
+    positive = {
+        "oversample": t.oversample,
+        "smooth_sigma": t.smooth_sigma,
+        "observatory_prior_sigma": t.observatory_prior_sigma,
+        "observatory_smooth_sigma": t.observatory_smooth_sigma,
+        "detector_dx_sigma_px": t.detector_dx_sigma_px,
+        "detector_response_sigma": t.detector_response_sigma,
+        "prior_sigma": 1.0 if t.prior_sigma is None else t.prior_sigma,
+        "resolution_kms": 1.0 if t.resolution_kms is None else t.resolution_kms,
+    }
+    for key, val in positive.items():
+        if val <= 0:
+            raise ConfigError(f"doppler.star.inference.{key}: must be > 0")
+    if t.iterations < 1 or not 0 < t.min_separability < 1:
+        raise ConfigError(
+            "doppler.star.inference: iterations must be >= 1 and min_separability in (0, 1)"
+        )
     if base_dir is not None:
         base = Path(base_dir)
         p = cfg.paths

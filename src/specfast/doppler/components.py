@@ -22,7 +22,14 @@ wavelength     pixel positions [px]    vacuum wavelength [Angstrom]
 continuum      pixel positions [px]    multiplicative continuum
 spectrum       fine ln(lambda) grid    multiplicative factor on the grid
 lsf            the fine grid           a normalized convolution kernel
+detector       pixel positions [px]    per-pixel response (and edge offsets)
 =============  ======================  =====================================
+
+Spectrum components with a learned static correction (iodine, tellurics)
+also implement ``learned_terms(params, ctx)``: a tuple of
+``(parameter name, node LnGrid, scale)``, each term adding
+``scale * interp(nodes)`` to the component's optical depth. The template
+solver uses it to fit those corrections.
 """
 
 from __future__ import annotations
@@ -78,6 +85,8 @@ class ExposureContext:
 
     #: Barycentric correction z_B of the exposure (conventions module).
     z_bary: float = 0.0
+    #: Airmass of the exposure (scales the dry telluric optical depth).
+    airmass: float = 1.0
 
 
 Params = Mapping[str, np.ndarray]
