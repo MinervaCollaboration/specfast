@@ -1241,6 +1241,64 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-24: T2/T3 episodes and the tau Cet budget (testbed branch episodes)
+
+Test-bed branch `episodes` (private test-bed repo, 4a40185). Per-telescope
+differentials (each telescope minus the weighted mean of the others in the
+same exposure, timing-corrected), pooled over tau Cet, sigma Dra and HD
+122064, segmented for mean and scatter changes (penalty from shuffled
+series).
+
+- **The chain was not applying kiwispec.yaml's per-telescope breaks or
+  exclusions** (only branch telbreaks had them). Applied: tau Cet nightly
+  4.30 -> 4.13 m/s, sigma Dra 11.25 -> 10.94, HD 122064 9.01 -> 8.59.
+- **Episodes:**
+
+  | Episode | Telescope, dates | Step / extra scatter | Cause | Remedy |
+  |---|---|---|---|---|
+  | E1 | T2, 2018-10-10..12-09 | -10.0 +/- 1.0 m/s, 4.2 m/s scatter (tracks guide offset, +11 m/s per arcsec) | T2 feed between the 2018-09 and 2018-12 trips (FAU star size 5.5" vs 1.5", throughput -1.1 dex, h3 -0.009) | the yaml 2018-12-17 break |
+  | E2 | T2, at the 2018-12 trip | +1.7 | ZWO cameras and refocus | the yaml break |
+  | E4 | T2 vs T1, 2025-12-10..2026-01-12 | -4.7 +/- 1.1 | T2 throughput down ~0.3 dex from 12-10; unidentified | a break (no gain on tau Cet) |
+  | T2 count slope | T2 after 2018-12 | +3.8 m/s/dex | count-level, T2 only (not CTI) | regression, 0.33 m/s |
+
+  T3 has no episode in any star. After the fixes every telescope's
+  differential is consistent with its errors (chi2_r 0.92-1.02).
+- **Why T2 and T3 looked 2x worse:** the per-telescope figure was an
+  unweighted rms, and T2/T3 have more low-throughput nights (18% of T3
+  nights have errors > 8 m/s). Their remaining rms matches formal errors
+  plus the common excess to ~15%.
+
+**tau Cet budget after timing, breaks and regressions (m/s):**
+
+| | Nightly | Within-night |
+|---|---|---|
+| Observed rms (unweighted) | 4.12 | 2.56 |
+| Weighted rms | 2.42 | |
+| Formal (photon) error, median | 1.79 | 2.05 per exposure |
+| ML excess beyond formal | **1.75 [1.58, 1.93]** | **0.00 (< 0.33)** |
+
+- The unweighted nightly rms is mostly photon noise from a few faint
+  nights: 7 nights above 10 m/s (3%) contribute ~2.9 m/s in quadrature.
+- Formal errors are photon errors x 0.85 on every telescope; rms(z) 0.98
+  on good nights.
+- Quadrature contributions removed from the nightly excess: timing 1.83
+  (ML; 2.39 on the unweighted rms), the per-telescope breaks 1.06, the T2
+  count slope 0.33; exclusions ~0.
+- **What remains: a nightly excess of ~1.75 m/s, the same on all four
+  telescopes** (per-telescope part < 0.64 m/s at 95%). Within a night the
+  data are photon-limited. sigma Dra and HD 122064 have ML nightly excess
+  2.66 and 3.13 m/s (weighted rms 3.0, 3.5), within-night 0.
+- Photon floor with four healthy telescopes at T1/T4 counts: 1.51 m/s per
+  exposure, ~1.07 nightly at 2 exposures; with the 1.75 excess, ~2.05
+  nightly. Today the median exposure has 3 telescopes; 16% have all four.
+
+Verdict: tau Cet's error is photon noise within a night plus a ~1.75 m/s
+night-to-night term common to all telescopes. That common term is the
+limiting systematic; candidates are the star, the templates (the
+BERV-dependent pattern is ~1.1 of it), the wavelength/LSF model and an
+instrument common mode. Report weighted or ML nightly statistics, and make
+the per-telescope breaks part of the standard chain.
+
 ## 2026-11-24: Charge-transfer inefficiency (testbed branch cti)
 
 Test-bed branch `cti` (private test-bed repo, 5c2a42b).
