@@ -136,6 +136,20 @@ through priors and airmass/water scaling. Optics and detector separate
 through optical changes (remounts, drifts) and, on a comb instrument,
 through comb lines sampling every pixel phase.
 
+Optics parameters are not only per era (JDE 2026-11-24). Eras capture
+discrete events (remounts, recabling, cleanings); between them the optics
+follow the environment continuously: temperature (focus, flexure, grating
+and glass), pressure (residual-gas index; matters during vacuum
+outages), and the CCD and cell temperatures. So each optics-frame
+parameter is era value + smooth function of per-exposure environment
+covariates (bench/spectrograph temperatures, pressure, CCD temperature),
+with the per-exposure free terms on top. Low-order wavelength drift is
+absorbed by the per-exposure terms anyway; the environment model matters
+for what they cannot absorb: LSF shape (thermal focus varies with field
+position, unlike an illumination change) and the D(p) shape. Missing or
+bad covariates (sensor dropouts, unregulated periods) must be flagged,
+not filled.
+
 The model is evaluated on a fine uniform grid in ln(lambda) (step about
 0.05 km/s below 30 cm/s: a 0.25 km/s grid with the raw iodine scan
 leaves 0.69 m/s; FINDINGS 2026-11-24, iodinfo), convolved,
