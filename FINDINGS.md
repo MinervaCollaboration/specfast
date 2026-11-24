@@ -300,6 +300,15 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
 
 ## Open threads
 
+- **B-star coverage caveat (2026-11-24).** Every B-star result so far
+  (frozen LSF sigma per (telescope, order), the iodine and lsfgrad
+  branches, the lsfillum static map) used 107 frames from 2017-03 to
+  2018-02: a partial copy, not a data limit. The archive's pipeline
+  products hold ~1,870 B-star frames over 2016-2026 in the same
+  extraction as the star frames (2016: 831; 2019: 314; 2023-26 thin: 44,
+  27, 25, 5). Per-era LSF maps are being built (lsfillum, variant B-era);
+  conclusions that rest on one B-star year should be rechecked.
+
 - Per-telescope nightly scatter (tels 1 and 2 worst): fibre illumination,
   guiding, modal noise, scrambling. Check FAU guide logs and fibre position.
 - LSF asymmetry vs era steps: 7-star Z with a fixed h3 pattern.
