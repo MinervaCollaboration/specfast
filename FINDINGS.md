@@ -1299,6 +1299,33 @@ BERV-dependent pattern is ~1.1 of it), the wavelength/LSF model and an
 instrument common mode. Report weighted or ML nightly statistics, and make
 the per-telescope breaks part of the standard chain.
 
+### Follow-up: is the 1.75 m/s excess real, and does binning help? (2026-11-24)
+
+- **Not a gain error.** The formal errors are fitted photon errors x 0.85
+  (beta, the same on every telescope), and the within-night scatter matches
+  them (excess 0.00, < 0.33 m/s). So the error scale is calibrated on the
+  data. To absorb a 1.75 m/s nightly excess on 1.79 m/s formal errors they
+  would have to be 1.4x larger, i.e. the gain wrong by ~2x; the PTC gain
+  (1.265 e-/ADU) and the legacy value (1.30) agree to 3%.
+- **Binning in time** (weighted bins of nights with formal error < 5 m/s,
+  after all fixes; compared with simulated white noise of formal error +
+  the fitted nightly excess, same sampling):
+
+  | Bin (days) | tau Cet wrms | white | sigma Dra wrms | white | HD 122064 wrms | white |
+  |---|---|---|---|---|---|---|
+  | 1 | 2.31 | 2.21 | 2.83 | 2.85 | 3.24 | 3.40 |
+  | 16 | 1.38 | 1.02 | 2.49 | 1.21 | 2.56 | 1.53 |
+  | 64 | 1.11 | 0.73 | 2.24 | 0.73 | 2.21 | 0.97 |
+  | 256 | 0.79 | 0.54 | 1.72 | 0.43 | 1.03 | 0.59 |
+
+  tau Cet averages down to ~1 m/s on months and ~0.8 m/s per ~year bin,
+  with a red component of ~0.6-0.9 m/s beyond white on 16-256 day scales.
+  sigma Dra and HD 122064 carry ~2 m/s of red noise on weeks to months
+  (stellar activity is a candidate: era zero-points already remove the
+  common instrument mode at era level). Cross-star correlation of binned
+  residuals is inconclusive (5-14 overlapping bins). Results:
+  work/results/allan/ (radish).
+
 ## 2026-11-24: Charge-transfer inefficiency (testbed branch cti)
 
 Test-bed branch `cti` (private test-bed repo, 5c2a42b).
