@@ -1,11 +1,16 @@
 """The forward model of one fit block (one exposure, channel and order).
 
-    F(x) = C(x) * Pixel[ LSF (x) ( prod_i factor_i(ln lambda) ) ](x)
+    F(x) = R(x) * C(x) * Pixel[ LSF (x) ( prod_i factor_i(ln lambda) ) ](x)
 
 (DESIGN.md, "The forward model"): the spectral factors (star, gas cell,
-later tellurics) are multiplied on the fine ln(lambda) grid, convolved once
+tellurics) are multiplied on the fine ln(lambda) grid, convolved once
 with the LSF, averaged over each pixel between the edges given by the
 wavelength solution, and multiplied by the continuum.
+
+The optional detector map (:class:`~specfast.doppler.library.DetectorMap`)
+is the detector frame, kept apart from the optics: it moves the pixel edges
+before the wavelength solution maps them (``lambda(x_edge + dx)``) and
+multiplies by a per-pixel response ``R``.
 
 Parameters are passed as ``{component_name: {param_name: array}}``.
 :class:`ParameterLayout` maps the free ones to and from a flat vector for an
@@ -38,6 +43,8 @@ class ForwardModel:
     grid: LnGrid
     #: Pixel centres [px] of the block (consecutive pixels).
     pixels: np.ndarray
+    #: Detector-frame map (pixel-edge offsets, response); None = perfect.
+    detector: Component | None = None
 
     def __post_init__(self) -> None:
         names = [c.name for c in self.components]
@@ -50,7 +57,15 @@ class ForwardModel:
 
     @property
     def components(self) -> tuple[Component, ...]:
-        return (self.wavelength, self.continuum, self.lsf, *self.factors)
+        det = () if self.detector is None else (self.detector,)
+        return (self.wavelength, self.continuum, self.lsf, *self.factors, *det)
+
+    def factor(self, name: str) -> Component:
+        """The spectral factor called ``name``."""
+        for f in self.factors:
+            if f.name == name:
+                return f
+        raise KeyError(f"no spectral factor {name!r}")
 
     @property
     def pixel_edges(self) -> np.ndarray:
@@ -61,23 +76,42 @@ class ForwardModel:
         return [(c.name, s) for c in self.components for s in c.parameters()]
 
     # ------------------------------------------------------------- evaluation
-    def fine_spectrum(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
-        """Product of the spectral factors on the fine grid (before the LSF)."""
+    def fine_spectrum(
+        self, params: ModelParams, ctx: ExposureContext, skip: Iterable[str] = ()
+    ) -> np.ndarray:
+        """Product of the spectral factors on the fine grid (before the LSF),
+        leaving out the factors named in ``skip``."""
         ln = self.grid.lnlam
+        skip = set(skip)
         out = np.ones_like(ln)
         for f in self.factors:
-            out = out * f.evaluate(params.get(f.name, {}), ln, ctx)
+            if f.name not in skip:
+                out = out * f.evaluate(params.get(f.name, {}), ln, ctx)
+        return out
+
+    def kernel(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
+        """The LSF kernel on the fine grid."""
+        return self.lsf.evaluate(params[self.lsf.name], self.grid, ctx)
+
+    def ln_edges(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
+        """ln(lambda) at the (detector-corrected) pixel edges."""
+        edges = self.pixel_edges
+        if self.detector is not None:
+            edges = self.detector.edges(params[self.detector.name], edges)
+        return np.log(self.wavelength.evaluate(params[self.wavelength.name], edges, ctx))
+
+    def pixel_factor(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
+        """Continuum times detector response, per pixel."""
+        out = self.continuum.evaluate(params[self.continuum.name], self.pixels, ctx)
+        if self.detector is not None:
+            out = out * self.detector.evaluate(params[self.detector.name], self.pixels, ctx)
         return out
 
     def evaluate(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
         """Model flux per pixel."""
-        fine = self.fine_spectrum(params, ctx)
-        kernel = self.lsf.evaluate(params[self.lsf.name], self.grid, ctx)
-        broadened = convolve(fine, kernel)
-        lam_edges = self.wavelength.evaluate(params[self.wavelength.name], self.pixel_edges, ctx)
-        binned = pixel_integrate(broadened, self.grid, np.log(lam_edges))
-        cont = self.continuum.evaluate(params[self.continuum.name], self.pixels, ctx)
-        return cont * binned
+        broadened = convolve(self.fine_spectrum(params, ctx), self.kernel(params, ctx))
+        binned = pixel_integrate(broadened, self.grid, self.ln_edges(params, ctx))
+        return self.pixel_factor(params, ctx) * binned
 
 
 @dataclass(frozen=True)
