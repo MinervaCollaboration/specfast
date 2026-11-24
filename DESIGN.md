@@ -380,12 +380,34 @@ flat frames and interpolated with the optical model:
    and fits the image. Stage 1 then reduces to calibration (bias,
    scattered light, PSF, traces). Most exact, most expensive.
 
-Which mode G-CLEF needs is decided by simulation, not opinion: render
-raw frames from the G-CLEF optical model (PyEchelle; collaboration-
-private) with star, comb and sky light and injected velocities, run each
-mode, and measure the RV error each leaves against the 10 cm/s budget.
-KiwiSpec's real data are the wrong test bed for this today: its other
-error terms (5-11 m/s nightly) hide the differences.
+Which mode G-CLEF needs was decided by simulation (FINDINGS 2026-11-24,
+G-CLEF extraction modes): noise-free frames ray-traced from the G-CLEF
+optical design (collaboration-private) with star, comb and flats.
+
+- **Mode 1 is the production mode**, with two requirements:
+  - extraction weights fixed from a reference model, never recomputed
+    per exposure, since per-frame weights make the LSF depend on flux;
+  - comb light subtracted as a 2D model, scaled by the comb flux, before
+    extracting the science slices (or an empty slot between comb and
+    science fibres).
+
+  With both, slice-flux changes and comb or star flux changes leave
+  <~1 cm/s. Mode 1 is also the most robust to trace offsets across the
+  dispersion.
+- **Mode 2** only helps for comb leakage, and only with the resolution
+  matrix computed per fibre. It is about 90x more sensitive than mode 1
+  to cross-dispersion trace errors and costs ~1.5 core-hours per arm per
+  exposure.
+- **Mode 3 is not needed.** It is exact only with a perfect PSF and is
+  the most sensitive to trace offsets.
+- **The budget is dominated by illumination inside the fibre, which no
+  extraction removes.** A 1% near-field gradient along the dispersion is
+  ~6 m/s, so the near-field centroid must be stable to ~2e-5 of the core
+  for 10 cm/s: a scrambling and pupil-stability requirement on the
+  instrument, and on the comb fibre's own near field.
+
+KiwiSpec's real data are the wrong test bed for this: its other error
+terms (5-11 m/s nightly) hide the differences.
 
 Frame selection (robofast headers, 2026-11-23): skip any frame with
 `SIMULATE = T` or `IMAGETYP = test` (robofast marks dry-run frames this
@@ -462,9 +484,9 @@ before they are trusted.
 | LSF variation (2D, per fibre, in time) | optics | 2D PSF from comb lines; extraction mode 2 or 3 | static along-order gradient gains nothing at 1 m/s | G-CLEF design; comb data |
 | Pixel-position and size irregularities, stitching | detector | detector map dx(p), R(p) | stitching < 0.02 px | comb data; injection |
 | Charge-transfer and brighter-fatter effects (flux-dependent shifts) | detector | flux-dependent pixel-shift term | not measured | lab and comb data at several fluxes |
-| Fibre modal noise, scrambling, slicer illumination | optics | per-fibre/slice terms, error model | per-telescope breaks after feed changes | G-CLEF lab data |
-| Extraction-induced LSF changes (non-separable 2D PSF, slice overlap) | optics/detector | extraction modes 2-3 (resolution matrix, or 2D forward model) | < 1 m/s for bright stars (1D mode) | PyEchelle simulations |
-| Cross-contamination (calibration light in science traces) | detector/extraction | simultaneous trace fitting | leakage <= 1e-3, < 0.2 m/s (too large at 10 cm/s) | G-CLEF design; comb data |
+| Fibre modal noise, scrambling, slicer illumination | optics | per-fibre/slice terms, error model; per-exposure illumination LSF kernel | per-telescope breaks after feed changes | simulation: 1% near-field gradient ~6 m/s along dispersion, ~0.3 m/s along slit (x4 in modes 2-3); far field 0.1-0.7 m/s. Needs centroid stability ~2e-5 of the core; G-CLEF lab data |
+| Extraction-induced LSF changes (non-separable 2D PSF, slice overlap) | optics/detector | mode 1 with fixed weights (modes 2-3 not needed) | < 1 m/s for bright stars (1D mode); simulation: slice-flux tilts 5% <~1 cm/s; per-frame weights 4-14 cm/s | G-CLEF simulation done |
+| Cross-contamination (calibration light in science traces) | detector/extraction | simultaneous trace fitting | leakage <= 1e-3, < 0.2 m/s (too large at 10 cm/s); simulation with PSF wings: 2-12 cm/s per 20% comb-flux change, m/s at 100x star/comb ratio, removed by 2D comb subtraction | G-CLEF simulation; comb data |
 
 Consequences for the code: every term has a frame and a component; no
 term is folded into another frame's nuisance parameters without a test

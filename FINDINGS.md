@@ -1080,6 +1080,69 @@ them all along.
   offsets. A comb should also show whether the ~38 m/s common floor is
   iodine-side.
 
+## 2026-11-24: G-CLEF extraction modes from simulated frames
+
+Simulation (collaboration-private code and inputs): noise-free raw frames
+ray-traced from the G-CLEF optical design with specfast's tracer and a
+deterministic linear renderer (PyEchelle's photon renderer is Monte Carlo
+only). GMT PRV mode: seven hexagonal science slices plus comb fibres at
+the slit ends (the calibration-fibre placement is assumed). Solar
+spectrum in the science slices, 25 GHz comb, flats; 512 px chunks of
+three blue orders; geometric PSF, optionally plus a scattered-light halo
+(2% in 4 px; harsh case 5% in 8 px). RVs from a linearised forward model
+against the known spectrum, comparing perturbed with reference frames at
+zero injected velocity. Modes: m1 1D simultaneous profile fitting
+(per-frame weights); m1f with fixed model weights; m1fc m1f after
+subtracting a 2D comb-light model; m2 spectro-perfectionism (m2b:
+resolution matrix per fibre); m3 2D forward model.
+
+Results, cm/s, combined over the seven slices:
+
+| Perturbation | m1 | m1fc | m2 | m2b | m3 |
+|---|---|---|---|---|---|
+| Slice flux tilt 5%, no halo | <= 0.01 | ~0 | 0 | 0 | 0 |
+| Slice flux tilt 5%, 2% halo | 0.2-1.2 | 0.5-0.7 | 1.1-1.8 | 0.01 | 0 |
+| Comb flux x1.2, 2% halo | -11.7 to +3.8 | 0 | - | <= 0.12 | 0 |
+| Star x0.01 (comb unchanged), no halo | -4 to -14 | 0 | 0 | 0 | 0 |
+| Star x0.01, 2% halo | 530-2900 | 0 | - | 11-59 | 0 |
+| Trace offset 0.01 px across dispersion, cal vs science | -0.9 | | -85 | | -109 |
+
+- Per-frame (Horne) weights make the LSF depend on flux (4-14 cm/s);
+  fixed model weights remove it.
+- Comb light leaking into the adjacent science slice through PSF wings
+  is the largest extraction term; a per-exposure LSF fit does not remove
+  it, a 2D comb-light model does (an empty slot between comb and
+  science mostly does).
+- Mode 1's extracted LSF tracks the true one: centroid within 0.03 m/s,
+  width within 6e-4 px of 2.28 px; under 1% illumination gradients it
+  follows the true LSF change to 0.2 cm/s.
+- Mode 2 needs the trace position across the dispersion to ~1e-3 px per
+  fibre and the halo amplitude and width to ~1%; mode 3 needs a perfect
+  PSF. Neither is required.
+- **Illumination inside a fibre dominates and no mode removes it.** Per
+  1% linear near-field gradient: about -6.4 m/s along the dispersion,
+  +0.26 m/s along the slit in m1 (1.1 m/s in m2/m3, because the sheared
+  fibre image turns an unmodelled cross-dispersion shift into a
+  wavelength shift); far-field gradient 0.1-0.7 m/s by order; comb-fibre
+  near field alone 0.15-0.4 m/s. A 1% gradient is a centroid shift of
+  ~1.4e-3 of the core, so 10 cm/s needs the near-field centroid stable
+  to ~2e-5 of the core (scrambling).
+- Runtime per arm per exposure, one core: m1 ~1 min; m2 ~1.5 h (in
+  patches); m3 10-15 min per fit but ~500 core-hours to build its PSF
+  operators per PSF model.
+
+Verdict: mode 1 with fixed weights and 2D comb-light subtraction meets
+10 cm/s for extraction; modes 2 and 3 are not needed. G-CLEF's budget is
+set by fibre illumination stability, which belongs to the instrument
+(scrambling, pupil stability) and to the per-exposure illumination LSF
+kernel, not to extraction. Caveats: one 512 px chunk per case (leakage
+errors flip sign between orders and partly average); no pixel response,
+charge transfer, red arm or sky; mode 2 PSF not estimated from comb
+frames, so its requirements are not shown to be achievable. Reusable,
+design-free pieces for specfast: the simultaneous column trace fit, a
+spectro-perfectionism class with per-fibre R, the linearised
+differential RV fit, halo helpers.
+
 ## 2026-11-24: Iodine information content and modelling tolerances (testbed branch iodinfo)
 
 Test-bed branch `iodinfo` (private test-bed repo, commit 3ca5715).
