@@ -469,16 +469,36 @@ non-calibratable instrument errors 14 (stray light 5, detector 10,
 micro-vibration 5, software fitting 6), external non-calibratable errors
 10 (guiding 8, assuming scrambling gain 10^4; focus 3; ADC 5).
 
-Terms specfast owns or carries: software fitting (6 cm/s; all numerical
-and model error, e.g. the model grid), stray light (5; includes comb
-light leaking into science traces), detector (10; pixel map, charge
-transfer), stitching (3), barycentric (2), calibration accuracy (5).
-Fibre illumination falls under guiding/focus (8, 3), which assumed
-scrambling makes guiding negligible; our simulations quantify that
-assumption. Results below are graded against these allocations at the
-goal level, scaled to the 20 cm/s goal where the published numbers are
-for the 40 cm/s requirement; correlated terms (static or BERV-dependent,
-which do not average) are held to half their allocation.
+NEID's error budget (Halverson et al. 2016, SPIE 9908; arXiv:1607.05634)
+is the more modern reference: 27 cm/s instrumental total. Its software
+and analysis terms are large: reduction pipeline 10, calibration-process
+software 10, micro-tellurics 10, sky-fibre subtraction 10 cm/s; also
+barycentric 1.7, charge-transfer inefficiency 5, readout thermal change 5,
+stitching 3, pixel inhomogeneity 1, calibration source 5.7 (photon noise
+4.0, stability 4.0), near-field scrambling 3.5, far-field scrambling 5.0,
+stray light 5.0, modal noise 2.5 + 2.5.
+
+**These budgets are requirements, not specfast's goal (JDE 2026-11-24).
+specfast aims to be photon-limited**: every error that specfast introduces
+or is responsible for modelling (numerical and model-mismatch error,
+calibration-process software, tellurics, sky, barycentric correction,
+detector corrections, template) must be shown, by injection on realistic
+simulated data, to be small compared with the photon noise of the data it
+is applied to. Operational criterion:
+
+- per exposure: specfast-attributable systematic error <= 0.2 sigma_photon
+  (adds <= 2% to the variance);
+- for errors correlated between exposures (static, BERV-, season- or
+  era-dependent), which do not average: <= 0.2 sigma_photon / sqrt(N),
+  with N the exposures in the season or data set being combined.
+
+Instrument terms that specfast cannot remove (fibre illumination, thermal
+and mechanical motion) are modelled down to the photon limit where the
+data constrain them (per-exposure illumination kernel, environment
+covariates, simultaneous calibration) and otherwise reported, with their
+budget allocations, as the instrument's floor. The published allocations
+(G-CLEF above, NEID) are the ceiling a result must never exceed, not the
+target.
 
 The ~0.5-1 m/s floor of the best iodine programmes is treated as a
 limit of their modelling, not of iodine (JDE 2026-11-24): independent
