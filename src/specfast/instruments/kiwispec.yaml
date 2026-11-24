@@ -236,6 +236,13 @@ channel_breaks:
       cable-wrap failure; ZWO guide cameras replaced the SBIGs (FAUs
       refocused, pointing models redone; robotic again 12-21). T2
       throughput +1.3 dex, LSF width +1.5%, h3 +0.008, RV +10.6 m/s.
+  - date: 2024-11-20
+    channels: [T3]
+    notes: >-
+      Site trip (HISTORY.md): two failing secondary trusses replaced, but T3
+      could not be re-collimated (beam vignetted, best focus highly
+      aberrated); offline afterwards. No T3 data after 2024-11-16 so far;
+      treat any later T3 data as suspect until it is realigned.
 notes:
   - Order indices are those of the extracted product; echelle_orders holds m = 122 - index.
   - Telescope numbering is 1-based (T1-T4); legacy array index t = 0..3 maps to T(t+1).

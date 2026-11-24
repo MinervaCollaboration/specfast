@@ -36,6 +36,8 @@ def test_kiwispec_eras():
     assert k.channel_epoch("T3", dt.date(2018, 12, 17)) == 1
     assert k.channel_epoch("T2", dt.date(2018, 12, 16)) == 0
     assert k.channel_epoch("T1", dt.date(2019, 12, 1)) == 0
+    assert k.channel_epoch("T3", dt.date(2024, 11, 20)) == 2
+    assert k.channel_epoch("T1", dt.date(2025, 12, 1)) == 0
     # per-telescope exclusion: T2's 2019 guiding episode only
     d = dt.date(2019, 6, 1)
     assert k.is_excluded(d, "T2") and not k.is_excluded(d, "T1") and not k.is_excluded(d)
