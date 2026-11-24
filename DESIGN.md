@@ -275,6 +275,47 @@ retrofit.
    exposure) is a saved product, so a consumer can evaluate the model
    for any exposure without rerunning the extraction.
 
+5. The released velocity product is a raw redshift (next section), so
+   the barycentric correction is part of EXOZIPPy's fit.
+
+### Raw redshifts: the barycentric correction lives downstream (JDE 2026-11-24)
+
+specfast releases the raw measured redshift `c * z_meas`, `z_meas =
+lambda_obs / lambda_ref - 1`, with no barycentric correction applied, in
+the standard EXOZIPPy reads (`data_format: raw_redshift`; EXOZIPPy
+`docs/raw_redshift_data.md` and `components/rvinstrument/rvinstrument.md`).
+EXOZIPPy then predicts the observed redshift from the FITTED star
+(position, proper motion, parallax, systemic RV at a stated epoch,
+refit jointly with Gaia epoch astrometry rather than frozen at catalogue
+values), the orbits, the observer and the exposure: multiplicative cross
+terms, perspective acceleration, the companion's light-travel time and
+gravitational redshift, and the exposure average are all in the model.
+This is how the ~1 mm/s barycentric target is met.
+
+What that requires of specfast:
+
+- The Doppler fit's velocity parameter is the TOTAL observed redshift of
+  each exposure relative to the template (`1 + z_meas = (1 + z_B)(1 +
+  z_star)`, never split). A provisional catalogue barycentric velocity is
+  used only to place exposures in the star frame for template inference
+  and for the separability diagnostics; it never enters `z_meas`.
+  Report `c z`, not `c ln(1 + z)` (they differ by 1.5 m/s at 30 km/s).
+- Per exposure (per telescope channel for KiwiSpec): `c z_meas` and its
+  uncertainty (and the per-order/segment values with covariance); the
+  flux-weighted midpoint with its time scale and frame (JD_UTC at the
+  observatory); the observatory location; the exposure-meter record
+  (side file, bins as short as the meter allows), else the exposure
+  time; the template/zero-point definition (relative within the
+  instrument unless the template is absolutely calibrated); every
+  correction applied to `z_meas` (drift, charge transfer, telluric
+  treatment, zero points) and confirmation that no barycentric term is.
+- Chromatic exposure weighting: the photon-weighted time differs by
+  order (seeing, atmospheric dispersion). Release per-order redshifts with
+  per-order meter records where the meter is chromatic (G-CLEF); this
+  needs a per-order (chromatic) exposure-meter input on EXOZIPPy's side.
+- Optionally, for audit only: the provisional barycentric velocity and
+  the star model it used, and a corrected velocity for quick looks.
+
 What stays in EXOZIPPy: the sampler integration, priors, ties to the
 SED, isochrones and orbits, how a Korg grid is interpolated inside a
 PyTensor graph, and which spectra to include.
@@ -431,8 +472,10 @@ spectrum). Earlier dry-run frames are unmarked, so the dated exclusion
 window in `kiwispec.yaml` stays. robofast frames will also carry
 per-telescope target coordinates, proper motion, epoch, parallax and RV
 (`TARGRAn`, `PMRAn`, `TARGEPOn`, `PARLAXn`, `RVn`, ...) and `SPECPRES`;
-"UNKNOWN" means absent. Use these for the barycentric correction when
-present.
+"UNKNOWN" means absent. These header values (Gaia DR2-era catalogue
+astrometry) are provisional: use them only for frame bookkeeping and for
+an audit-only corrected velocity, never for the released redshift (see
+"Raw redshifts: the barycentric correction lives downstream").
 
 ## Era breaks
 
@@ -534,7 +577,7 @@ before they are trusted.
 | Micro-tellurics (lines < 1% deep) | observatory | modelled telluric component, per-exposure water and airmass | masked at 0.98 (too crude for 10 cm/s) | injection; public comb data |
 | Sky emission, moonlight | observatory | sky component from sky fibres | [O I] 5577 masked | G-CLEF sky fibres |
 | Iodine model (atlas, cell temperature, LSF-velocity degeneracy) | observatory | iodine atlas + learned correction, LSF shared through the optical model and pooled over exposures | atlas choice 0-5 m/s on order pattern; simulation: per-feature depths 1% -> 0.25 m/s, atlas noise 0.3% -> 0.18 m/s, cell temperature negligible | MINERVA; iodinfo simulation done |
-| Barycentric correction (target ~1 mm/s; allocations of 1.7-2 cm/s are ceilings only) | star/observatory | flux-weighted mean of the correction over the exposure (not the correction at the flux-weighted midpoint), per order from a chromatic exposure meter; effective time to ~0.1-0.2 s; Gaia astrometry propagated with full space motion (perspective acceleration, light time), position to a few mas over the baseline; algorithm cross-checked against an independent implementation to < 0.1 mm/s | flux-weighted midpoint per exposure (fluxmid) | exposure-meter data; injection with simulated flux curves |
+| Barycentric correction (target ~1 mm/s; allocations of 1.7-2 cm/s are ceilings only) | star/observatory | not in specfast: specfast releases raw `c z_meas`, and EXOZIPPy fits the correction with the star's astrometry refit jointly with Gaia epoch astrometry (see "Raw redshifts"). specfast's part: total-redshift fitting, flux-weighted UTC midpoints to ~0.1-0.2 s, the exposure-meter record (per order where chromatic) | flux-weighted midpoint per exposure (fluxmid) | EXOZIPPy (agrees with barycorrpy to 0.12 mm/s, PINT to 0.02 mm/s); exposure-meter data |
 | Wavelength solution and drift | optics | comb/etalon per exposure, D(p), quadratic per trace | D(p) 0.1 px, residual 0.015 px | G-CLEF design; public comb data |
 | Comb line centres (side modes) | instrument (calibration source) | comb component: exact frequencies f0 + n K f_rep, plus a side-mode centroid shift per wavelength region from the source's own characterization (FTS), optionally a fitted perturbation; a per-exposure line-intensity envelope | n/a | allocation 5 cm/s (calibration source accuracy). Astro-comb papers (Li et al. 2012, SPIE 8446 84468X; Phillips et al. 2012, 84468O) put the side-mode shift at 1-10 cm/s, varying with the broadened spectrum's profile |
 | Calibration-vs-science differential drift | optics | per-fibre drift model | n/a (iodine is in the science light) | G-CLEF lab data; an unstabilised spectrograph showed up to 8-10 m/s between two fibres over a week (TRES with an astro-comb, Phillips et al. 2012) |
