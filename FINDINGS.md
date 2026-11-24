@@ -1241,6 +1241,68 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-24: Timing errors: photon-weighted midpoints (testbed branch timing)
+
+Test-bed branch `timing` (private test-bed repo, commit 764360e). A
+midpoint error dt gives an RV error (d v_bary/dt) dt; the rotation term
+d v_bary/dt = v_rot w cos(HA) cos(dec) peaks at the meridian (it does not
+change sign there; the velocity does). Median |rate|: tau Cet 2.8 cm/s
+per s, sigma Dra 0.8, HD 122064 1.4. Correction applied: the full
+flux-weighted average of v_bary over the exposure minus v_bary at the
+header midpoint (DATE-OBS + EXPTIME/2).
+
+Midpoint sources:
+- **Exposure meter (2016-02..2020-09, all 873 exposures):** one
+  photon-counting PMT on a pick-off in the collimated beam, i.e. all four
+  fibres summed; 1 s gates time-tagged on the spectrograph PC (the same
+  clock as DATE-OBS); not gated by the shutter. tau Cet ~1100 c/s against
+  ~20 background. Flux-weighted minus geometric epoch: robust sigma / rms
+  37 / 73 s (tau Cet), 53 / 167 (sigma Dra), 51 / 110 (HD 122064). In ~30%
+  of tau Cet and sigma Dra exposures the summed rate is below half its
+  median in the first 10 s (~20% at 250 s): acquisition and autofocus were
+  still running ~30 s after DATE-OBS.
+- **FAU photometry x guide-log coupling (per telescope):** guide gaps
+  over 100 s in 22-43% of (exposure, telescope) pairs per year in
+  2016-2020, 0-8% after.
+- **Clocks:** spectrograph PC vs the NTP-synced gateway, from 7,624
+  backlight events: +0.7 s (sd 0.3) normally; 42-61 s behind and
+  free-running 2016-12-12..2017-01-12; 7.6 s behind on 2018-12-29 (43
+  exposures, 0.1-1.4 m/s; corrected).
+
+tau Cet, wavedist QD level 1 (baseline nightly / within / total 4.92 /
+2.96 / 4.76 m/s):
+
+| Source | Predicted -> observed slope (within / nightly) | Refit nightly / within / total |
+|---|---|---|
+| Exposure meter (summed) | 1.10 +/- 0.14 / 0.85 +/- 0.17 | 4.67 / 2.62 / 4.46 |
+| Meter split per telescope by the guide model | 1.00 +/- 0.13 / 0.95 +/- 0.14 | 4.45 / 2.62 / 4.31 |
+| FAU flux x guide coupling | 0.92 +/- 0.12 / 0.96 +/- 0.13 | 4.36 / 2.64 / 4.20 |
+| Best (split meter 2016-20, else FAU model; + clock) | | **4.30 / 2.65 / 4.12** |
+
+- No fitted parameter; slopes ~1. Shuffled nulls (500 each): within-night
+  3.20-3.26 vs 2.62 observed; nightly 5.17-5.32 vs 4.43-4.69 (p < 0.002).
+  Dropping the 20 largest corrections keeps the gain.
+- The per-telescope differential part is detected (slope 1.03 +/- 0.26;
+  T1 1.85, T2 1.11, T3 1.26, T4 ~0).
+- tau Cet's within-night trend with hour angle (-0.15 +/- 0.06 m/s per
+  hour) disappears (-0.01 +/- 0.06).
+- sigma Dra and HD 122064: no significant change (rates 3-4x lower,
+  predicted 0.6-1.5 m/s against 5-11 m/s of other scatter).
+- **Quadrature contribution, tau Cet:** nightly 2.26 +/- 0.49 m/s,
+  within-night 1.30 +/- 0.76 (2016-2020: 2.30 and 1.74). Post-2020 typical
+  timing error ~0.6 m/s, apart from three lost-guiding exposures (6.5-7.8
+  m/s). This is the earlier flux-midpoint gain (4.63 -> 4.00, 2.3 m/s in
+  quadrature).
+
+Verdict: timing is a measured term, about a third of tau Cet's nightly
+variance, and the largest single one identified so far. For robofast:
+per-telescope flux logging (guider flux and offsets on every frame, no
+gaps while headers are collected), no shutter until every telescope is
+acquired and guiding, a flux-weighted midpoint and flux-weighted v_bary
+per telescope in the header (or the record itself, for the raw-redshift
+release), NTP on every PC with an alarm above 0.5 s, shutter times from
+the camera hardware.
+
 ## 2026-11-24: Legacy production pipeline, tau Cet baseline
 
 The legacy Doppler code's last tau Cet output (run 2019-04-29 on the
