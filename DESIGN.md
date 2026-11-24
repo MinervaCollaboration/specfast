@@ -382,8 +382,8 @@ Which mode G-CLEF needs is decided by simulation, not opinion: render
 raw frames from the G-CLEF optical model (PyEchelle; collaboration-
 private) with star, comb and sky light and injected velocities, run each
 mode, and measure the RV error each leaves against the 10 cm/s budget.
-KiwiSpec is the wrong test bed for this: its iodine floor hides the
-differences.
+KiwiSpec's real data are the wrong test bed for this today: its other
+error terms (5-11 m/s nightly) hide the differences.
 
 Frame selection (robofast headers, 2026-11-23): skip any frame with
 `SIMULATE = T` or `IMAGETYP = test` (robofast marks dry-run frames this
@@ -418,8 +418,24 @@ The break list is configuration.
 
 ## Error budget toward 10 cm/s (G-CLEF)
 
-KiwiSpec with iodine floors at about 1 m/s; G-CLEF's goal is 10 cm/s
-(JDE 2026-11-24). Each term below is assigned a frame, the specfast
+G-CLEF's goal is 10 cm/s (JDE 2026-11-24).
+
+The ~0.5-1 m/s floor of the best iodine programmes is treated as a
+limit of their modelling, not of iodine (JDE 2026-11-24): independent
+chunk-by-chunk LSFs fitted per exposure, deconvolved templates, scalar
+iodine atlases, no shared optical model; development largely stopped
+once stabilised spectrographs overtook it. Our own findings fit that
+view: each limit we have hit so far (air dispersion in the atlas,
++/-300 m/s; the along-order distortion D(p); 40-100 m/s template
+zero-points) was a modelling error, not a photon limit. What is
+intrinsic to iodine is information, not a floor: the band is limited
+(~500-620 nm), the cell absorbs light, and star, iodine and LSF must be
+separated by the data (barycentric spread, ensemble pooling, priors
+from B-star frames and the optical model). How far the modelling can go
+is measured, not assumed: an information-content study (simulated
+KiwiSpec star + iodine frames fitted with the full model family; the
+Cramer-Rao bound, plus each model component's error sensitivity) gives
+the attainable precision and ranks the modelling terms. Each term below is assigned a frame, the specfast
 component that carries it, and where it can be tested. Sizes are
 MINERVA measurements where we have them; the rest are to be quantified
 (G-CLEF optical model, public comb-calibrated data, injection tests)
@@ -432,7 +448,7 @@ before they are trusted.
 | Stellar activity, granulation, oscillations | star | line-by-line velocities, activity-sensitive line selection, exposure strategy | not separated yet | public solar data |
 | Micro-tellurics (lines < 1% deep) | observatory | modelled telluric component, per-exposure water and airmass | masked at 0.98 (too crude for 10 cm/s) | injection; public comb data |
 | Sky emission, moonlight | observatory | sky component from sky fibres | [O I] 5577 masked | G-CLEF sky fibres |
-| Iodine model | observatory | iodine atlas + learned correction | atlas choice 0-5 m/s on order pattern | MINERVA only (not G-CLEF) |
+| Iodine model (atlas, cell temperature, LSF-velocity degeneracy) | observatory | iodine atlas + learned correction, LSF shared through the optical model and pooled over exposures | atlas choice 0-5 m/s on order pattern | MINERVA; iodine information-content simulation |
 | Barycentric correction | star/observatory | flux-weighted midpoint per colour, catalogue astrometry | flux-weighted midpoint per exposure (fluxmid) | exposure-meter data |
 | Wavelength solution and drift | optics | comb/etalon per exposure, D(p), quadratic per trace | D(p) 0.1 px, residual 0.015 px | G-CLEF design; public comb data |
 | Calibration-vs-science differential drift | optics | per-fibre drift model | n/a (iodine is in the science light) | G-CLEF lab data |
@@ -447,8 +463,9 @@ Consequences for the code: every term has a frame and a component; no
 term is folded into another frame's nuisance parameters without a test
 showing it is separable; the template's own uncertainty propagates into
 the RVs. MINERVA exercises the star and observatory frames and the
-combination stage; the optics and detector frames below 1 m/s need comb
-data, so a public comb- or etalon-calibrated dataset is the second test
+combination stage, and, through the information-content study, how
+far iodine itself can go; the optics and detector frames below 1 m/s
+of a comb instrument need comb data, so a public comb- or etalon-calibrated dataset is the second test
 bed.
 
 ## Open questions
