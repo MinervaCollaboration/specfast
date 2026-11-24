@@ -7,7 +7,7 @@ from specfast.instrument import load_instrument, shipped_instruments
 
 
 def test_shipped():
-    assert {"kiwispec", "gclef_magellan", "gclef_gmt"} <= set(shipped_instruments())
+    assert {"kiwispec", "gclef_magellan", "gclef_gmt", "neid"} <= set(shipped_instruments())
 
 
 def test_kiwispec_layout():

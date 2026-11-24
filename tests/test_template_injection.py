@@ -372,3 +372,25 @@ def test_tiny_berv_spread_is_flagged():
         warn=False
     )
     assert not (ok.degenerate or ok.detector_degenerate)
+
+
+def test_operator_cache_off_gives_the_same_answer():
+    # cache_operators=False rebuilds the pixel operators on demand (memory
+    # for NEID-sized problems); the solution must not change
+    sc = make_scene(n_orders=1, npix=150, n_exp=6, gas_cell=False, seed=11)
+    data, drift = observe(sc, snr=None)
+    hold = [("wavelength", "coeffs")]
+    models = [build_model(sc, o) for o in sc.orders]
+    cfg = TemplateConfig(mode="infer", iterations=2)
+    start_v = np.full(len(sc.v), GAMMA)
+    res = [
+        infer_template(
+            make_blocks(sc, data, models, start_v, exclude=hold, drift=drift),
+            {},
+            cfg,
+            cache_operators=c,
+        )
+        for c in (True, False)
+    ]
+    np.testing.assert_allclose(res[0].block_velocity, res[1].block_velocity, rtol=0, atol=1e-9)
+    np.testing.assert_allclose(res[0].templates[0].flux, res[1].templates[0].flux, atol=1e-12)
