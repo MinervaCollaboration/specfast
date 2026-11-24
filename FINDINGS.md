@@ -1241,6 +1241,59 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-24: Is the common nightly excess stellar? (testbed branch activity)
+
+Test-bed branch `activity` (private test-bed repo, 5f054de). Chain =
+episodes v5 (reproduced exactly).
+
+**Literature (compiled by an agent; citations to be verified before use):**
+
+| | tau Cet | sigma Dra | HD 122064 |
+|---|---|---|---|
+| Type, log R'HK | G8V, -4.96, flat, no cycle | K0V, -4.81, ~6 yr cycle (RV K ~2.0 m/s, correlated with S) | K3V, -4.83..-4.95, 12.8 yr cycle (RV K ~1.75 m/s at ~3100 d, attributed to activity) |
+| Survey precision | HARPS ~0.9 m/s nightly; ESPRESSO ~0.7 | APF jitter ~0.6 m/s | HIRES floor 1-2 m/s |
+| Expected stellar total at MINERVA cadence | ~0.7 m/s | 1.0-1.7 m/s | 0.8-1.2 m/s |
+| Observed nightly excess | 1.75 | 2.66 | 3.13 |
+
+So stellar activity is ~15% of tau Cet's excess variance and roughly half
+of the other two (cycle terms dominate). tau Cet's 0.6-0.9 m/s red noise
+matches the stellar prediction; the ~2 m/s red noise of sigma Dra and HD
+122064 is ~2x it. p-modes are negligible for 15-30 min exposures.
+
+**Diagnostics:**
+- **Telescope-split test** (random halves of each exposure's telescopes;
+  their covariance is noise-free): common nightly signal 1.79 / 2.72 /
+  2.91 m/s, matching the ML excess. The excess is entirely common.
+- **Chromatic RV:** a spot predicts ~-0.09 of the RV per 100 nm over
+  500-620 nm, 6-15x below the per-night slope noise (5-8 m/s per 100 nm):
+  chromatic RV cannot see activity in this band at this S/N. There is a
+  common chromatic nightly term (3-5 m/s per 100 nm), but it does not track
+  the RV excess (tau Cet kappa +0.4 +/- 1.2; sigma Dra -1.0 +/- 0.5, ~10x the
+  spot prediction and look-elsewhere level).
+- **Order structure:** a common, non-achromatic per-order nightly scatter of
+  ~8-10 m/s per order (tau Cet), uncorrelated with the excess (|r| < 0.2),
+  mostly cancelling in the exposure RV; partly the BERV pattern.
+  Instrumental or template-related, not stellar.
+- **Frame-separated shape terms** (instrument LSF width/skew vs star-only
+  broadening/skew/line depth, by joint residual projection): all vary night
+  to night far beyond noise, mostly in common across telescopes; none
+  correlates with the excess (|z| <= 2.0).
+- **Line groups** (depth, colour, from ~1000-2000 template lines) and **Na D
+  / Mg b core indices:** null against the excess (one 2.7 sd hit, sigma Dra
+  Na D1 on 49 nights, at look-elsewhere level).
+- **Held-out checks** (train on alternate seasons): shape-term and
+  chromatic regressions and activity-selected line masks give no
+  consistent gain against random masks of equal weight.
+
+Verdict: the common nightly excess is mostly not stellar for tau Cet
+(and about half stellar for sigma Dra and HD 122064). It is achromatic and
+common to all telescopes, which points at spectrograph- or analysis-side
+terms shared by every fibre: the wavelength/LSF model, the iodine model,
+the template, or a common instrument mode. Large instrument-common nightly
+modes exist (chromatic slope, per-order scatter, LSF width, line depth)
+and must be modelled as instrument terms before any stellar attribution.
+Stellar mitigation is validated on NEID solar data first.
+
 ## 2026-11-24: T2/T3 episodes and the tau Cet budget (testbed branch episodes)
 
 Test-bed branch `episodes` (private test-bed repo, 4a40185). Per-telescope

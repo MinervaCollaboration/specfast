@@ -255,6 +255,32 @@ covariance, supports masks chosen by activity sensitivity (selected on
 held-out data), fits an optional chromatic RV term, and carries a
 star-frame line-shape term separate from the instrument LSF.
 
+Standard outputs per exposure and trace, beyond v (FINDINGS 2026-11-24,
+activity):
+1. A joint residual projection on the model derivatives: v, wavelength,
+   iodine strength and continuum; instrument-frame LSF terms (width, h3),
+   acting on star x iodine; star-frame terms (template broadening, skew,
+   line-depth scaling), acting on the template only. Coefficients and
+   covariances are stored.
+2. Star-frame residual accumulators on a fixed rest-frame grid, so
+   line-by-line velocities and line-core indices can be formed for any
+   line list without refitting.
+3. Per-order and per-segment velocities with covariances; a chromatic term
+   as a per-exposure slope in 1/lambda plus static per-(template, order)
+   offsets.
+4. Common-signal statistics from fibre (or half-exposure) splits as the
+   standard test of any indicator; scoring always held out (alternate
+   seasons), never on the nights used for tuning.
+5. Instrument-common nightly modes (chromatic slope, per-order scatter, LSF
+   width, line depth: 5-10x the expected stellar chromatic signal on
+   MINERVA) are modelled as instrument terms shared across fibres, with
+   priors, before any stellar attribution.
+6. Validation on NEID solar data first, with SDO/HMI spot and plage
+   coverage and the disc-integrated activity RV as ground truth: a method
+   must recover the known solar activity RV in held-out time (report the
+   recovered fraction and the false-correction rate on quiet intervals)
+   before it is used on MINERVA.
+
 ## Combination
 
 - Joint solve of the per-segment velocities: v = RV_e + O_(group, era),
