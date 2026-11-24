@@ -320,10 +320,20 @@ What that requires of specfast:
   instrument unless the template is absolutely calibrated); every
   correction applied to `z_meas` (drift, charge transfer, telluric
   treatment, zero points) and confirmation that no barycentric term is.
-- Chromatic exposure weighting: the photon-weighted time differs by
-  order (seeing, atmospheric dispersion). Release per-order redshifts with
-  per-order meter records where the meter is chromatic (G-CLEF); this
-  needs a per-order (chromatic) exposure-meter input on EXOZIPPy's side.
+- Chromatic exposure weighting is REQUIRED for cm/s work: release c z
+  per order, with an exposure-meter record per channel. EXOZIPPy PR #616
+  measured the error of white-light averaging (Las Campanas, order at
+  380 / 900 nm): with an ADC, off the meridian (HA 3 h), -27 / +5 cm/s in
+  30 min and -106 / +21 cm/s in 60 min; with drifting seeing up to -114 /
+  +28 cm/s; without an ADC 1.5-4.4 m/s in the blue. An order's
+  photon-weighted time moves by up to 46 s with an ADC (60-290 s without)
+  against a barycentric slope of ~3.5 cm/s per s, and the sign changes
+  with hour angle and sky, so nothing else absorbs it. Format (PR #616):
+  per-order rows sharing the exposure's time tag, a `channel` column
+  (order index or wavelength in nm) matched to a 5th field in the meter
+  file, and `err_shared`, the exposure's common-mode error (drift,
+  wavelength-solution common mode, time tag); rows within an exposure
+  covary by err_shared^2.
 - Optionally, for audit only: the provisional barycentric velocity and
   the star model it used, and a corrected velocity for quick looks.
 
