@@ -6,6 +6,40 @@ Each entry gives the date, what changed and what it means for specfast
 the exact day of a change is not known. Newest first. Telescopes are T1-T4; "MINERVA Red"
 is the separate fifth telescope, which does not feed KiwiSpec.
 
+## 2024-11 site trip (summary 2024-11-20)
+
+- **Mirrors:** M1 and M3 cleaned on all five telescopes.
+- **Collimation:** four of five collimated (T1, T2, T4 and MINERVA Red).
+  T3 could not be collimated: two of its secondary trusses were failing and
+  were replaced (they had been coming unglued since 2018). The failure left
+  T3 misaligned: its beam is vignetted and best focus is highly aberrated,
+  and it may need special tooling.
+- **T3 also:** M3 fixed (potentiometer on the M3 board); filter-wheel
+  drivers reinstalled.
+- **Rotators:** USB-to-serial converters replaced on several.
+- **Rotator angles and pointing models** redone for three of five
+  telescopes. T1 is collimated but its drives seem to lose encoder counts,
+  so it has no usable pointing model.
+- **Status after the trip:** T1 and T3 offline pending PlaneWave.
+- Also (no KiwiSpec effect): MINERVA Red revived and an IR camera installed
+  on it; the Aqawan 2 rail fixed before it derailed; an AO team's system
+  aligned.
+
+What it means for specfast (from the star frames in the telbreaks master
+table):
+- **Before the trip:** after the warm CCD (instrument era e2024 from
+  2024-03-15) the only lit telescope was T3 (2024-10-22 .. 11-16).
+- **After the trip:** no star frames 2024-11-17 .. 2025-11-21. From
+  2025-11-22 T1 and T2 are lit; T3 is dark and T4 nearly so (one frame in
+  2026-01).
+- So T1 and T2 have no data between 2022-11 and 2025-11, and their
+  2025-11 LSF-width and gradient change cannot be split between the
+  2024-03-15 instrument era and this trip's cleaning and collimation. Both
+  fall in the same gap, so no extra break is needed for them.
+- **T3 after 2024-11-20:** if it returns, it needs its own break; until it
+  is realigned, its data are suspect (vignetted, aberrated: low
+  throughput and a different LSF).
+
 ## 2018-12 site trip (summaries 2018-12-18 and 2018-12-21)
 
 No science 2018-12-15..19; robotic operation resumed 2018-12-21 (the first
