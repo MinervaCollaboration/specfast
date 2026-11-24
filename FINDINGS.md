@@ -965,37 +965,120 @@ Verdict: keep the constant-width production LSF. If an LSF term is ever
 added per exposure, make it h3. Correction: the interim "T1" width jump
 and "T1" r = -0.48 were 0-based index 1, i.e. **T2**; fixed above.
 
-## 2026-11-23: Wavelength distortion and the order pattern (branch wavedist, interim)
+## 2026-11-24: Wavelength distortion and the order pattern (branch wavedist)
 
-Test-bed branch `wavedist` (private test-bed repo). The fixed per-era
-along-order distortion D(p) (from the wavemodel branch) goes inside the
-wavelength solution; variants quadratic (Q), Q + D, quartic (R), R + D.
+Test-bed branch `wavedist` (private test-bed repo, commit 1e625de). The
+fixed per-era along-order distortion D(p) (from the wavemodel branch) goes
+inside the wavelength solution. Variants: quadratic (Q), Q + D, quartic
+(R), R + D. Chain: NIST atlas, frozen B-star LSF sigma, telluric mask 0.98,
+joint offsets, common-mode era zero-points, original extractions.
 
-- **51 Peg, NIST chain (16 exposures):** K = 54.46 +/- 1.79 (Q),
-  54.45 +/- 1.53 (Q + D), 54.67 +/- 1.77 (R), 54.78 +/- 1.64 (R + D) m/s;
-  residual rms 4.22 / 3.64 / 4.22 / 3.89; sqrt(chi2_r) 1.04 / 0.90 / 1.03 /
-  0.96. D cuts the residual rms by 14% without moving K; the quartic adds
-  nothing with or without D.
-- **Old I2_0.1 chain (wavemodel W5, unlogged until now; HD 122064
-  2016-2020, 209 exposures):** Q 10.14, Q + D 10.28, R 9.40 m/s rms. Under
-  that atlas D didn't help the RVs, though it improves the spectral fit
-  more than the quartic does (median chi2_r -1.4% vs -0.6%).
-- **The 41-59 m/s order pattern is the DSST templates.** Swapping HD
-  122064's template (rj08 -> rj122) changes the per-order offsets by 83 m/s
-  rms, zigzagging -109 to +150 m/s, common to all telescopes (per-(tel,
-  order) remainder 3.3 m/s): ~59 m/s per template if independent, the size
-  of the pattern. 51 Peg DSST vs solar atlas: 90 m/s rms per order (a
-  blue-to-red tilt of about -60 to +160 m/s plus ~45 m/s scatter). tau Cet
-  and sigma Dra share a Keck template run, which would explain their r =
-  0.64; a 7-star check is running.
-- Pending: HD 122064, tau Cet and sigma Dra under NIST; per-segment
-  structure with D fixed; residual stacks.
+**Q1: D(x) improves the fit, not the RVs.** Nightly / within-night /
+sqrt(chi2_r), m/s:
 
-Provisional design consequence: D(p) is a per-era calibration product;
-a quadratic per trace per exposure may suffice once D is fixed. Template
-per-order zero-points are a nuisance for per-order offsets or a
-self-consistent (inferred) template. A comb (G-CLEF) measures D(p) and the
-per-trace solution, but not the template's zero-points.
+| Star | Q | Q + D | R | R + D |
+|---|---|---|---|---|
+| tau Cet | 4.87 / 3.05 / 1.56 | 4.92 / 2.96 / 1.62 | 5.63 / 3.19 / 1.56 | 5.78 / 3.21 / 1.60 |
+| sigma Dra | 11.12 / 5.17 / 1.72 | 11.15 / 5.23 / 1.78 | 10.78 / 5.36 / 1.72 | 10.69 / 5.41 / 1.81 |
+| HD 122064 (2016-20, 232 exp.) | 9.18 / 6.49 / 1.36 | 9.16 / 6.49 / 1.37 | 9.02 / 6.85 / 1.28 | 9.06 / 6.67 / 1.31 |
+
+- 51 Peg (16 exposures): K = 54.46 +/- 1.79 (Q), 54.45 +/- 1.53 (Q + D),
+  54.67 +/- 1.77 (R), 54.78 +/- 1.64 (R + D) m/s; residual rms 4.22 / 3.64 /
+  4.22 / 3.89. With the solar atlas as template: 55.72 / 55.91 +/- 1.97.
+- Median per-trace chi2_r relative to Q: Q + D 0.959-0.984, R 0.991-0.997,
+  R + D 0.951-0.979. D is worth 4-5x what the quartic buys.
+- D moves per-trace velocities by 20-30 m/s rms, but statically per
+  (tel, order), so the joint offsets absorb it and exposure RVs do not
+  move. The quartic hurts tau Cet (4.87 -> 5.63) and gains nothing else.
+- Era zero-point steps (tau Cet + sigma Dra) shrink: 11.7 / 14.0 (Q),
+  9.6 / 11.7 (Q + D), 7.2 / 9.1 m/s (R + D). Part of the era steps is
+  wavelength-model error.
+- Residual pixel-position error common to all tels and orders (tau Cet
+  stacks): 0.071 px (Q), 0.037 (Q + D), 0.015 (R + D); stable 2017-18 vs
+  2019+ (r 0.98), so one D holds from the remount to 2026. Caveat: the HD
+  122064 post-remount stack is inconsistent (0.17 px, uncorrelated between
+  periods), possibly the preshift-rescued Dec 2016-Mar 2017 frames; not
+  investigated.
+- Earlier, under the old I2_0.1 atlas (wavemodel W5, HD 122064, 209
+  exposures): Q 10.14, Q + D 10.28, R 9.40 m/s rms. Same conclusion.
+
+**Q2: per-segment structure is real and mostly common to all
+telescopes.** Static per-(tel, order, quarter) rms; split-half noise 3-5
+m/s, split-half r 0.99-1.00.
+
+| Variant | tau Cet | HD 122064 | sigma Dra |
+|---|---|---|---|
+| Independent quarters (lsfgrad definition), Q | 76.6 | 120.3 | - |
+| Independent quarters, Q + D | 76.7 | 120.3 | - |
+| Shared solution, 4 segment velocities, Q | 106.8 | 133.7 | - |
+| Shared solution, Q + D | 86.2 | 122.4 | 79.1 |
+| Shared solution, R + D | 81.1 | 117.8 | - |
+
+- Reproduces the lsfgrad 75.8 m/s. With independent quarters each
+  quarter's own quadratic absorbs D.
+- D removes most of the mean segment pattern common to all orders (tau
+  Cet [+39, -60, +86, -23] -> [+11, -9, +20, +2] m/s; HD 122064 [+21, -56,
+  +79, -32] -> [-0.5, -17, +23, +11]). What remains is order-specific.
+- Common to all telescopes: 78-120 m/s; per-telescope remainder 8-21
+  m/s (4-8 with independent quarters). Not a per-fibre effect.
+- Across stars: common part 76.6, per-star part 60.6 m/s. Pair
+  correlations: tau Cet / sigma Dra 0.77 (same Keck template run), sigma
+  Dra / HD 122064 0.52, tau Cet / HD 122064 0.18. The star-specific part
+  follows the template.
+- Stable in time (pre/post remount r 0.87-0.91; 2017-18 vs 2019+ r
+  0.97-0.99). Quarter-scale cells cannot tell a 68 px move from a fixed
+  position.
+
+**Q3: the 41-59 m/s order pattern is mostly the DSST templates.** Order
+pattern = per-order offset after removing a per-(tel, era) mean.
+
+| Star (template run) | Order pattern rms | Per-(tel, order) rms |
+|---|---|---|
+| tau Cet (rj82) | 59.5 | 12 (noise 13) |
+| sigma Dra (rj82) | 40.9 | 5 (noise 4) |
+| HD 122064 (rj08) | 105.9 | 17 |
+| HD 201091 (rj08) | 73.4 | 13 |
+| HD 62613 (rj06) | 82.6 | 5 |
+| HD 26965 (rj06) | 71.5 | 4 |
+| HD 19373 (rj76) | 123.7 | 16 |
+
+- Same-run pairs correlate at r 0.64 (rj82) and 0.86 (rj06), but the rj08
+  pair at -0.02; different-run pairs -0.76 to +0.63.
+- Decisive: HD 122064 with template rj08 -> rj122 on the same data changes
+  the order pattern by 82 m/s rms, zigzagging order to order with no slope;
+  the pattern falls from 106 to 54 m/s (37 after a quadratic in order). The
+  per-(tel, order) part does not change.
+- 51 Peg DSST vs solar atlas: 90 m/s rms (a +12 m/s per order tilt plus
+  44.5 m/s order-to-order scatter).
+- Minor: D changes the pattern by 2-6 m/s; atlas choice (NIST vs I2_0.1)
+  by 0-5 m/s.
+- A floor of ~38 m/s rms common to all 7 stars remains (each star departs
+  from it by 25-119 m/s). Unidentified: iodine- or MINERVA-side, possibly
+  mixed with convective-shift and line-mix effects.
+
+**Verdict.** D is a real calibration term worth fitting, but neither D nor
+the wavelength model's degree causes the nightly scatter. Each DSST
+carries per-order (and per-segment) wavelength zero-point errors of 40-100
+m/s, common to all telescopes; per-(tel, order) offsets have been absorbing
+them all along.
+
+**Design consequence (DESIGN.md "Wavelength" and "Templates"):**
+- Per-era calibration products: D(p), common to all orders and fibres,
+  re-derived at each optical change; a static per-trace optical-model
+  curve as the starting guess and prior.
+- Per exposure, per trace: a quadratic in x' = (p + D(p)) / p_med. No
+  quartic.
+- Nuisance offsets per (template, order), or per (template, order,
+  segment) when segments are fitted separately, shared by all telescopes
+  and stored with the template, not the instrument. The per-(tel, order)
+  remainder is only 5-17 m/s.
+- Move to inferred templates on the instrument's own iodine-calibrated
+  scale; until then the per-order offsets stay.
+- G-CLEF: the comb measures D(p), the per-trace solution and era drifts
+  directly, but not the template's wavelength scale. Its templates must be
+  built from its own comb-calibrated spectra, or carry per-order template
+  offsets. A comb should also show whether the ~38 m/s common floor is
+  iodine-side.
 
 ## 2026-11-23: specfast skeleton and the injection test (PR #1)
 

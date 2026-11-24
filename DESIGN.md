@@ -177,6 +177,15 @@ frame) and mapped to pixels for every exposure.
   mode for TOIs without a DSST template.
 - **Synthetic (Korg)**: a precomputed grid or emulator for speed; Korg
   itself is Julia, called out of process, never inside the fit loop.
+- **Template zero-points are a template property.** Each DSST carries
+  per-order (and per-segment) wavelength zero-point errors of 40-100 m/s,
+  common to all telescopes and shared within a Keck template run
+  (FINDINGS 2026-11-24). Fit one offset per (template, order[, segment]),
+  shared by all fibres, and store it with the template, not the
+  instrument; per-(fibre, order) offsets then only carry 5-17 m/s.
+  Inferred templates remove these errors at the source and are the
+  preferred mode; on a comb-calibrated instrument (G-CLEF) they are the
+  only way to avoid per-order template offsets.
 
 ## Combination
 
@@ -273,7 +282,7 @@ minima.
 Wavelength component, production form:
   lambda(x; fibre, order, exposure) = optics(theta_era, x) + D_era(x)
       + a0(fibre, order, exposure) + a1(fibre, order, exposure) * x
-      [+ higher free terms if the ladder keeps favouring them]
+      [+ a2 x^2; in practice a quadratic in x' = (x + D(x)) / x_med]
 
 - No detector stitching was found. Steps at 512-px boundaries are below
   ~0.02 px, from a stack of 127 + 322 star, 106 B-star and 72 sky frames
@@ -285,6 +294,10 @@ Wavelength component, production form:
   (best cross-era match at the ~68 px remount shift), so it is optical.
 - D(x) is a per-era calibration product. A detector map stays possible
   if better data (a comb) ever demands it.
+- Fixing D(x) cuts the spectral chi2_r by 2-5% (4-5x the quartic's gain)
+  and leaves the RVs unchanged; the quartic gains nothing once D is in
+  and can hurt. So: quadratic per (exposure, fibre, order), no quartic
+  (FINDINGS 2026-11-24, wavedist).
 
 ## Stage 1: extraction
 
