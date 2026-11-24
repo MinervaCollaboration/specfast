@@ -1080,6 +1080,45 @@ them all along.
   offsets. A comb should also show whether the ~38 m/s common floor is
   iodine-side.
 
+## 2026-11-24: Template inference module, injection tests (specfast PR #7)
+
+Module `specfast.doppler.template`: per-order template on a fine ln(lambda)
+grid (oversample 4), modes modify (prior + regularized correction, per-order
+zero points as template properties) and infer (flat start); alternating
+solver (block Gauss-Newton, banded sparse template solve, observatory
+corrections, optional detector map); components for the star, iodine (with
+learned correction), tellurics (dry x airmass, fitted water) and the
+detector frame (pixel-edge offsets dx(p), response), the last kept separate
+from the optics; an automatic separability check. Synthetic truth only.
+
+- **MINERVA-like** (star + iodine, BERV +/-25 km/s, S/N ~140; slow run 4
+  orders x 400 px x 24 exposures). Modify from a DSST-like prior with order
+  zero points off by up to ~100 m/s and line depths 10% wrong: template
+  error 0.0057 (prior 0.0157), zero points recovered to -4.9..+2.5 m/s,
+  order offsets 34 -> 0.25 m/s, RVs unbiased (BERV slope -0.11 +/- 0.13
+  m/s per km/s). Infer from flat: template error 0.0055, zero points +/-11
+  m/s (relative RVs only), same RV scatter.
+- **G-CLEF-like** (no iodine, comb-known wavelengths, noise-free,
+  micro-tellurics < 1% deep): modelled tellurics leave 0.06-0.19 m/s;
+  masking at T < 0.98 leaves 4.1-4.6 m/s, matching the predicted
+  first-order bias (r 0.98-0.99). The size depends on the injected line
+  list; the point is that masking is not a 10 cm/s option.
+- **Detector frame**: dx of 5e-3 px rms plus a 0.02 px stitching step,
+  ignored, gives 1.74 m/s RV errors that repeat at equal BERV (r 0.999)
+  and bend the template; supplied as a calibration, they vanish. Fitting
+  the map from the star data alone recovers it only partly (r 0.3-0.5;
+  1.7 -> 1.3-1.6 m/s): the detector map must be a calibration product.
+- **Degeneracy**: a BERV spread of +/-0.2 km/s is flagged (star vs
+  observatory and star vs detector unseparable); +/-25 km/s is not.
+
+Limits: the alternation converges slowly (~0.6 per sweep; ~0.5 m/s
+changes persist after 6 sweeps noise-free), so the joint sparse solve is
+needed for 10 cm/s; one velocity per (exposure, order), no per-segment
+velocities or per-(telescope, order) offsets yet; diagonal template
+sigma; no sky or charge-transfer terms; formal RV sigma slightly
+conservative (rms/sigma 0.6-0.9). Not yet run on real data: needs a
+driver from ExtractedSpectrum files and an on-disk template product.
+
 ## 2026-11-23: specfast skeleton and the injection test (PR #1)
 
 - A self-consistent synthetic test (star with 3 km/s lines plus a dense
