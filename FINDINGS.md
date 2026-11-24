@@ -562,6 +562,20 @@ Langley), its water index correlates only r ~ 0.3 with the spectral column
 and surface humidity on 21 overlap nights. The spectral column is the
 better proxy.
 
+**Correction (2026-11-24): this was our own crude reduction of CAMAL's raw
+images, not CAMAL's product.** We copied raw CAMAL frames from the
+observatory archive and did our own aperture photometry on every 15th
+780/823/860 nm triplet, with a per-star Langley fit and our own water
+index; we never used the CAMAL team's PWV, which is calibrated against
+GPS (CAMAL PI, via JDE). So the r ~ 0.3 measures our reduction, not
+CAMAL, and "the spectral column is the better proxy" is withdrawn. The
+PI also notes that PWV decorrelates faster than one might think (so
+matching must be close in time) and that the water lines in the iodine
+region are tiny, so the spectral column is noisy. Consequence: the null
+result "the common mode is uncorrelated with water column" used a noisy
+proxy and is weaker than stated; redo it with CAMAL's calibrated PWV,
+time-matched per exposure.
+
 Verdict: keep a static mask at 0.98-0.99; treat orders 18-20 specially;
 no fitted atlas-power model; keep the spectral water column as a
 diagnostic. Tellurics don't explain the shared 2-3 m/s.
