@@ -195,7 +195,7 @@ eras:
   - {name: e2016b, start: 2016-09-28}
   - {name: e2016c, start: 2016-11-22}
   - {name: e2017,  start: 2017-10-02, notes: Wilson+19 realignment}
-  - {name: e2019,  start: 2019-09-18}
+  - {name: e2019,  start: 2019-09-18, notes: bench 25.6-26.2 C and drifting until 2020-02 (regulation not restored after the HVAC failure); regress on bench temperature}
   - {name: e2020,  start: 2020-10-01}
   - {name: e2021,  start: 2021-09-12, notes: bench unregulated until 2023-07; regress on bench temperature}
   - {name: e2024,  start: 2024-03-15}
