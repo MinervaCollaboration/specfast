@@ -1227,6 +1227,31 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-24: Legacy production pipeline, tau Cet baseline
+
+The legacy Doppler code's last tau Cet output (run 2019-04-29 on the
+gateway; per-telescope RVs, 441 rows, 211 exposures, 2016-02-09 to
+2019-01-28) was binned the way the test bed bins: per-telescope offsets
+(weighted), exposure = weighted mean over telescopes, nightly = rms of
+weighted nightly means. Median exposure error 3.0-3.2 m/s.
+
+| Selection | Exposures / nights | Nightly rms | Within-night rms |
+|---|---|---|---|
+| all | 211 / 121 | 19.5 | 15.3 |
+| error < 10 m/s | 193 / 116 | 11.5 (10.8 with per-era offsets) | 10.4 |
+| error < 6 m/s | 177 / 107 | 8.2 (7.1 with per-era offsets) | 6.5 |
+| error < 6, 2018-19 only | 89 / 62 | 5.3 | 4.0 |
+| error < 10, by year: 2016 / 2017 / 2018 / 2019 | | 8.3 / 15.4 / 6.5 / 3.5 | 13.5 / 4.2 / 5.6 / 2.2 |
+
+The test bed on the original extractions gives 4.6 m/s nightly over all
+331 exposures (2016-2026), ~6.1 pre-2018 and 3.7-3.8 post-2018, so the
+reimplementation is already 1.5-2x better than legacy over the legacy
+span, mostly through the within-night scatter (legacy 6.5-10 m/s against
+~3). The selections differ (legacy rows cut on its own errors; the test
+bed on its gates), so this is a baseline, not a matched comparison; a
+matched-exposure comparison is still to do. Files: legacy_rv results
+directory (radish).
+
 ## 2026-11-24: Do residuals depend on barycentric velocity? (testbed branch bervcheck)
 
 Test-bed branch `bervcheck` (private test-bed repo, commit 7a43294), on the
