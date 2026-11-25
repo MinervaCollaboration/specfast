@@ -1260,6 +1260,30 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Why autofocus ran inside exposures, and why the FAU status keyword can't flag it
+
+Of 789 (exposure, telescope) cases in 2016-2020 where a FAU autofocus run
+ends inside a tau Cet, sigma Dra or HD 122064 exposure, the header's FAU
+status at shutter open reads GUIDING in 760, ACQUIRING in 18 and is
+missing in 11. A filter on that keyword would remove almost none of them.
+
+Cause, from the legacy control code's history: from 2016-04 to 2020-01 each
+telescope's thread ran coarse acquisition -> fine acquisition (which sets
+the "acquired" flag) -> autofocus -> guiding. The spectrograph waited only
+for every telescope's "acquired" flag, so the exposure started right after
+fine acquisition and the autofocus ran during it, while the status
+keyword (written at exposure start from the acquired and guiding flags)
+read GUIDING. The guiding step then reset and re-acquired mid-exposure. A
+2020-01 change put autofocus first and dropped the separate fine
+acquisition, so from then on autofocus inside an exposure needs the
+acquisition timeout to expire. (2018 headers also carry a misspelled
+duplicate status keyword with the same values.)
+
+Consequence: for 2016-04..2020-01 data the FAU status keyword cannot
+identify affected telescopes; the FAU autofocus records or the guide-image
+flux record are needed. specfast should take the per-telescope flux-time
+record as the timing input and treat header status keywords as hints only.
+
 ## 2026-11-25: Spectrograph temperature sensors vs RV residuals (testbed branch thermal)
 
 Sources: the PT100 logs (four 4-channel loggers, ~10 s sampling, 2016-02 on)
