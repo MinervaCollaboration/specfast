@@ -1260,6 +1260,63 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Spectrograph temperature sensors vs RV residuals (testbed branch thermal)
+
+Sources: the PT100 logs (four 4-channel loggers, ~10 s sampling, 2016-02 on)
+and the thermal-enclosure controller logs (2015-01 to 2019-12; the live
+thermal-log share was unreachable). Channel map from the logger configs:
+A1/A2 echelle side/top, A3 optical bench, A4 air in vacuum, B1 iodine-cell
+enclosure (~27.8 C; not the 55 C cell heater), B2 input optics, B3/B4 CCD
+water supply/return, C1 vacuum input window, C2 CCD shutter, C3 CCD mount,
+C4 camera, D1 top of grism, D2 CCD invar table leg, D3 CCD housing, D4
+vacuum input port (2016 only); enclosure air, table, HVAC and collimator
+channels. Coverage of tau Cet exposures 93-96% in every era. Thermal
+history: 25.06 +- 0.002 C per day until 2019-01; 24.5-25.9 C with 0.1-1 C
+night-to-night swings from 2019-09; 21.7 C in 2020-09; ~25 C in 2022;
+uncontrolled 20-23.7 C in 2024-26 (these excursions give the test power).
+
+Header caveats: TEMPA1..D4 are single 10-s samples taken 0-25 s before the
+exposure starts, not exposure averages. **The TEMPE01..12 header labels
+are wrong**: the legacy control code reads column i+4 but labels it with
+config entry i, so every label is shifted by four channels (TEMPE01,
+labelled "air top south corner", is the outside average).
+
+Method: per exposure, the sensor mean over the exposure, change within
+it, dT/dt, change since the start of the night and change of the nightly
+mean since the previous night; nightly weights 1/(e^2 + 1.8^2); residuals
+and covariates detrended with a +-15-day running median, nights permuted
+within era; family-wise correction over 140 tests per (star, era) and 24
+families (2,744 tests in all). Inter-sensor correlation makes the null
+count of nominal p < 0.05 hits large (median 58, 95th percentile 134 of
+1,820); 187 observed is within it.
+
+- **No sensor explains the nightly or within-night residuals** of tau Cet,
+  sigma Dra or HD 122064: best corrected p 0.46 (nightly), 0.74 (within).
+- **Echelle** (A1/A2), nightly, detrended: tau Cet +0.30 +- 0.38 m/s per C
+  overall; 95% upper limit on its contribution 0.50 m/s (0.58 in 2018-19,
+  1.1 in 2020+; only ~2 m/s in 2016-17, when the sensors barely moved).
+  Held-out variance explained ~0.
+- **Only lead, slow and confounded:** the 2016-04 enclosure set-point step
+  (25.18 -> 24.96 C) coincides with a sigma Dra / HD 122064 drift
+  (Feb-Jun 2016); it does not survive detrending or the correction.
+- **No shared nightly shift between stars** observed on the same night
+  (detrended): tau Cet x sigma Dra r = -0.09 (45 nights), tau Cet x HD
+  122064 +0.05 (16), sigma Dra x HD 122064 -0.10 (51). If the ~1.4 m/s
+  term were a nightly instrument state shared by all stars, tau Cet x
+  sigma Dra would show r ~ +0.2.
+- **Not random clock offsets.** A nightly clock error would scale with
+  dBERV/dt; an ML fit of the nightly excess as a + sigma_t |dBERV/dt|
+  gives no gain for tau Cet (sigma_t 7.5 s, dlnL 0.00) or sigma Dra, whose
+  dBERV/dt is near zero yet whose excess is 3.1 m/s.
+
+**Implication.** The ~1.4 m/s unexplained term is common to the four
+telescopes but not to the stars observed that night: it lives in the
+exposure of one star, not in a nightly instrument state. Candidates:
+the star itself (NEID bounds tau Ceti at <= 0.6 m/s), or something
+per-exposure and fibre-common that depends on that star's spectrum or
+pointing (template x exposure conditions, per-exposure iodine/LSF/
+wavelength freedom interacting with the star's lines).
+
 ## 2026-11-25: Iodine-cell temperature and the barycentric timing model
 
 **Iodine-cell temperature vs nightly residuals** (x2-0.4 v5c nightly means,
