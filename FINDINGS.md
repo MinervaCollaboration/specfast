@@ -1260,6 +1260,45 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Timing correction re-validated per star and era (testbed branch overfit)
+
+Under the evaluation protocol (DESIGN.md): v5 residuals without timing
+regressed on each timing variant's predicted shift, per star and era, with
+a per-night random term (slope 1 = correction right, 0 = noise).
+
+| dv_best slope | 2016 | 2017 | 2018-19 | 2020+ |
+|---|---|---|---|---|
+| tau Cet | 0.10 +- 0.27 | 0.63 +- 0.21 | 1.01 +- 0.12 | 0.97 +- 0.24 |
+| sigma Dra | 0.69 +- 0.29 | -1.79 +- 0.58 (32 exp) | 1.10 +- 0.26 | - |
+| HD 122064 | 0.13 +- 0.15 | 0.52 +- 0.29 | 1.03 +- 0.89 | - |
+
+Pooled before / from 2018: tau Cet 0.47 +- 0.17 / 0.93 +- 0.10; sigma Dra
+0.04 +- 0.25 / 1.08 +- 0.26; HD 122064 0.27 +- 0.14 / 1.04 +- 0.60.
+
+- **The timing term is real from 2018 on** (slope ~1 for every star) and
+  survives on a held-out half of tau Cet nights (-0.77 [-1.26, -0.13] m/s
+  ML excess). In 2018-20 it accounts for ~2.3 m/s in quadrature of tau
+  Cet's unweighted nightly rms and ~1.8 m/s of its ML excess. The
+  autofocus-gap term is under-predicted there (slope 1.9-2.9).
+- **Before 2018 it is not validated**: right sign, 0.1-0.6 of the
+  predicted size, and it makes HD 122064 worse (+0.58 [+0.26, +0.94]). The
+  exposure meter was alive throughout and dv_best is effectively the FAU
+  flux x guide-coupling model in every era (r = 0.95-1.00 with the meter
+  version), so the meter is not what changed. What changed at the 2018-12
+  site trip was the guide system (new cameras and plate scale, refocused
+  FAUs; before it the FAU images were broad and T2/T4 not focused at the
+  fibre). Hypothesis (untested): before the trip the FAU flux did not track
+  the light entering the fibre.
+- **Applied only from 2018**, tau Cet's ML excess is 1.89 [1.72, 2.08]
+  (original) / 1.83 [1.66, 2.01] (x04) m/s, against 1.75 / 1.81 with timing
+  everywhere and 2.39 / 2.44 with none. HD 122064 improves 3.16 -> 2.61.
+  Rule adopted: timing from 2018 only; the pre-2018 flux record must be
+  re-modelled before use, not scaled by a fitted slope.
+- 51 Peg could not be tested (no timing rows).
+
+This supersedes the "autofocus inside exposures in 2016-20" attribution in
+the timing entry: it holds for 2018-20 only.
+
 ## 2026-11-25: Original vs x2-0.4, and how much of the chain is tuned to noise (testbed branch overfit)
 
 Question (JDE): the test bed's v5 chain scored best on the original
