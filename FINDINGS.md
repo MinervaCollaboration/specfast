@@ -1260,6 +1260,73 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: End-to-end simulation of the tau Cet data set (testbed branch e2esim)
+
+Question: can the v5 analysis chain by itself produce tau Cet's 1.78 m/s
+common nightly excess?
+
+**Simulation.** All 358 x2-0.4 tau Cet exposures rebuilt trace by trace
+with their real headers, BERV, masks, flux, blaze and read noise; constant
+true RV; fitted by the unchanged test-bed code and v5 chain (without the
+timing and T2 regressions, which correct real effects). Truth: the real
+fitted wavelengths with D and the static table S; NIST iodine interpolated
+in optical depth on a 0.02 km/s grid; the per-era B-star LSF maps with
+h3/h4; photon + read noise; the star = a stack of all 132 NEID tau Ceti
+L2 frames with NEID's LSF removed (Wiener filter), which differs from the
+DSST template by ~1% rms; tellurics from a fit to NEID's per-frame
+telluric models with a random nightly water column. (A first round with
+the Hinkle/Wallace telluric atlas injected fake micro-tellurics from the
+atlas's own sub-1% noise: 4.04 m/s with a BERV slope the real data lack;
+superseded.)
+
+| Run | ML nightly excess (m/s) |
+|---|---|
+| real data, same chain | 1.78 [1.62, 1.95] |
+| simulation, full | 1.97 [1.82, 2.14] (second seed 1.93) |
+| noise only | 0.00 [0, 0.25] |
+| truth star = DSST (no template mismatch) | 0.69 [0.53, 0.84] |
+| half the template mismatch | 1.30 |
+| iodine on the model's 0.25 km/s grid | 1.86 |
+| LSF = the model's Gaussian | 1.75 |
+| no tellurics | 2.13 |
+| no static wavelength table S | 1.74 |
+| + real-like per-exposure LSF variation | 2.14 |
+
+Quadrature attribution: template mismatch 1.85; static wavelength table
+0.92; static LSF asymmetry (h3/h4) 0.90-0.94; iodine atlas representation
+0.65; tellurics ~0; real-like LSF variation 0.84 (the only term with a
+per-telescope part). The simulation reproduces the real trace-level misfit
+(median chi2_r 4.41 vs 4.61).
+
+**Same size, different kind.** In the simulation the analysis error is a
+fixed function of BERV: BERV-binned leave-one-out means explain 62% of it
+(75% of the template part). In the real residuals the same test explains
+only 10-16%. Even half the template mismatch leaves the series 41%
+BERV-coherent, so the real template mismatch is at most ~0.4-0.5 of the
+simulated one (the truth spectrum's own ~1% errors likely inflate it). The
+simulated analysis error correlates with the real nightly residuals at r
+~ +0.2-0.3, i.e. ~0.6-0.8 m/s of the simulated pattern is in the data.
+
+**Conclusion.**
+- The analysis accounts for ~1.0-1.2 m/s of the 1.78: non-template terms
+  (S, LSF asymmetry, atlas, ~0.7 together) plus a template term of at most
+  ~0.8.
+- **~1.4 m/s is not produced by any simulated analysis term**: random
+  night to night, common to all telescopes, not a function of BERV.
+  Suspects: something shared by all fibres that changes nightly (the
+  iodine cell or spectrograph state; shared timing or shutter;
+  per-exposure detector-map changes common to all fibres; something in
+  the extraction common to all traces).
+- Fixes worth ~0.5-0.9 m/s each: an inferred template, per-era S and
+  per-era LSF-asymmetry calibration. None reaches the remaining ~1.4.
+
+**The formal errors are not photon errors.** They are ~2.2x the photon
+errors, inflated by the per-trace misfit (noise-only: 0.90 m/s nightly;
+with the misfit: 1.78). "Photon-limited within a night" in earlier entries
+means at the level of these inflated errors; the true photon floor for tau
+Cet is ~0.5 m/s nightly. The model misfit (chi2_r ~4.5 per trace) is itself
+a target.
+
 ## 2026-11-25: Timing correction re-validated per star and era (testbed branch overfit)
 
 Under the evaluation protocol (DESIGN.md): v5 residuals without timing
