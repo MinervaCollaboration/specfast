@@ -1260,6 +1260,74 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: specfast joint model: the iodine gauge, 51 Peg, the port deficit, and iodine depth vs time (PR #10, 92c6a80)
+
+**Gauge (`iodine.gauge: template`) changes nothing measurable on tau Cet:**
+- Every metric is within ±0.02 m/s of the ungauged joint run (ML excess
+  2.29 -> 2.29).
+- Convergence still plateaus at about 1.35 m/s of offset change per
+  sweep, so the drift is not along the iodine-correction/template
+  direction.
+- Untested guess: per-order zero points vs template shift under the
+  modify-mode prior.
+
+**The learned iodine correction is essential.** Switching it off (warm
+start) raises tau Cet's ML excess to 14.2 m/s (+11.9 [10.1, 12.9]) and
+chi2 by 18%. The atlas's optical-depth errors (~0.02) then go into the
+modify-mode template as ~10 m/s errors that follow BERV.
+
+**51 Peg (17 frames, 2017, 9.3 km/s BERV range):**
+
+| Run | K (m/s) | rms (m/s) | BERV slope (m/s per km/s) |
+|---|---|---|---|
+| test-bed copy (v5eq) | 56.1 ± 1.3 | 3.4 | +0.3 |
+| joint, own iodine correction | 57.3 ± 3.6 | 10.0 | +3.2 |
+| joint, correction off | 58.1 ± 7.3 | 18.0 | +5.8 |
+| joint, fixed template | 57.2 ± 1.9 | 5.1 | 0.0 |
+| joint, modify template + tau Cet's correction frozen | 56.4 ± 1.5 | 4.6 | +0.2 |
+
+- Carrying the correction over from a star with wide BERV coverage
+  removes the BERV trend.
+- This supports one observatory-frame correction shared by all targets
+  (DESIGN, 03af581). A multi-star fit (M1) is next: 4 standards plus
+  3 B stars, ~750 frames.
+
+**Port deficit confirmed.** specfast's copy of the chain (v5eq) vs the
+test bed's own x2-0.4 fits, identical exposures:
+- ML excess +0.36 [0.14, 0.56] m/s, and +0.70 [0.31, 1.35] in 2020+.
+- wrms +0.29 [0.15, 0.42].
+- The same without timing (+0.34).
+
+Where it comes from:
+- specfast drops more traces (1968 test-bed-only vs 412 specfast-only),
+  not because of the count floor.
+- The per-(exposure, telescope) difference in 2020+ is 0.6 m/s for T1,
+  T2 and T4 but **2.35 m/s for T3**.
+- Per-order mean offsets reach ±12-16 m/s in 2020+ (orders 9, 10, 12).
+- Next: atlas interpolation and grid phase on 2020+ T3.
+
+**Water column vs residuals:** r = -0.27 [-0.38, -0.18] over all eras
+(2016 -0.57, 2018-19 -0.37, 2020+ -0.05), about 0 within nights. This
+may be seasonal confounding (water vs BERV season); it is not shown to
+be a cause.
+
+**Iodine depth falls with the cell temperature since 2020 (tau Cet).**
+The per-exposure iodine scale k, normalised by its (telescope, order)
+median, by period:
+
+| 2016 | 2017 | 2018-19 | 2020 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|---|
+| 1.03 | 1.00 | 1.04 | 0.97 | 0.94 | 0.925 | 0.92 |
+
+- The cell temperature header reads exactly 55.00 through 2019, then
+  54.8 ± 0.13 (54.6-55.1) from 2020: the setpoint is no longer held.
+- Within 2020+, k tracks it (r 0.85, 0.17 per K).
+- The absolute median k is 0.934: the NIST atlas is 5-7% too deep.
+- Caveat: k could also absorb LSF-width changes. B-star frames in M1
+  will separate the two.
+- Earlier: the cell temperature does not correlate with the nightly RV
+  residuals, so the fitted k absorbs the depth change.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
