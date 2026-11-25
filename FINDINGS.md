@@ -1260,6 +1260,37 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
+
+Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
+with autofocus inside the exposure worth keeping?
+
+- **The damage is a common-mode timing shift.** Autofocus usually hit
+  every telescope of an exposure (tau Cet: all four in 30 of 44
+  four-telescope exposures). Affected vs matched unaffected exposures on
+  the same night: tau Cet 2018-19 affected sit +1.52 [+0.04, +3.35] m/s
+  high with no timing correction, +0.38 [-0.19, +0.97] with the FAU-flux
+  correction, and affected scatter matches unaffected (z rms 0.85 vs
+  0.79). No telescope-specific excess for any star (tau Cet z rms 0.97 vs
+  0.95, extra scatter 0.00 [0, 0.39] m/s).
+- **Which flux record:** any record that treats the autofocus span as
+  zero light into the fibre fixes the offset; the exposure meter is best
+  (offset -0.03, z rms 0.81 vs 0.88). Counting the autofocus frames as
+  ordinary guider flux does not (+1.47, as bad as uncorrected +1.51).
+- **No illumination effect:** after correction, residuals don't track
+  the defocus step, when autofocus ended, the affected fraction, guide
+  offsets or gaps, or airmass (|rho| <= 0.10, p >= 0.11).
+- **Options on tau Cet:** dropping the affected telescopes loses 41 of
+  207 nights and worsens fixed-weight nightly rms by +0.37 [+0.07, +0.70]
+  m/s (held-out half +0.42); inflating their errors gives no real gain.
+
+Decision: keep them, with a per-telescope flux-time record that sets the
+autofocus span to zero fibre flux (exposure meter where alive). 2016-17
+are thin and the pre-2018 guider-flux amplitude is only partly supported
+(timing re-validation), so use the exposure-meter record there. HD 122064
+in 2017 is the one hint of residual scatter (12 exposures, not
+significant).
+
 ## 2026-11-25: The 2016 deficit of x2-0.4: not the flat, partly the wavelength solution (testbed branch flat2016)
 
 Follow-up to the paired finding that x2-0.4 is worse than the original
