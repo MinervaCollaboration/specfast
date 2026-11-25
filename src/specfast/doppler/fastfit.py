@@ -299,7 +299,7 @@ def fit_block_fast(
     flux, J, labels, _ = model_and_jacobian(model, p, ctx, free)
     r = (d - flux) * w
     chi2 = float(r @ r)
-    for it in range(1, max_iter + 1):
+    for it in range(1, max_iter + 1):  # noqa: B007 (it is reported)
         Jw = J * w[:, None]
         A = Jw.T @ Jw
         g = Jw.T @ r

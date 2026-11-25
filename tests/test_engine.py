@@ -46,15 +46,14 @@ arms:
     channels: [A, B]
     orders: [0]
     rv_orders: [0]
-    detector: {name: d, npix_dispersion: %d, gain_e_per_adu: 1.0}
+    detector: {name: d, npix_dispersion: NPIXVAL, gain_e_per_adu: 1.0}
 header:
   date_obs: [DATE-OBS]
   exptime: [EXPTIME]
   gas_cell_state: [I2POSAS]
   gas_cell_in_value: in
 """
-    % NPIX
-)
+).replace("NPIXVAL", str(NPIX))
 
 STAR = dict(name="S", ra_deg=26.0, dec_deg=-15.9, rv_kms=-10.0)
 

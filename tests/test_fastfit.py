@@ -6,7 +6,7 @@ import pytest
 from synth import LAM0, LSF_SIGMA_MPS, NPIX, line_spectrum, make_scene
 
 from specfast.conventions import C_KMS
-from specfast.doppler import ExposureContext, ForwardModel, LnGrid, Telluric
+from specfast.doppler import ExposureContext, ForwardModel, Telluric
 from specfast.doppler.fastfit import (
     fit_block_fast,
     model_and_jacobian,

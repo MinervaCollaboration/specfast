@@ -340,7 +340,7 @@ class OrderWorker:
             a = spec.arms[0]
             for o in self.orders:
                 io = a.orders.index(o)
-                for ci, ch in enumerate(self.channels):
+                for ch in self.channels:
                     cidx = a.channels.index(ch)
                     if self.ins.is_excluded(fr.date, ch) or _extra_excluded(cfg, fr.date, ch):
                         self.log.append((fr.name, ch, o, "channel_excluded", ""))
@@ -598,7 +598,7 @@ class OrderWorker:
         out = {}
         hr = self.cfg.model.wavelength.search_px if half_range is None else half_range
         for o in self.orders:
-            for i, (b, p) in enumerate(zip(self.blocks[o], self.params[o], strict=True)):
+            for b, p in zip(self.blocks[o], self.params[o], strict=True):
                 c0 = 0.0 if shifts is None else shifts.get(b.key, 0.0)
                 s, gain = _shift_search(b, p, np.arange(c0 - hr, c0 + hr + 1e-9, step))
                 if shifts is not None:
@@ -1083,8 +1083,6 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                 f"median |shift| {np.median(np.abs(list(med.values()))):.2f} px",
             )
         else:
-            for k in pool.call("state"):
-                pass
             pool.call("load_state", st=warm["workers"])
             shared = warm["shared"]
             hyper = warm.get("hyper", {})
@@ -1124,7 +1122,6 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                     bl["order"][ok],
                     fit_offsets=True,
                 )
-            vk = np.array([vel[k][0] for k in sorted(vel)])
             rec = dict(
                 sweep=sweep,
                 seconds=time.time() - t0,
@@ -1147,20 +1144,12 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
             rec.update({k: v for k, v in upd.items() if k != "illum_hyper"})
             rec["illum_hyper"] = upd.get("illum_hyper")
             conv["sweeps"].append(rec)
-            _progress(
-                out,
-                "sweep %d: %s"
-                % (
-                    sweep,
-                    json.dumps(
-                        {
-                            k: (round(v, 4) if isinstance(v, float) else v)
-                            for k, v in rec.items()
-                            if k != "illum_hyper"
-                        }
-                    ),
-                ),
-            )
+            summary = {
+                k: (round(v, 4) if isinstance(v, float) else v)
+                for k, v in rec.items()
+                if k != "illum_hyper"
+            }
+            _progress(out, f"sweep {sweep}: {json.dumps(summary)}")
             with open(out / "convergence.json", "w") as fh:
                 json.dump(conv, fh, indent=1, default=float)
             converged = prev is not None and rec.get("dv_max", np.inf) < cfg.solver.tol_mps
