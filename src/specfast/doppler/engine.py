@@ -619,7 +619,7 @@ class OrderWorker:
         return lsf, p
 
     # --------------------------------------------------------------- search
-    def search(self, shifts=None, half_range=None, step=0.5):
+    def search(self, shifts=None, half_range=None, step=1.0):
         """Coarse pixel shift per block (grid search, continuum profiled):
         around 0 over +-``half_range`` px, or around the given per-(frame,
         channel) shifts. Returns {(frame, ch): [(order, shift, dchi2)]}."""
