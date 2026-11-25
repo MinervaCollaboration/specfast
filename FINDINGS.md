@@ -1349,6 +1349,21 @@ exposures.
   drift that specfast's template fit absorbs differently. A wrong proper
   motion or coordinate would give a secular trend, not one that resets each
   season.
+- **Not tellurics either (per-order test).** NEID's per-order CCF RVs
+  (L2 CCFRVnnn) were fitted for a within-season trend (per-season offsets)
+  and compared with each order's telluric content from NEID's own telluric
+  model. The 55 telluric-free orders (< 2% of pixels below T = 0.999,
+  mostly < 520 nm) carry the trend (weighted mean +0.53 +- 0.20 m/s per
+  140 days); the 22 telluric orders do not (-0.05 +- 0.47); the per-order
+  slope anticorrelates with telluric pixel fraction (r = -0.44). The
+  trend repeats in both full seasons (NEID CCFRVMOD +1.13 and +1.25 m/s
+  per season in 2023B and 2024B; specfast +0.08 and +0.28 on the same
+  exposures; 2025B spans only 43 days). So it depends on the RV method
+  (CCF with NEID's mask vs a template fit to the data) on the same L1
+  spectra, not on the star, the barycentric correction or tellurics.
+  Candidates still open: CCF mask and line-blend mismatch, CCF order
+  weights, and detector-frame errors (wavelength solution, pixel
+  structure), which move across the stellar lines as BERV changes.
 - **Red orders with NEID's telluric model divided out** (584-787 nm):
   per-order scatter reaches the formal error (2.1 vs 2.1-2.4 m/s; NEID's
   per-order CCF RVs scatter 7-14 m/s there). This works on tau Ceti, not on
