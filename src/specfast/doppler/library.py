@@ -438,6 +438,9 @@ class IodineCell:
     #: ``optical_depth``: ``T = exp(-k tau)`` (physical: the column scales);
     #: ``linear``: ``T = 1 + k (exp(-tau) - 1)`` (legacy codes' depth scaling).
     scaling: str = "optical_depth"
+    #: Interpolate the atlas linearly in optical depth (``tau``) or in
+    #: transmission (``transmission``, legacy codes' choice).
+    interp: str = "tau"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "lnlam", frozen_array(self.lnlam))
@@ -464,7 +467,10 @@ class IodineCell:
         return (("dtau", self.correction, float(params["k"][0])),)
 
     def evaluate(self, params: Params, coords: np.ndarray, ctx: ExposureContext) -> np.ndarray:
-        tau = np.interp(coords, self.lnlam, self.tau)
+        if self.interp == "transmission":
+            tau = -np.log(np.clip(np.interp(coords, self.lnlam, np.exp(-self.tau)), 1e-300, None))
+        else:
+            tau = np.interp(coords, self.lnlam, self.tau)
         if self.correction is not None:
             tau = tau + cubic_interpolate(params["dtau"], self.correction, coords)
         if self.scaling == "linear":
