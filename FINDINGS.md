@@ -1260,6 +1260,60 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: NEID tau Ceti through specfast: the stellar floor and the MINERVA overlap
+
+Public NEID L2 (DRP v1.5.2, one master wavelength solution): 132 frames,
+2023B (12 nights), 2024B and 2025B (including 11 nights MINERVA also
+observed); 124 pass an RV-blind cut on S/N and exposure-meter flux
+variability. BERV range +-22 km/s. 2021B (DRP v1.5.3) left out.
+
+specfast infer mode on 18 telluric-light orders (409-639 nm), one
+template, L1 wavelengths fixed, one offset per season (segment offsets
+split at 2024-03-01, below):
+
+| | specfast | NEID CCF (DRP) |
+|---|---|---|
+| rms per exposure | 0.73 m/s | 0.86 m/s |
+| within-night rms (formal) | 0.51 (0.32) | 0.46 (0.32) |
+| rms of nightly means (expected) | 0.61 (0.23) | 0.80 (0.22) |
+| night-to-night excess | **0.56** | **0.77** |
+| BERV slope | -0.004 m/s per km/s (r -0.07) | -0.016 (r -0.28; ~0.7 m/s across the season) |
+
+The two pipelines differ by 0.63 m/s per exposure (r = 0.69) and 0.55
+m/s in nightly means (r = 0.72). The ~0.4 m/s within-night excess in
+both is consistent with tau Ceti's p-modes and granulation in 60-110 s
+exposures.
+
+- **tau Ceti's stellar night-to-night floor is <= 0.6-0.8 m/s**: the whole
+  NEID excess, an upper limit on the star (it includes NEID's own
+  instrument and pipeline terms). This replaces the literature estimate
+  (~0.7 m/s) with a measurement.
+- **MINERVA's excess is not stellar.** On the 11 overlap nights MINERVA's
+  nightly means (testbed v5) scatter 3.3 m/s (formal ~2.0; chi2 21 for 11
+  nights) and correlate with NEID's at r = +0.08 and with specfast-on-NEID
+  at r = -0.03. NEID scatters 0.96 and specfast 0.81 m/s on the same
+  nights. Only 11 nights with 1-4 MINERVA exposures each, but a stellar
+  signal of MINERVA's excess size (~1.8 m/s) would have shown.
+- **Modify mode with the DSST prior** (7 orders, 501-631 nm) agrees with
+  infer mode on the same orders to 0.27 m/s rms (formal 0.53), excess
+  0.62 m/s. DSST segment zero points span +-100-185 m/s (the known DSST
+  zero-point problem); inferred templates avoid it.
+- **Red orders with NEID's telluric model divided out** (584-787 nm):
+  per-order scatter reaches the formal error (2.1 vs 2.1-2.4 m/s; NEID's
+  per-order CCF RVs scatter 7-14 m/s there). This works on tau Ceti, not on
+  the Sun, because the +-22 km/s BERV spread separates star from
+  tellurics. A red-only RV still has a 1.07 m/s excess.
+- **An era break inside one DRP version.** Orders at 487-524 nm step by
+  +-4-5 m/s between 2023B and 2024B (same sign in 2024B and 2025B), with
+  0.9-1.2 m/s within-night scatter and no BERV dependence, although the
+  DRP version and master wavelength file are unchanged. Splitting segment
+  offsets at 2024-03-01 brings per-block residuals from 1.87x to 1.39x
+  formal. NEID eras, like KiwiSpec's, must be found in the data; the DRP
+  version is not enough.
+
+Not all red-order and DSST runs reached the 0.02 m/s tolerance in 6
+sweeps (last changes 0.003-0.015 m/s).
+
 ## 2026-11-25: Why two implementations of the same model disagree (cross-start test, PR #10)
 
 specfast (v5-equivalent: point sampling, linear iodine depth) and the
