@@ -747,6 +747,9 @@ class TemplateSolver:
         self.velocities: dict = {}
         self.history: list = []
         self._ops: dict = {}
+        #: Blocks (by id) left out of the template, observatory and detector
+        #: steps (failed or outlying fits; set by the caller).
+        self.excluded: set = set()
         #: Compute the template's own variance (selected inversion) at every
         #: template step; switch off to save time until the last one.
         self.want_sigma = True
@@ -776,8 +779,11 @@ class TemplateSolver:
             self._ops[i] = op
         return op
 
-    @staticmethod
-    def _weights(b: Block) -> np.ndarray:
+    def _weights(self, b: Block) -> np.ndarray:
+        """Per-pixel weights of a block in the template, observatory and
+        detector steps (zero for blocks in ``excluded``)."""
+        if id(b) in self.excluded:
+            return np.zeros(np.size(b.sigma))
         s = np.asarray(b.sigma, dtype=np.float64)
         return np.where(np.isfinite(s) & (s > 0), 1.0 / s**2, 0.0)
 

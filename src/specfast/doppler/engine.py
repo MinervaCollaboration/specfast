@@ -748,13 +748,15 @@ class OrderWorker:
         }
 
     # ------------------------------------------------------------- template
-    def template(self, block_v, zp_increment, omega=1.0):
+    def template(self, block_v, zp_increment, omega=1.0, exclude=()):
         """Template (and learned observatory) step per order, with the block
         velocities and zero-point increments from the master. ``omega`` > 1
         over-relaxes the template update (successive over-relaxation of the
         alternation: old + omega * (new - old))."""
         stats = {}
+        ex = set(map(tuple, exclude))
         for o, sol in self.solvers.items():
+            sol.excluded = {id(b) for i, b in enumerate(sol.blocks) if (o, i) in ex}
             for i, p in enumerate(sol.params):
                 v = block_v.get((o, i))
                 if v is not None and np.isfinite(v):
@@ -1002,7 +1004,10 @@ def _shared_update(cfg, shared, schur, frames_era, hyper):
             H = np.atleast_2d(H)
             if H[0, 0] <= 0:
                 continue
-            d = float(np.linalg.solve(H + 1e-12, np.atleast_1d(g))[0])
+            # weak prior N(1, water_prior_sigma) in atlas units
+            w0 = shared["water"].get(fname, 1.0)
+            pw = 1.0 / cfg.model.telluric.water_prior_sigma**2
+            d = float((np.atleast_1d(g)[0] - pw * (w0 - 1.0)) / (H[0, 0] + pw))
             d = float(np.clip(d, -0.5, 0.5))
             shared["water"][fname] = max(shared["water"].get(fname, 1.0) + d, 0.0)
             dmax = max(dmax, abs(d))
@@ -1180,6 +1185,17 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                 keys.update(kk)
             bl = _block_table(rows, keys, zb)
             ok = np.isfinite(bl["v"]) & np.isfinite(bl["sv"]) & (bl["sv"] > 0) & (bl["sv"] < 1e3)
+            ok &= bl["conv"] & (bl["frac"] <= cfg.solver.template_max_frac_rms)
+            # outlying blocks (failed fits, wrong minima): more than the
+            # tolerance from their order's median velocity
+            for o in np.unique(bl["order"]):
+                so = ok & (bl["order"] == o)
+                if so.any():
+                    med = np.median(bl["v"][so])
+                    ok &= ~(
+                        (bl["order"] == o)
+                        & (np.abs(bl["v"] - med) > cfg.solver.template_max_dev_mps)
+                    )
             vel, off = combine_velocities(
                 bl["v"][ok],
                 bl["sv"][ok],
@@ -1207,12 +1223,17 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                 converged_blocks=float(np.mean(bl["conv"])),
                 order_offsets_rms=float(np.std([d for d, _ in off.values()])),
             )
+            rec["blocks_in_template"] = int(ok.sum())
             if prev is not None:
-                common = sorted(set(prev) & set(vel))
+                # well-measured (exposure, channel) velocities only (formal
+                # error < 20 m/s)
+                common = sorted(k for k in set(prev) & set(vel) if vel[k][1] < 20.0)
                 dv = np.array([vel[k][0] - prev[k][0] for k in common])
                 dv = dv - np.median(dv)
                 rec["dv_max"] = float(np.max(np.abs(dv)))
+                rec["dv_p95"] = float(np.percentile(np.abs(dv), 95))
                 rec["dv_rms"] = float(np.sqrt(np.mean(dv**2)))
+                rec["n_dv"] = len(common)
                 if conv["sweeps"] and "dv_rms" in conv["sweeps"][-1]:
                     rec["dv_ratio"] = rec["dv_rms"] / max(conv["sweeps"][-1]["dv_rms"], 1e-12)
             upd = _shared_update(cfg, shared, schur, frames_era, hyper)
@@ -1227,7 +1248,7 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
             _progress(out, f"sweep {sweep}: {json.dumps(summary)}")
             with open(out / "convergence.json", "w") as fh:
                 json.dump(conv, fh, indent=1, default=float)
-            converged = prev is not None and rec.get("dv_max", np.inf) < cfg.solver.tol_mps
+            converged = prev is not None and rec.get("dv_p95", np.inf) < cfg.solver.tol_mps
             prev = vel
             _save_state(out, pool, shared, hyper)
             if sweep == cfg.solver.sweeps or converged:
@@ -1241,8 +1262,17 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                         block_v[(int(bl["order"][j]), int(bl["index"][j]))] = vel[k][0] + fb
                 if cfg.model.star.fit_zero_points:
                     zpinc = {int(o): (d, s) for o, (d, s) in off.items()}
+                excl = [
+                    (int(bl["order"][j]), int(bl["index"][j]))
+                    for j in range(len(bl["v"]))
+                    if not ok[j] or bl["key"][j] not in vel
+                ]
                 st = pool.call(
-                    "template", block_v=block_v, zp_increment=zpinc, omega=cfg.solver.relaxation
+                    "template",
+                    block_v=block_v,
+                    zp_increment=zpinc,
+                    omega=cfg.solver.relaxation,
+                    exclude=excl,
                 )
                 rec["template"] = {int(o): v for s in st for o, v in s.items()}
         # final projection and outputs

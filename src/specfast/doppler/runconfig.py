@@ -162,6 +162,8 @@ class TelluricModel:
     mask_threshold: float = 0.98
     #: Atlas cleaned to 1 where it is above this (its noise floor).
     clean_threshold: float = 0.99
+    #: Prior width of the per-exposure water column around 1 (atlas units).
+    water_prior_sigma: float = 1.0
     #: Noise inflation per order index (e.g. water orders), {order: factor}.
     downweight: dict = field(default_factory=dict)
 
@@ -230,6 +232,11 @@ class SolverConfig:
     #: A previous run's state file to start from (warm start).
     warm_start: str | None = None
     max_iter_block: int = 30
+    #: Blocks enter the template step only if converged, frac_rms below
+    #: this, and their combined velocity within ``template_max_dev_mps`` of
+    #: the median.
+    template_max_frac_rms: float = 0.15
+    template_max_dev_mps: float = 1000.0
     #: Over-relaxation factor of the template update (1 = plain alternation;
     #: ~1.2-1.4 speeds up a slowly converging alternation).
     relaxation: float = 1.0
