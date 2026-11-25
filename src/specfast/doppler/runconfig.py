@@ -131,6 +131,9 @@ class LsfModel:
     #: Initial prior widths (gh: [dw, dh3]; basis: per coefficient).
     tau_init: tuple[float, ...] = (2.0, 2.0, 2.0)
     tau_floor: float = 1e-3
+    #: The calibration (map or sigma table) was measured with a model that
+    #: point-samples at pixel centres: remove the pixel-box variance.
+    point_sampled_calibration: bool = False
     nsigma: float = 6.0
 
 

@@ -472,7 +472,8 @@ class OrderWorker:
             cont = PolynomialContinuum(
                 degree=mcfg.continuum_degree, x_center=xc, x_scale=half, name="continuum"
             )
-            lsf, lsfp = self._lsf(fr, ch, o, grid, p0, p1)
+            pixel_mps = C_MPS * float(np.median(np.diff(lam[p0 : p1 + 1]) / lam[p0:p1]))
+            lsf, lsfp = self._lsf(fr, ch, o, grid, p0, p1, pixel_mps)
             if lsf is None:
                 self.log.append((fr.name, ch, o, "no_lsf_calibration", ""))
                 continue
@@ -583,12 +584,20 @@ class OrderWorker:
         self.log.append(("", ch, o, "detector_map_identity", "no measured map"))
         return DetectorMap.identity(npx)
 
-    def _lsf(self, fr, ch, o, grid, p0, p1):
+    def _lsf(self, fr, ch, o, grid, p0, p1, pixel_mps=0.0):
+        """LSF component and parameters of a block. ``lsf.point_sampled_
+        calibration``: the calibration widths were measured with a model that
+        point-samples the broadened spectrum at pixel centres; specfast
+        averages over each pixel, which adds the pixel box (variance w^2 / 12,
+        w the pixel width), so that variance is removed from the calibrated
+        width."""
         m = self.cfg.model.lsf
+        box = pixel_mps**2 / 12.0 if m.point_sampled_calibration else 0.0
         if m.model == "gaussian":
             s = self.cal.lsf_sigma.get(ch, o) if self.cal.lsf_sigma else None
             if s is None:
                 return None, None
+            s = float(np.sqrt(max(s * s - box, (0.5 * s) ** 2)))
             return GaussianLSF.for_grid(grid, 1.5 * s, nsigma=m.nsigma, name="lsf"), {
                 "sigma": np.array([s])
             }
@@ -613,7 +622,9 @@ class OrderWorker:
             basis_step_mps=bstep,
             name="lsf",
         )
-        p = {"map": row.copy()}
+        row = row.copy()
+        row[0] = float(np.sqrt(max(row[0] ** 2 - box, (0.5 * row[0]) ** 2)))
+        p = {"map": row}
         if lsf.n_illum:
             p["illum"] = np.zeros(lsf.n_illum)
         return lsf, p
