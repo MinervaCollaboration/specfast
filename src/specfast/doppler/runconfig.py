@@ -79,6 +79,25 @@ class StarConfig:
 
 
 @dataclass(frozen=True)
+class TargetConfig:
+    """One star of a multi-star run: its astrometry, which frames are its
+    own, and its template. Observed-frame terms (the learned iodine and
+    telluric corrections, per-exposure water) are shared by all targets."""
+
+    star: StarConfig
+    #: Frames whose name contains this string belong to the target.
+    name_contains: str
+    #: Template file (as ``calibrations.template``); None: featureless.
+    template: str | None = None
+    #: ``modify``/``infer``: template module; ``fixed``: the tabulated
+    #: template; ``flat``: a featureless star (no velocity; e.g. a rapidly
+    #: rotating B star, which constrains the observed-frame terms directly).
+    mode: Literal["modify", "infer", "fixed", "flat"] = "modify"
+    #: Optional list of frame stems to use (one per line).
+    frame_list: str | None = None
+
+
+@dataclass(frozen=True)
 class CorrectionConfig:
     """A per-(frame, channel) velocity correction table (CSV with columns
     ``file``, ``tel`` (0-based channel index) or ``channel``, and the value
@@ -162,6 +181,11 @@ class IodineModel:
     #: ``TemplateConfig.observatory_gauge``); ``none``: priors only.
     gauge: Literal["none", "template"] = "none"
     gauge_kms: float = 30.0
+    #: Multi-star runs: weight of each target's normal equations in the
+    #: shared correction: ``natural`` (photon weights) or ``chi2r`` (divided
+    #: by the target's median reduced chi2 in the order, so template mismatch
+    #: does not dominate; featureless targets keep natural weights).
+    target_weighting: Literal["natural", "chi2r"] = "natural"
 
 
 @dataclass(frozen=True)
@@ -277,6 +301,10 @@ class DopplerRunConfig:
     extra_channel_breaks: tuple[dict, ...] = ()
     #: Extra per-channel exclusion windows: [{start, end, channels}].
     extra_excluded: tuple[dict, ...] = ()
+    #: Multi-star run: the targets. Then ``star`` only names the run, and
+    #: ``inputs.name_contains`` / ``inputs.frame_list``,
+    #: ``calibrations.template`` and ``model.star.mode`` are taken per target.
+    targets: tuple[TargetConfig, ...] = ()
 
 
 def load_run_config(path: str | Path) -> DopplerRunConfig:
@@ -299,6 +327,13 @@ def parse_run_config(data: dict) -> DopplerRunConfig:
         raise ConfigError("model.lsf: a Gaussian LSF has no illumination kernel")
     if m.star.mode != "fixed" and m.berv_pattern.enabled and m.berv_pattern.degree < 1:
         raise ConfigError("model.berv_pattern.degree must be >= 1")
+    if cfg.targets and m.berv_pattern.enabled:
+        raise ConfigError("berv_pattern is per order for one star; not with targets")
+    if cfg.targets and len({t.star.name for t in cfg.targets}) != len(cfg.targets):
+        raise ConfigError("targets: star names must be unique")
+    for t in cfg.targets:
+        if t.mode in ("modify", "fixed") and not t.template:
+            raise ConfigError(f"targets: {t.star.name}: mode {t.mode} needs a template")
     if cfg.inputs.manifest is None and cfg.inputs.directory is None:
         raise ConfigError("inputs: give a manifest or a directory")
     return cfg

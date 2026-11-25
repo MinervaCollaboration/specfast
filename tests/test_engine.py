@@ -262,3 +262,211 @@ def test_engine_warm_start_with_new_frames(tmp_path):
         resid = np.asarray(s["v"], float) - v_true
         resid -= resid.mean()
         assert np.std(resid) < 2.0 * np.median(np.asarray(s["v_err"], float))
+
+
+# ---------------------------------------------------------------------------
+# several stars sharing the observed-frame terms
+# ---------------------------------------------------------------------------
+MULTI = (
+    dict(name="S", ra_deg=26.0, dec_deg=-15.9, rv_kms=-10.0, kind="lines", seed=11),
+    dict(name="T", ra_deg=280.0, dec_deg=40.0, rv_kms=20.0, kind="lines", seed=12),
+    dict(name="B", ra_deg=150.0, dec_deg=10.0, rv_kms=5.0, kind="flat", seed=13),
+)
+
+
+def _multi_world(tmp_path, n_exp=8, err_scale=0.08, seed=7):
+    """Stars with their own spectra and BERV curves observed through one
+    iodine cell whose true optical depth differs from the atlas by a
+    line-like error (what the learned correction must find)."""
+    rng = np.random.default_rng(seed)
+    disp = LAM0 * 1.2 / C_KMS
+    half = 0.5 * (NPIX - 1)
+    base = np.array([LAM0, disp * half, -0.2])
+    lam_lo, lam_hi = LAM0 - disp * half - 2, LAM0 + disp * half + 2
+    ln = np.arange(np.log(lam_lo) - 200 / C_KMS, np.log(lam_hi) + 200 / C_KMS, 0.05 / C_KMS)
+    ni = int(8 * (lam_hi - lam_lo))
+    tau = line_spectrum(ln, rng.uniform(ln[0], ln[-1], ni), rng.uniform(0.02, 0.5, ni), 0.8)
+    ne = int(4 * (lam_hi - lam_lo))
+    err = err_scale * line_spectrum(
+        ln, rng.uniform(ln[0], ln[-1], ne), rng.uniform(0.2, 1.0, ne), 0.8
+    )
+    cal = tmp_path / "cal"
+    cal.mkdir()
+    np.savez(cal / "iodine.npz", wave_vac=np.exp(ln), transmission=np.exp(-tau))
+    np.savez(
+        cal / "lsfmap.npz",
+        era_starts=np.array([0.0]),
+        era=np.array([0, 0]),
+        channel=np.array(["A", "B"]),
+        order=np.array([0, 0]),
+        s0_kms=np.array([1.5, 1.6]),
+        g=np.zeros(2),
+        q=np.zeros(2),
+        h3=np.zeros(2),
+        h3g=np.zeros(2),
+        h4=np.zeros(2),
+    )
+    np.savez(
+        cal / "optics.npz",
+        era_starts=np.array([0.0]),
+        era=np.array([0, 0]),
+        channel=np.array(["A", "B"]),
+        order=np.array([0, 0]),
+        coeffs=np.array([base, base]),
+        x_center=np.array([half]),
+        x_scale=np.array([half]),
+    )
+    ins_path = tmp_path / "synth.yaml"
+    ins_path.write_text(INSTRUMENT)
+    ins = load_instrument(ins_path)
+    from specfast.doppler.runconfig import StarConfig
+
+    grid = LnGrid.covering(lam_lo - 1, lam_hi + 1, 0.25, 60.0)
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pix = np.arange(NPIX, dtype=float)
+    targets, truth = [], {}
+    for st in MULTI:
+        srng = np.random.default_rng(st["seed"])
+        if st["kind"] == "lines":
+            nst = int(2.0 * (lam_hi - lam_lo))
+            star = 1 - line_spectrum(
+                ln, srng.uniform(ln[0], ln[-1], nst), srng.uniform(0.05, 0.6, nst), 3.0
+            )
+            star = np.clip(star, 0.05, None)
+        else:
+            star = np.ones_like(ln)
+        tpath = cal / f"template_{st['name']}.npz"
+        np.savez(tpath, wave_vac=np.exp(ln), flux=star)
+        sd = {k: st[k] for k in ("name", "ra_deg", "dec_deg", "rv_kms")}
+        d0 = datetime.datetime(2019, 1, 1, 6, 0, 0)
+        dates = [d0 + datetime.timedelta(days=float(x)) for x in np.linspace(0, 330, n_exp)]
+        mjd = np.array(
+            [(d - datetime.datetime(1858, 11, 17)).total_seconds() / 86400 for d in dates]
+        )
+        zb = provisional_z_bary(mjd + 150.0 / 86400, StarConfig(**sd), ins.site)
+        v_true = st["rv_kms"] * 1e3 + 30.0 * np.sin(2 * np.pi * np.arange(n_exp) / 3.7)
+        for e, d in enumerate(dates):
+            flux = np.zeros((2, 1, NPIX))
+            ivar = np.zeros((2, 1, NPIX))
+            wave = np.zeros((2, 1, NPIX))
+            for c, s0 in enumerate((1500.0, 1600.0)):
+                lsf = GaussHermiteLSF.for_grid(
+                    grid, 2500.0, pixel_lo=0.0, pixel_hi=NPIX - 1.0, illumination="none"
+                )
+                m = ForwardModel(
+                    wavelength=OpticsWavelength(degree=2, x_center=half, x_scale=half),
+                    continuum=PolynomialContinuum.for_pixels(2, NPIX),
+                    lsf=lsf,
+                    factors=(
+                        StarTemplate(lnlam=ln, flux=star),
+                        IodineCell(lnlam=ln, tau=tau + err),
+                    ),
+                    grid=grid,
+                    pixels=pix,
+                )
+                p = {
+                    "wavelength": {"coeffs": base + np.array([rng.normal(0, 0.003), 0, 0])},
+                    "continuum": {"coeffs": np.array([2e5, 1e4, -3e4])},
+                    "lsf": {"map": np.array([s0, 0, 0, 0, 0, 0])},
+                    "star": {"v": np.array([v_true[e]])},
+                    "iodine": {"k": np.array([1.0])},
+                }
+                f = m.evaluate(p, ExposureContext(z_bary=zb[e]))
+                f = f + rng.normal(0, 1, NPIX) * np.sqrt(f)
+                flux[c, 0], ivar[c, 0] = f / GAIN, GAIN**2 / f
+                wave[c, 0] = np.polynomial.polynomial.polyval((pix - half) / half, base)
+            h = fits.PrimaryHDU(flux.astype(np.float32))
+            h.header["DATE-OBS"] = d.isoformat(timespec="milliseconds")
+            h.header["EXPTIME"] = 300.0
+            h.header["I2POSAS"] = "in"
+            fits.HDUList(
+                [
+                    h,
+                    fits.ImageHDU(ivar.astype(np.float32)),
+                    fits.ImageHDU(wave),
+                    fits.ImageHDU(np.ones_like(flux, dtype=np.float32)),
+                ]
+            ).writeto(data_dir / f"n{d:%Y%m%d}.{st['name']}.{e:04d}.proc.fits")
+        targets.append(
+            dict(
+                star=sd,
+                name_contains=f".{st['name']}.",
+                template=str(tpath) if st["kind"] == "lines" else None,
+                mode="modify" if st["kind"] == "lines" else "flat",
+            )
+        )
+        truth[st["name"]] = v_true
+    cfg = dict(
+        schema_version=1,
+        instrument=str(ins_path),
+        output=str(tmp_path / "out"),
+        star={k: MULTI[0][k] for k in ("name", "ra_deg", "dec_deg", "rv_kms")},
+        inputs=dict(directory=str(data_dir), suffix=".proc.fits"),
+        calibrations=dict(
+            template=str(cal / "template_S.npz"),
+            iodine_atlas=str(cal / "iodine.npz"),
+            lsf_map=str(cal / "lsfmap.npz"),
+            optics=str(cal / "optics.npz"),
+        ),
+        model=dict(
+            buffer_angstrom=1.0,
+            wavelength=dict(distortion=False, search_px=5.0),
+            lsf=dict(model="gauss_hermite", illumination="none"),
+            iodine=dict(learned_correction=True),
+            telluric=dict(model="none"),
+            star=dict(mode="modify"),
+        ),
+        solver=dict(sweeps=8, processes=1, tol_mps=0.05),
+        outputs=dict(segments=2, projection=False),
+        targets=targets,
+    )
+    return cfg, truth, (ln, err)
+
+
+def _learned_vs_truth(out, ln, err):
+    z = np.load(out / "templates.npz")
+    g0, gs, gn = z["o0_obsgrid_iodine.dtau"]
+    nodes = g0 + gs * np.arange(int(gn))
+    d = np.asarray(z["o0_obs_iodine.dtau"], float)
+    e = np.interp(nodes, ln, err)
+    inner = slice(int(0.1 * gn), int(0.9 * gn))
+    return float(np.corrcoef(d[inner], e[inner])[0, 1])
+
+
+def test_multi_star_shares_the_learned_iodine_correction(tmp_path):
+    # the iodine atlas is wrong by a line-like optical-depth error; learned
+    # from one star it partly trades off with that star's template, learned
+    # from two stars with different BERV curves plus a featureless B star it
+    # is recovered, and every star's velocities are photon-limited
+    cfg, truth, (ln, err) = _multi_world(tmp_path)
+    one = dict(cfg, output=str(tmp_path / "one"), targets=cfg["targets"][:1])
+    r_one = _learned_vs_truth(run(parse_run_config(one)), ln, err)
+    out = run(parse_run_config(cfg))
+    r_all = _learned_vs_truth(out, ln, err)
+    t = Table.read(out / "blocks.fits")
+    assert set(t["target"]) == {"S", "T", "B"}
+    assert np.all(~np.isfinite(np.asarray(t[t["target"] == "B"]["v"], float)))
+    e = Table.read(out / "exposures.fits")
+    lines = []
+    for name in ("S", "T"):
+        for ch in ("A", "B"):
+            s = e[
+                [
+                    (f".{name}." in str(f)) and c == ch
+                    for f, c in zip(e["file"], e["channel"], strict=True)
+                ]
+            ]
+            s.sort("file")
+            resid = np.asarray(s["v"], float) - truth[name]
+            resid -= resid.mean()
+            sig = np.median(np.asarray(s["v_err"], float))
+            lines.append(f"{name}{ch}: rms {np.std(resid):.2f} m/s, sigma {sig:.2f}")
+            assert np.std(resid) < 2.5 * sig, (name, ch, resid, sig)
+    conv = (out / "convergence.json").read_text()
+    print(
+        f"\nlearned vs true iodine error: r one star {r_one:.3f}, all {r_all:.3f}; "
+        + "; ".join(lines)
+    )
+    assert "obs_share" in conv
+    assert r_all > 0.5 and r_all > r_one - 0.05

@@ -78,11 +78,12 @@ from specfast.doppler.library import (
     Telluric,
 )
 from specfast.doppler.model import ForwardModel
-from specfast.doppler.runconfig import DopplerRunConfig
+from specfast.doppler.runconfig import DopplerRunConfig, TargetConfig
 from specfast.doppler.template import (
     Block,
     TemplateSolver,
     combine_velocities,
+    pooled_observatory_step,
     prior_on_grid,
     template_grid,
 )
@@ -109,10 +110,29 @@ class FrameInfo:
     mjd_mid: float
     z_bary: float = 0.0
     airmass: tuple = (1.0, 1.0, 1.0, 1.0)
+    #: Index of the frame's target (``targets_of(cfg)``).
+    target: int = 0
 
 
-def _frame_names(cfg: DopplerRunConfig, log: list):
+def targets_of(cfg: DopplerRunConfig) -> list[TargetConfig]:
+    """The run's targets: ``cfg.targets``, or the single star of a one-star
+    run built from ``star``, ``inputs`` and ``calibrations.template``."""
+    if cfg.targets:
+        return list(cfg.targets)
+    return [
+        TargetConfig(
+            star=cfg.star,
+            name_contains=cfg.inputs.name_contains or "",
+            template=cfg.calibrations.template,
+            mode=cfg.model.star.mode,
+            frame_list=cfg.inputs.frame_list,
+        )
+    ]
+
+
+def _frame_names(cfg: DopplerRunConfig, log: list, target: TargetConfig):
     inp = cfg.inputs
+    contains = target.name_contains
     out = []
     if inp.manifest is not None:
         m = inp.manifest
@@ -122,7 +142,7 @@ def _frame_names(cfg: DopplerRunConfig, log: list):
             if len(f) <= max(m.name_column, m.status_column, m.path_column):
                 continue
             name = f[m.name_column].strip()
-            if inp.name_contains and inp.name_contains not in name:
+            if contains and contains not in name:
                 continue
             seen[name] = (f[m.status_column].strip(), f[m.path_column].strip())
         for name, (status, rel) in seen.items():
@@ -137,11 +157,11 @@ def _frame_names(cfg: DopplerRunConfig, log: list):
     else:
         for p in sorted(Path(inp.directory).rglob("*" + inp.suffix)):
             name = p.name[: -len(inp.suffix)]
-            if inp.name_contains and inp.name_contains not in name:
+            if contains and contains not in name:
                 continue
             out.append((name, str(p)))
-    if inp.frame_list:
-        keep = {ln.strip() for ln in Path(inp.frame_list).read_text().splitlines() if ln.strip()}
+    if target.frame_list:
+        keep = {ln.strip() for ln in Path(target.frame_list).read_text().splitlines() if ln.strip()}
         out = [x for x in out if CB.stem(x[0]) in keep]
     return sorted(out, key=lambda x: x[0])
 
@@ -186,13 +206,22 @@ def list_frames(cfg: DopplerRunConfig, instrument: Instrument, log: list) -> lis
 
     from specfast.converters.kiwispec_proc import header_value
 
-    names = _frame_names(cfg, log)
+    targets = targets_of(cfg)
+    names, owner, seen = [], [], set()
+    for ti, tg in enumerate(targets):
+        for name, path in _frame_names(cfg, log, tg):
+            if name in seen:
+                log.append((name, "", "", "second_target", tg.star.name))
+                continue
+            seen.add(name)
+            names.append((name, path))
+            owner.append(ti)
     inp = cfg.inputs
     frames = []
     d0 = datetime.date.fromisoformat(inp.first_date) if inp.first_date else None
     d1 = datetime.date.fromisoformat(inp.last_date) if inp.last_date else None
     hk = instrument.header
-    for name, path in names:
+    for (name, path), ti in zip(names, owner, strict=True):
         try:
             h = fits.getheader(path)
         except Exception as exc:  # noqa: BLE001 (logged, never silent)
@@ -238,14 +267,23 @@ def list_frames(cfg: DopplerRunConfig, instrument: Instrument, log: list) -> lis
                 exptime=exptime,
                 mjd_mid=float(t0.mjd) + 0.5 * exptime / 86400.0,
                 airmass=tuple(am),
+                target=ti,
             )
         )
-        if inp.limit and len(frames) >= inp.limit:
-            break
-    if frames:
-        zb = provisional_z_bary(np.array([f.mjd_mid for f in frames]), cfg.star, instrument.site)
-        for f, z in zip(frames, zb, strict=True):
-            f.z_bary = float(z)
+    if inp.limit:
+        # at most ``limit`` frames per target
+        keep, n = [], {}
+        for f in frames:
+            n[f.target] = n.get(f.target, 0) + 1
+            if n[f.target] <= inp.limit:
+                keep.append(f)
+        frames = keep
+    for ti, tg in enumerate(targets):
+        fs = [f for f in frames if f.target == ti]
+        if fs:
+            zb = provisional_z_bary(np.array([f.mjd_mid for f in fs]), tg.star, instrument.site)
+            for f, z in zip(fs, zb, strict=True):
+                f.z_bary = float(z)
     return frames
 
 
@@ -261,17 +299,25 @@ class Calibrations:
     optics: CB.OpticsCurves | None
     distortion: CB.Distortion | None
     static: CB.StaticPositions | None = None
+    #: Per target: (ln lambda, flux) of its template, or None (featureless).
+    templates: tuple = ()
+
+    @staticmethod
+    def _template(path):
+        tz = np.load(path)
+        w = np.asarray(tz["wave_vac"], float)
+        o = np.argsort(w)
+        return np.log(w[o]), np.asarray(tz["flux"], float)[o]
 
     @classmethod
     def load(cls, cfg: DopplerRunConfig) -> Calibrations:
         c = cfg.calibrations
-        tz = np.load(c.template)
-        w = np.asarray(tz["wave_vac"], float)
-        o = np.argsort(w)
+        temps = tuple(cls._template(t.template) if t.template else None for t in targets_of(cfg))
         return cls(
+            templates=temps,
             iodine=CB.load_atlas(c.iodine_atlas) if c.iodine_atlas else None,
             telluric=CB.load_atlas(c.telluric_atlas) if c.telluric_atlas else None,
-            template=(np.log(w[o]), np.asarray(tz["flux"], float)[o]),
+            template=temps[0] if temps[0] is not None else cls._template(c.template),
             lsf_map=CB.LsfMap(c.lsf_map) if c.lsf_map else None,
             lsf_sigma=CB.LsfSigma(c.lsf_sigma) if c.lsf_sigma else None,
             lsf_basis=CB.LsfBasis(c.lsf_basis) if c.lsf_basis else None,
@@ -305,8 +351,14 @@ class OrderWorker:
         self.blocks: dict = {}  # order -> list of Block
         self.meta: dict = {}  # order -> list of dict (frame, channel, ...)
         self.params: dict = {}  # order -> list of params (fixed mode)
-        self.solvers: dict = {}
+        self.solvers: dict = {}  # (order, target) -> TemplateSolver
+        self.sol_index: dict = {}  # (order, target) -> indices into blocks[order]
+        self.ntargets = len(targets_of(cfg))
         self.order_static: dict = {}
+
+    def group(self, o, t):
+        """Zero-point group of (order, target): the order for one star."""
+        return o if self.ntargets == 1 else 100 * o + t
 
     # ---------------------------------------------------------------- build
     def _initial_wavelength(self, fr, ch, order, wave_row, npix):
@@ -399,23 +451,32 @@ class OrderWorker:
             # grid-phase check: the same grid shifted by a fraction of a step
             grid = dataclasses.replace(grid, ln_start=grid.ln_start + mcfg.grid_phase * grid.step)
         lo, hi = grid.lnlam[0], grid.lnlam[-1]
-        # spectral factors shared by the order
-        factors = []
-        star_mode = mcfg.star.mode
-        tl, tf = self.cal.template
-        vmax = abs(cfg.star.rv_kms) + 40.0
-        if star_mode == "fixed":
-            tln, tfl = _cut(tl, tf, lo - (vmax + 20) / C_KMS, hi + (vmax + 20) / C_KMS, 1.0)
-            star = StarTemplate(lnlam=tln, flux=tfl, name="star")
-            tgrid = None
-        else:
+        # star factor per target; observed-frame factors shared by the order
+        targets = targets_of(cfg)
+        stars, tgrids, priors = [], [], []
+        for ti, tg in enumerate(targets):
+            vmax = abs(tg.star.rv_kms) + 40.0
+            if tg.mode == "fixed":
+                tl, tf = self.cal.templates[ti]
+                tln, tfl = _cut(tl, tf, lo - (vmax + 20) / C_KMS, hi + (vmax + 20) / C_KMS, 1.0)
+                stars.append(StarTemplate(lnlam=tln, flux=tfl, name="star"))
+                tgrids.append(None)
+                priors.append(None)
+                continue
             tgrid = template_grid(np.exp(lo), np.exp(hi), pix_kms, mcfg.star.oversample, vmax, 20.0)
-            star = GriddedTemplate(grid=tgrid, name="star")
-        factors.append(star)
+            stars.append(GriddedTemplate(grid=tgrid, name="star"))
+            tgrids.append(tgrid)
+            if tg.mode == "modify":
+                tl, tf = self.cal.templates[ti]
+                priors.append(prior_on_grid(tl, tf, tgrid))
+            else:
+                priors.append(np.ones(tgrid.n))
+        learn = any(tg.mode != "fixed" for tg in targets)
+        factors = []
         if self.cal.iodine is not None:
             iln, itr = _cut(self.cal.iodine.lnlam, self.cal.iodine.transmission, lo, hi, 1.0)
             corr = None
-            if mcfg.iodine.learned_correction and star_mode != "fixed":
+            if mcfg.iodine.learned_correction and learn:
                 corr = LnGrid.covering(np.exp(lo), np.exp(hi), mcfg.iodine.node_kms, 0.0)
             factors.append(
                 IodineCell.from_transmission(
@@ -455,10 +516,7 @@ class OrderWorker:
                 name="cti",
             )
         down = float(mcfg.telluric.downweight.get(o, mcfg.telluric.downweight.get(str(o), 1.0)))
-        # prior template on the node grid
-        prior = None
-        if tgrid is not None:
-            prior = prior_on_grid(tl, tf, tgrid) if star_mode == "modify" else np.ones(tgrid.n)
+        iod = factors[0] if factors and factors[0].name == "iodine" else None
         blocks, meta, params = [], [], []
         for r in rows:
             fr, ch = r["fr"], r["ch"]
@@ -502,7 +560,7 @@ class OrderWorker:
                 wavelength=wave,
                 continuum=cont,
                 lsf=lsf,
-                factors=tuple(factors),
+                factors=(stars[fr.target], *factors),
                 grid=grid,
                 pixels=pixels,
                 cti=cti,
@@ -522,12 +580,12 @@ class OrderWorker:
                     ]
                 },
                 "lsf": lsfp,
-                "star": {"v": np.array([cfg.star.rv_kms * 1e3])},
+                "star": {"v": np.array([targets[fr.target].star.rv_kms * 1e3])},
             }
-            if self.cal.iodine is not None:
+            if iod is not None:
                 p["iodine"] = {"k": np.array([1.0])}
-                if factors[1].correction is not None:
-                    p["iodine"]["dtau"] = np.zeros(factors[1].correction.n)
+                if iod.correction is not None:
+                    p["iodine"]["dtau"] = np.zeros(iod.correction.n)
             if any(f.name == "telluric" for f in factors):
                 p["telluric"] = {"water": np.array([1.0])}
             if cti is not None:
@@ -557,13 +615,22 @@ class OrderWorker:
                     p0=p0,
                     p1=p1,
                     era_lsf=(self.cal.lsf_map.era(fr.mjd_mid) if self.cal.lsf_map else 0),
+                    target=fr.target,
+                    group=self.group(o, fr.target),
+                    flat=targets[fr.target].mode == "flat",
                 )
             )
             params.append(p)
         self.blocks[o], self.meta[o] = blocks, meta
-        if star_mode != "fixed" and blocks:
+        self.params[o] = [
+            {c: {k: np.array(v, float) for k, v in d.items()} for c, d in p.items()} for p in params
+        ]
+        for ti, tg in enumerate(targets):
+            idx = [i for i, m in enumerate(meta) if m["target"] == ti]
+            if tg.mode == "fixed" or not idx:
+                continue
             tc = TemplateConfig(
-                mode=star_mode,
+                mode="modify" if tg.mode == "flat" else tg.mode,
                 oversample=mcfg.star.oversample,
                 prior_sigma=mcfg.star.prior_sigma,
                 smooth_sigma=mcfg.star.smooth_sigma,
@@ -574,16 +641,15 @@ class OrderWorker:
                 observatory_gauge=mcfg.iodine.gauge,
                 observatory_gauge_kms=mcfg.iodine.gauge_kms,
             )
-            sol = TemplateSolver(blocks, {o: prior}, tc, star="star", cache_operators=False)
-            if mcfg.iodine.correction_file and factors[1].correction is not None:
-                self._load_correction(o, sol, factors[1].correction)
-            self.solvers[o] = sol
-            self.params[o] = sol.params
-        else:
-            self.params[o] = [
-                {c: {k: np.array(v, float) for k, v in d.items()} for c, d in p.items()}
-                for p in params
-            ]
+            sol = TemplateSolver(
+                [blocks[i] for i in idx], {o: priors[ti]}, tc, star="star", cache_operators=False
+            )
+            if mcfg.iodine.correction_file and iod is not None and iod.correction is not None:
+                self._load_correction(o, sol, iod.correction)
+            self.solvers[(o, ti)] = sol
+            self.sol_index[(o, ti)] = idx
+            for j, i in enumerate(idx):
+                self.params[o][i] = sol.params[j]
 
     def _load_correction(self, o, sol, grid):
         """Start the learned iodine correction of order ``o`` from an earlier
@@ -715,6 +781,9 @@ class OrderWorker:
                 if "illum" in p.get("lsf", {}) and b.key in illum:
                     p["lsf"]["illum"] = np.array(illum[b.key], float)
                 free = [lf for lf in LOCAL_FREE if lf[0] in p]
+                flat = self.meta[o][i].get("flat", False)
+                if flat:
+                    free = [f for f in free if f != ("star", "v")]
                 try:
                     if cold or id(b) in getattr(self, "cold", set()):
                         s1 = fit_block_fast(
@@ -742,7 +811,8 @@ class OrderWorker:
                     continue
                 for c, d in sol.params.items():
                     p[c] = d
-                v, sv = sol.value_sigma("star", "v")
+                v, sv = (np.nan, np.inf) if flat else sol.value_sigma("star", "v")
+                self.meta[o][i]["chi2r"] = float(sol.chi2 / max(sol.ndata, 1))
                 m = sol.flux
                 good = sol.rw != 0
                 with np.errstate(divide="ignore", invalid="ignore"):
@@ -769,45 +839,72 @@ class OrderWorker:
 
     def keys(self):
         return {
-            o: [(b.key, m["z_bary"]) for b, m in zip(self.blocks[o], self.meta[o], strict=True)]
+            o: [
+                (b.key, m["z_bary"], m["group"])
+                for b, m in zip(self.blocks[o], self.meta[o], strict=True)
+            ]
             for o in self.orders
         }
 
     # ------------------------------------------------------------- template
     def template(self, block_v, zp_increment, omega=1.0, exclude=()):
-        """Template (and learned observatory) step per order, with the block
-        velocities and zero-point increments from the master. ``omega`` > 1
-        over-relaxes the template update (successive over-relaxation of the
-        alternation: old + omega * (new - old))."""
+        """Template (and learned observatory) step per order and target, with
+        the block velocities and zero-point increments (per group) from the
+        master. ``omega`` > 1 over-relaxes the template update (successive
+        over-relaxation of the alternation: old + omega * (new - old)). The
+        learned observed-frame corrections of an order are solved once from
+        all its targets' normal equations."""
         stats = {}
         ex = set(map(tuple, exclude))
-        for o, sol in self.solvers.items():
-            sol.excluded = {id(b) for i, b in enumerate(sol.blocks) if (o, i) in ex}
-            for i, p in enumerate(sol.params):
+        targets = targets_of(self.cfg)
+        for (o, t), sol in self.solvers.items():
+            idx = self.sol_index[(o, t)]
+            sol.excluded = {id(self.blocks[o][i]) for i in idx if (o, i) in ex}
+            for j, i in enumerate(idx):
                 v = block_v.get((o, i))
                 if v is not None and np.isfinite(v):
-                    p["star"]["v"] = np.array([v])
-            if o in zp_increment:
-                sol.zero_point[o] += zp_increment[o][0]
-                sol.zero_point_sigma[o] = zp_increment[o][1]
+                    sol.params[j]["star"]["v"] = np.array([v])
+            g = self.group(o, t)
+            if g in zp_increment:
+                sol.zero_point[o] += zp_increment[g][0]
+                sol.zero_point_sigma[o] = zp_increment[g][1]
             sol._sync()
             old = sol.flux[o].copy()
-            sol.template_step()
-            if omega != 1.0:
-                sol.flux[o] = old + omega * (sol.flux[o] - old)
-                sol._sync()
-            dobs = 0.0
-            if sol.config.learn_observatory and any(sol.learned[o]):
-                before = {t: v.copy() for t, v in sol.learned[o].items()}
-                sol.observatory_step()
-                dobs = float(
-                    max(np.sqrt(np.mean((sol.learned[o][t] - before[t]) ** 2)) for t in before)
-                )
-            stats[o] = dict(
+            if targets[t].mode != "flat":
+                sol.template_step()
+                if omega != 1.0:
+                    sol.flux[o] = old + omega * (sol.flux[o] - old)
+                    sol._sync()
+            stats[g] = dict(
                 dflux_rms=float(np.sqrt(np.mean((sol.flux[o] - old) ** 2))),
-                dobs_rms=dobs,
+                dobs_rms=0.0,
                 zero_point=float(sol.zero_point[o]),
             )
+        mi = self.cfg.model.iodine
+        for o in self.orders:
+            ts = [t for (oo, t) in self.solvers if oo == o]
+            sols = [self.solvers[(o, t)] for t in ts]
+            if not sols or not sols[0].config.learn_observatory or not any(sols[0].learned[o]):
+                continue
+            w = []
+            for t, sol in zip(ts, sols, strict=True):
+                c2 = [
+                    self.meta[o][i].get("chi2r", np.nan)
+                    for i in self.sol_index[(o, t)]
+                    if id(self.blocks[o][i]) not in sol.excluded
+                ]
+                c2 = np.asarray(c2, float)
+                c2 = c2[np.isfinite(c2) & (c2 > 0)]
+                if mi.target_weighting == "chi2r" and targets[t].mode != "flat" and c2.size:
+                    w.append(1.0 / float(np.median(c2)))
+                else:
+                    w.append(1.0)
+            res = pooled_observatory_step(sols, o, w)
+            for t, sh, wt in zip(ts, res["share"], w, strict=True):
+                g = self.group(o, t)
+                stats[g]["dobs_rms"] = res["rms_step"]
+                stats[g]["obs_share"] = sh
+                stats[g]["obs_weight"] = wt
         return stats
 
     # ------------------------------------------------------------ project
@@ -844,8 +941,8 @@ class OrderWorker:
 
     def templates(self):
         out = {}
-        for o, sol in self.solvers.items():
-            out[o] = dict(
+        for (o, t), sol in self.solvers.items():
+            out[self.group(o, t)] = dict(
                 grid=(sol.grids[o].ln_start, sol.grids[o].step, sol.grids[o].n),
                 flux=sol.flux[o],
                 sigma=sol.flux_sigma[o],
@@ -882,13 +979,15 @@ class OrderWorker:
                     for p in self.params[o]
                 ],
             )
-            if o in self.solvers:
-                sol = self.solvers[o]
-                st[o].update(
+            st[o]["solvers"] = {
+                t: dict(
                     flux=sol.flux[o],
                     zp=sol.zero_point[o],
                     learned={k: v for k, v in sol.learned[o].items()},
                 )
+                for (oo, t), sol in self.solvers.items()
+                if oo == o
+            }
         return st
 
     def load_state(self, st):
@@ -910,12 +1009,19 @@ class OrderWorker:
                                 p[c][k] = np.array(v, float)
             if o not in st:
                 continue
-            if o in self.solvers and "flux" in st[o]:
-                sol = self.solvers[o]
-                if sol.flux[o].shape == st[o]["flux"].shape:
-                    sol.flux[o] = np.array(st[o]["flux"])
-                    sol.zero_point[o] = float(st[o]["zp"])
-                for k, v in st[o].get("learned", {}).items():
+            saved = st[o].get("solvers")
+            if saved is None and "flux" in st[o]:  # one-star state of earlier versions
+                saved = {
+                    0: dict(flux=st[o]["flux"], zp=st[o]["zp"], learned=st[o].get("learned", {}))
+                }
+            for t, d in (saved or {}).items():
+                sol = self.solvers.get((o, t))
+                if sol is None:
+                    continue
+                if sol.flux[o].shape == d["flux"].shape:
+                    sol.flux[o] = np.array(d["flux"])
+                    sol.zero_point[o] = float(d["zp"])
+                for k, v in d.get("learned", {}).items():
                     if k in sol.learned[o] and sol.learned[o][k].shape == v.shape:
                         sol.learned[o][k] = np.array(v)
                 sol._sync()
@@ -1236,7 +1342,7 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                 pool.call("search", shifts=med, half_range=3.0, step=0.25, only_cold=True)
             _progress(out, f"warm start: {ncold} blocks without saved state (searched, cold fit)")
         prev = None
-        templ = cfg.model.star.mode != "fixed"
+        templ = any(t.mode != "fixed" for t in targets_of(cfg))
         f_berv = None
         for sweep in range(1, cfg.solver.sweeps + 1):
             t0 = time.time()
@@ -1257,19 +1363,19 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
             ok &= bl["conv"] & (bl["frac"] <= cfg.solver.template_max_frac_rms)
             # outlying blocks (failed fits, wrong minima): more than the
             # tolerance from their order's median velocity
-            for o in np.unique(bl["order"]):
-                so = ok & (bl["order"] == o)
+            for o in np.unique(bl["group"]):
+                so = ok & (bl["group"] == o)
                 if so.any():
                     med = np.median(bl["v"][so])
                     ok &= ~(
-                        (bl["order"] == o)
+                        (bl["group"] == o)
                         & (np.abs(bl["v"] - med) > cfg.solver.template_max_dev_mps)
                     )
             vel, off = combine_velocities(
                 bl["v"][ok],
                 bl["sv"][ok],
                 [bl["key"][i] for i in np.where(ok)[0]],
-                bl["order"][ok],
+                bl["group"][ok],
                 fit_offsets=True,
             )
             if cfg.model.berv_pattern.enabled:
@@ -1279,7 +1385,7 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                     bl["v_berv_corr"][ok],
                     bl["sv"][ok],
                     [bl["key"][i] for i in np.where(ok)[0]],
-                    bl["order"][ok],
+                    bl["group"][ok],
                     fit_offsets=True,
                 )
             rec = dict(
@@ -1401,6 +1507,7 @@ def _block_table(rows, keys, zb):
     n = len(rows)
     bl = dict(
         order=np.zeros(n, int),
+        group=np.zeros(n, int),
         index=np.zeros(n, int),
         v=np.full(n, np.nan),
         sv=np.full(n, np.nan),
@@ -1419,8 +1526,9 @@ def _block_table(rows, keys, zb):
         bl["v"][j], bl["sv"][j], bl["chi2"][j] = v, sv, chi2
         bl["ndata"][j], bl["conv"][j], bl["niter"][j] = nd, cv, nit
         bl["frac"][j], bl["k"][j] = frac, k
-        key, z = keys[o][i]
+        key, z, g = keys[o][i]
         bl["key"][j] = key
+        bl["group"][j] = g
         bl["ch"][j] = key[1]
         bl["berv_kms"][j] = -z * C_KMS
     return bl
@@ -1432,6 +1540,7 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
     from specfast.doppler.runconfig import CorrectionConfig  # noqa: F401
 
     fr = {f.name: f for f in frames}
+    tnames = [t.star.name for t in targets_of(cfg)]
     chans = tuple(ins.arms[0].channels)
     corrs = {c.name: CB.Corrections(c.path, c.column, chans) for c in cfg.calibrations.corrections}
     pj = {(r["order"], r["index"]): r for r in proj}
@@ -1444,6 +1553,7 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
         v = bl["v"][j]
         r = dict(
             file=fname,
+            target=tnames[f.target],
             channel=ch,
             tel=chans.index(ch),
             order=o,
@@ -1555,6 +1665,11 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
             inputs[role] = getattr(c, role)
     for cc in c.corrections:
         inputs[f"correction_{cc.name}"] = cc.path
+    for t in cfg.targets:
+        if t.template:
+            inputs[f"template_{t.star.name}"] = t.template
+    if cfg.model.iodine.correction_file:
+        inputs["iodine_correction"] = cfg.model.iodine.correction_file
     prov = Provenance.create("doppler", config_sha256=run_config_hash(cfg), inputs=inputs)
     with open(out / "provenance.json", "w") as fh:
         json.dump(

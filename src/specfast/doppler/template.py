@@ -867,68 +867,44 @@ class TemplateSolver:
     def observatory_step(self) -> None:
         """One Gauss-Newton step for the learned observatory corrections of
         every order, all terms jointly (they share the observed frame)."""
-        cfg = self.config
         for o in self.orders:
-            terms = list(self.learned[o])
-            if not terms:
+            if self.learned[o]:
+                pooled_observatory_step([self], o)
+
+    def observatory_system(self, o):
+        """Normal equations of this solver's blocks of order ``o`` for its
+        learned observatory terms: (terms, grids, offsets, N, rhs)."""
+        terms = list(self.learned[o])
+        grids = {}
+        for b, p in zip(self.blocks, self.params, strict=True):
+            if b.order == o:
+                for f in b.model.factors:
+                    if hasattr(f, "learned_terms") and f.name != self.star:
+                        for name, grid, _ in f.learned_terms(p[f.name], b.ctx):
+                            grids[(f.name, name)] = grid
+        sizes = [grids[t].n for t in terms]
+        off = np.concatenate([[0], np.cumsum(sizes)]).astype(int)
+        ntot = int(off[-1])
+        N = sp.csr_matrix((ntot, ntot))
+        rhs = np.zeros(ntot)
+        for i, (b, p) in enumerate(zip(self.blocks, self.params, strict=True)):
+            if b.order != o:
                 continue
-            sizes = []
-            grids = {}
-            for b, p in zip(self.blocks, self.params, strict=True):
-                if b.order == o:
-                    for f in b.model.factors:
-                        if hasattr(f, "learned_terms") and f.name != self.star:
-                            for name, grid, _ in f.learned_terms(p[f.name], b.ctx):
-                                grids[(f.name, name)] = grid
-            sizes = [grids[t].n for t in terms]
-            off = np.concatenate([[0], np.cumsum(sizes)])
-            ntot = int(off[-1])
-            N = sp.csr_matrix((ntot, ntot))
-            rhs = np.zeros(ntot)
-            for i, (b, p) in enumerate(zip(self.blocks, self.params, strict=True)):
-                if b.order != o:
-                    continue
-                m = b.model
-                M = self._pixel_operator(i)
-                fine = m.fine_spectrum(p, b.ctx)
-                cols = []
-                for t in terms:
-                    f = m.factor(t[0])
-                    scale = {n: s for n, _, s in f.learned_terms(p[f.name], b.ctx)}[t[1]]
-                    Wt = interpolation_matrix(grids[t], m.grid.lnlam)
-                    cols.append(-(M @ sp.diags(fine * scale) @ Wt))
-                J = sp.hstack(cols).tocsr()
-                r = np.asarray(b.data, dtype=np.float64) - m.evaluate(p, b.ctx)
-                Jw = J.T @ sp.diags(self._weights(b))
-                N = N + Jw @ J
-                rhs += Jw @ r
-            regs = []
-            cur = np.concatenate([self.learned[o][t] for t in terms])
+            m = b.model
+            M = self._pixel_operator(i)
+            fine = m.fine_spectrum(p, b.ctx)
+            cols = []
             for t in terms:
-                n = grids[t].n
-                D = second_difference(n)
-                regs.append(
-                    sp.identity(n) / cfg.observatory_prior_sigma**2
-                    + (D.T @ D) / cfg.observatory_smooth_sigma**2
-                )
-            R = sp.block_diag(regs).tocsc()
-            g = rhs - R @ cur
-            C = (
-                self._gauge_rows(o, terms, grids, off)
-                if cfg.observatory_gauge == "template"
-                else np.zeros((0, ntot))
-            )
-            if len(C):
-                lu = scipy.sparse.linalg.splu((N + R).tocsc())
-                x = lu.solve(g)
-                Y = np.column_stack([lu.solve(c) for c in C])
-                lam = np.linalg.solve(C @ Y, C @ (cur + x))
-                delta = x - Y @ lam
-            else:
-                delta = scipy.sparse.linalg.spsolve((N + R).tocsc(), g)
-            for t, a, z in zip(terms, off[:-1], off[1:], strict=True):
-                self.learned[o][t] = self.learned[o][t] + delta[a:z]
-        self._sync()
+                f = m.factor(t[0])
+                scale = {n: s for n, _, s in f.learned_terms(p[f.name], b.ctx)}[t[1]]
+                Wt = interpolation_matrix(grids[t], m.grid.lnlam)
+                cols.append(-(M @ sp.diags(fine * scale) @ Wt))
+            J = sp.hstack(cols).tocsr()
+            r = np.asarray(b.data, dtype=np.float64) - m.evaluate(p, b.ctx)
+            Jw = J.T @ sp.diags(self._weights(b))
+            N = N + Jw @ J
+            rhs += Jw @ r
+        return terms, grids, off, N, rhs
 
     def _gauge_rows(self, o, terms, grids, off) -> np.ndarray:
         """Constraint rows (unit vectors) for the template gauge of order
@@ -1206,6 +1182,62 @@ class TemplateSolver:
 
 def _free(fit) -> set:
     return {(c, p) for c, p, _ in fit.layout.entries}
+
+
+def pooled_observatory_step(solvers, o, weights=None) -> dict:
+    """One Gauss-Newton step for the learned observatory corrections of order
+    ``o`` shared by several solvers (one per star): their normal equations
+    are summed (each times its weight, default 1) and solved once under the
+    first solver's priors and gauge, and the result is set in every solver.
+    The correction must live on the same node grid in all of them. Returns
+    each solver's share of the information (trace of its weighted normal
+    matrix over the total)."""
+    weights = [1.0] * len(solvers) if weights is None else list(weights)
+    cfg = solvers[0].config
+    systems = [s.observatory_system(o) for s in solvers]
+    terms, grids, off = systems[0][0], systems[0][1], systems[0][2]
+    for sy in systems[1:]:
+        if sy[0] != terms or any(sy[1][t].n != grids[t].n for t in terms):
+            raise ValueError(f"order {o!r}: solvers disagree on the learned terms or grids")
+    ntot = int(off[-1])
+    N = sp.csr_matrix((ntot, ntot))
+    rhs = np.zeros(ntot)
+    tr = []
+    for w, sy in zip(weights, systems, strict=True):
+        N = N + w * sy[3]
+        rhs += w * sy[4]
+        tr.append(float(w * sy[3].diagonal().sum()))
+    cur = np.concatenate([solvers[0].learned[o][t] for t in terms])
+    regs = []
+    for t in terms:
+        n = grids[t].n
+        D = second_difference(n)
+        regs.append(
+            sp.identity(n) / cfg.observatory_prior_sigma**2
+            + (D.T @ D) / cfg.observatory_smooth_sigma**2
+        )
+    R = sp.block_diag(regs).tocsc()
+    g = rhs - R @ cur
+    rows = [
+        s._gauge_rows(o, terms, grids, off)
+        for s in solvers
+        if s.config.observatory_gauge == "template"
+    ]
+    C = np.vstack(rows) if rows else np.zeros((0, ntot))
+    if len(C):
+        lu = scipy.sparse.linalg.splu((N + R).tocsc())
+        x = lu.solve(g)
+        Y = np.column_stack([lu.solve(c) for c in C])
+        lam = np.linalg.lstsq(C @ Y, C @ (cur + x), rcond=None)[0]
+        delta = x - Y @ lam
+    else:
+        delta = scipy.sparse.linalg.spsolve((N + R).tocsc(), g)
+    for s in solvers:
+        for t, a, z in zip(terms, off[:-1], off[1:], strict=True):
+            s.learned[o][t] = cur[a:z] + delta[a:z]
+        s._sync()
+    tot = sum(tr) or 1.0
+    return dict(share=[x / tot for x in tr], rms_step=float(np.sqrt(np.mean(delta**2))))
 
 
 def infer_template(
