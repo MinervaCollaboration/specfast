@@ -1260,6 +1260,35 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Iodine-cell temperature and the barycentric timing model
+
+**Iodine-cell temperature vs nightly residuals** (x2-0.4 v5c nightly means,
+weighted with the 1.8 m/s excess added in quadrature, permutation p):
+tau Cet r = +0.01 (p = 0.93); sigma Dra +0.24; HD 122064 -0.09. The
+logged cell temperature (I2TEMPA) has 0.1 C resolution and sits at the 55.0
+C set point in 71% of exposures (range 54.6-55.2), so the test only rules
+out a strong effect at the >0.1 C level. The permutation p for sigma Dra
+overstates significance: its residuals have ~2 m/s red noise, and any
+slow covariate correlates with them. The iodine-stage position (I2POSAF)
+takes four values that change at 2016-12, 2019-10 and 2022-07, i.e. it is an
+era marker already covered by the era zero-points; its residual
+correlations (sigma Dra -0.30, HD 122064 -0.36, tau Cet +0.03) are
+era-level, not nightly. tau Cet's nightly residuals show weak
+correlations with CCD temperature (+0.16) and exposure time (-0.16); none
+with bench temperature or spectrograph pressure.
+
+**How timing enters the barycentric correction.** The test bed evaluates
+the barycentric correction once, at the geometric midpoint, and the timing
+correction shifts it to the flux-weighted midpoint, linearly (dv =
+dBERV/dt x dt). It does not integrate the correction over the flux-time
+profile. The neglected curvature term is 1/2 BERV'' var(t); for a uniform
+exposure it is small: tau Cet (median 906 s) rms 0.03 m/s (range -0.06 to
++0.18), sigma Dra and HD 122064 (1800 s) rms 0.06-0.07 (up to +-0.14).
+Gappy profiles change var(t) but keep it at the ~0.1-0.2 m/s level, far
+below the ~1.4 m/s common term. For the mm/s goal it must still be done
+properly: specfast releases raw redshifts with the flux-time record, and
+EXOZIPPy's raw-redshift mode integrates the correction over it.
+
 ## 2026-11-25: End-to-end simulation of the tau Cet data set (testbed branch e2esim)
 
 Question: can the v5 analysis chain by itself produce tau Cet's 1.78 m/s
