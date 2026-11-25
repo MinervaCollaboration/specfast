@@ -18,7 +18,7 @@ import specfast
 from specfast.instrument import load_instrument
 if specfast.__file__.startswith(sys.argv[1] + "/"):
     sys.exit("specfast imported from the checkout")
-for name in ("kiwispec", "gclef_magellan", "gclef_gmt"):
+for name in ("kiwispec", "gclef_magellan", "gclef_gmt", "neid"):
     load_instrument(name)
 print(specfast.__file__)
 PY

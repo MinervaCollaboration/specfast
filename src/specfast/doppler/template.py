@@ -640,9 +640,14 @@ class TemplateSolver:
         config: TemplateConfig,
         star: str = "star",
         detector_prior: Mapping | None = None,
+        cache_operators: bool = True,
     ) -> None:
         if not blocks:
             raise ValueError("no blocks")
+        #: Keep every block's pixel operator between steps (fast, but a few MB
+        #: per block at 1000-pixel blocks on a fine grid: NEID-sized problems
+        #: need ``False``, which rebuilds them on demand).
+        self.cache_operators = cache_operators
         self.blocks = list(blocks)
         self.config = config
         self.star = star
@@ -704,9 +709,6 @@ class TemplateSolver:
         self.velocities: dict = {}
         self.history: list = []
         self._ops: dict = {}
-        #: Cache each block's pixel operator between instrument updates
-        #: (memory: ~1 MB per block; switch off for large problems).
-        self.cache_operators = True
         #: Compute the template's own variance (selected inversion) at every
         #: template step; switch off to save time until the last one.
         self.want_sigma = True
@@ -726,7 +728,8 @@ class TemplateSolver:
 
     def _pixel_operator(self, i: int) -> sp.csr_matrix:
         """diag(R C) . P . K for block ``i`` (npix x fine grid), cached until
-        the block's instrument parameters change."""
+        the block's instrument parameters change (unless ``cache_operators``
+        is False)."""
         if i in self._ops:
             return self._ops[i]
         b, p = self.blocks[i], self.params[i]
@@ -1005,6 +1008,7 @@ def infer_template(
     star: str = "star",
     detector_prior: Mapping | None = None,
     callback: Callable[[TemplateSolver, int], None] | None = None,
+    cache_operators: bool = True,
 ) -> TemplateResult:
     """Infer the stellar template (per order), velocities and nuisances.
 
@@ -1014,6 +1018,8 @@ def infer_template(
     (``modify`` mode: required; ``infer`` mode: optional, flat otherwise).
     ``detector_prior``: {trace: {"dx", "response"}} calibration maps (else
     the blocks' starting parameters, else a perfect detector).
+    ``cache_operators``: see :class:`TemplateSolver` (False for large
+    problems: memory instead of speed).
 
     Checks first whether the barycentric spread can separate the template
     from the observatory and detector frames (:func:`check_separability`)
@@ -1022,7 +1028,14 @@ def infer_template(
     cfg = config or TemplateConfig()
     if cfg.strategy != "alternate":
         raise NotImplementedError(f"strategy {cfg.strategy!r}: only 'alternate' exists")
-    solver = TemplateSolver(blocks, prior, cfg, star=star, detector_prior=detector_prior)
+    solver = TemplateSolver(
+        blocks,
+        prior,
+        cfg,
+        star=star,
+        detector_prior=detector_prior,
+        cache_operators=cache_operators,
+    )
     report = solver.separability_report(warn=True)
     learn_obs = cfg.learn_observatory and any(solver.learned[o] for o in solver.orders)
 

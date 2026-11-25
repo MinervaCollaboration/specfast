@@ -1,4 +1,4 @@
-"""Readers that convert other pipelines' extractions to :class:`ExtractedSpectrum`.
+"""KiwiSpec ``.proc.fits`` products to :class:`ExtractedSpectrum`.
 
 DESIGN.md, "Two stages, one repository": the Doppler stage can run on
 another pipeline's extraction once it is converted to the product. Readers

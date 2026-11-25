@@ -60,6 +60,7 @@ import numpy as np
 
 from specfast.config import TemplateConfig
 from specfast.conventions import C_KMS, C_MPS, measured_redshift
+from specfast.converters.kiwispec_proc import read_proc
 from specfast.doppler import calib as CB
 from specfast.doppler.components import ExposureContext
 from specfast.doppler.fastfit import fit_block_fast, project_block, schur_terms
@@ -87,7 +88,6 @@ from specfast.doppler.template import (
 from specfast.instrument import Instrument, load_instrument
 from specfast.products import Mask
 from specfast.provenance import Provenance
-from specfast.readers import read_proc
 
 __all__ = ["FrameInfo", "list_frames", "provisional_z_bary", "run"]
 
@@ -183,7 +183,7 @@ def list_frames(cfg: DopplerRunConfig, instrument: Instrument, log: list) -> lis
     from astropy.io import fits
     from astropy.time import Time
 
-    from specfast.readers import header_value
+    from specfast.converters.kiwispec_proc import header_value
 
     names = _frame_names(cfg, log)
     inp = cfg.inputs
@@ -545,8 +545,7 @@ class OrderWorker:
                 observatory_prior_sigma=mcfg.iodine.prior_sigma,
                 observatory_smooth_sigma=mcfg.iodine.smooth_sigma,
             )
-            sol = TemplateSolver(blocks, {o: prior}, tc, star="star")
-            sol.cache_operators = False
+            sol = TemplateSolver(blocks, {o: prior}, tc, star="star", cache_operators=False)
             self.solvers[o] = sol
             self.params[o] = sol.params
         else:
