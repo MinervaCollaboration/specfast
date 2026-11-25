@@ -64,7 +64,7 @@ from specfast.converters.kiwispec_proc import read_proc
 from specfast.doppler import calib as CB
 from specfast.doppler.components import ExposureContext
 from specfast.doppler.fastfit import fit_block_fast, project_block, schur_terms
-from specfast.doppler.grid import LnGrid, convolve, pixel_integrate
+from specfast.doppler.grid import LnGrid, convolve
 from specfast.doppler.library import (
     DetectorMap,
     GaussHermiteLSF,
