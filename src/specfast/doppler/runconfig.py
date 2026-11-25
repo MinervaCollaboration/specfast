@@ -140,6 +140,8 @@ class LsfModel:
 @dataclass(frozen=True)
 class IodineModel:
     learned_correction: bool = True
+    #: ``optical_depth`` (exp(-k tau)) or ``linear`` (1 + k (T - 1)).
+    scaling: Literal["optical_depth", "linear"] = "optical_depth"
     node_kms: float = 0.6
     prior_sigma: float = 0.01
     smooth_sigma: float = 0.01
@@ -194,6 +196,8 @@ class BervPatternModel:
 @dataclass(frozen=True)
 class ModelConfig:
     grid_step_kms: float = 0.25
+    #: Pixel sampling of the model: ``average`` (physical) or ``point``.
+    sampling: Literal["average", "point"] = "average"
     #: Order indices; None = the arm's rv_orders.
     orders: tuple[int, ...] | None = None
     channels: tuple[str, ...] | None = None
@@ -220,6 +224,9 @@ class SolverConfig:
     #: A previous run's state file to start from (warm start).
     warm_start: str | None = None
     max_iter_block: int = 30
+    #: Over-relaxation factor of the template update (1 = plain alternation;
+    #: ~1.2-1.4 speeds up a slowly converging alternation).
+    relaxation: float = 1.0
 
 
 @dataclass(frozen=True)

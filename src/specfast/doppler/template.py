@@ -132,6 +132,7 @@ from specfast.doppler.fit import fit_block
 from specfast.doppler.grid import (
     LnGrid,
     cubic_weights,
+    hermite_value,
     kernel_sigma_mps,
     pixel_integrate,
 )
@@ -324,6 +325,33 @@ def pixel_matrix(grid: LnGrid, ln_edges: np.ndarray) -> sp.csr_matrix:
     )
 
 
+def point_matrix(grid: LnGrid, ln_x: np.ndarray) -> sp.csr_matrix:
+    """The point-sampling operator (cubic Hermite value at ``ln_x``,
+    :func:`~specfast.doppler.grid.hermite_value`) as a sparse matrix,
+    built by probing like :func:`pixel_matrix`."""
+    pos = (np.asarray(ln_x) - grid.ln_start) / grid.step
+    i = np.floor(pos).astype(np.int64)
+    lo, hi = i - 2, i + 3
+    s = 8
+    rows, cols, vals = [], [], []
+    k = np.arange(i.size)
+    for r in range(s):
+        vec = np.zeros(grid.n)
+        vec[r::s] = 1.0
+        out = hermite_value(vec, grid, ln_x)
+        j = lo + np.mod(r - lo, s)
+        ok = (j <= hi) & (j >= 0) & (j < grid.n)
+        rows.append(k[ok])
+        cols.append(j[ok])
+        vals.append(out[ok])
+    m = sp.csr_matrix(
+        (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
+        shape=(i.size, grid.n),
+    )
+    m.eliminate_zeros()
+    return m
+
+
 def convolution_matrix(kernel: np.ndarray, n: int) -> sp.csr_matrix:
     """``np.convolve(values, kernel, mode="same")`` as a sparse matrix."""
     hw = kernel.size // 2
@@ -337,7 +365,10 @@ def block_pixel_operator(
     """``diag(R C) . P . K`` of one block (npix x fine grid) as a sparse
     matrix; for an LSF varying along the order, ``sum_k diag(R C W_k) P K_k``
     over its nodes (:meth:`~specfast.doppler.model.ForwardModel.node_kernels`)."""
-    P = pixel_matrix(model.grid, model.ln_edges(params, ctx)).tocsr()
+    if model.sampling == "point":
+        P = point_matrix(model.grid, model.ln_sample(params, ctx))
+    else:
+        P = pixel_matrix(model.grid, model.ln_edges(params, ctx)).tocsr()
     pf = model.pixel_factor(params, ctx)
     ks, w = model.node_kernels(params, ctx)
     # P is banded (contiguous columns per row): convolve each row's band with
@@ -347,7 +378,13 @@ def block_pixel_operator(
     starts = np.array(
         [P.indices[P.indptr[i]] if P.indptr[i + 1] > P.indptr[i] else 0 for i in range(npix)]
     )
-    width = int(np.max(np.diff(P.indptr)))
+    ends = np.array(
+        [
+            P.indices[P.indptr[i + 1] - 1] if P.indptr[i + 1] > P.indptr[i] else 0
+            for i in range(npix)
+        ]
+    )
+    width = int(np.max(ends - starts)) + 1
     Pb = np.zeros((npix, width))
     for i in range(npix):
         a, b = P.indptr[i], P.indptr[i + 1]

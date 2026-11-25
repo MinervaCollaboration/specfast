@@ -40,7 +40,7 @@ import numpy as np
 
 from specfast.conventions import C_MPS
 from specfast.doppler.components import ExposureContext
-from specfast.doppler.grid import convolve, hermite_value, pixel_integrate
+from specfast.doppler.grid import convolve, hermite_value
 from specfast.doppler.model import ForwardModel
 
 __all__ = [
@@ -80,9 +80,9 @@ class _State:
 def _state(model: ForwardModel, params, ctx) -> _State:
     fine = model.fine_spectrum(params, ctx)
     ks, w = model.node_kernels(params, ctx)
-    le = model.ln_edges(params, ctx)
+    le = model.ln_sample(params, ctx)
     b = [convolve(fine, k) for k in ks]
-    u_k = [pixel_integrate(bb, model.grid, le) for bb in b]
+    u_k = [model.bin(bb, le) for bb in b]
     u = u_k[0] if w is None else sum(w[k] * u_k[k] for k in range(len(ks)))
     pf = model.pixel_factor(params, ctx)
     flux = pf * u
@@ -97,13 +97,13 @@ def _state(model: ForwardModel, params, ctx) -> _State:
 def _blend(model, st: _State, dfine=None, dkernels=None) -> np.ndarray:
     """Binned, blended response to a fine-spectrum change ``dfine`` (with the
     current kernels) or a kernel change ``dkernels`` (current fine spectrum)."""
-    out = np.zeros(st.ln_edges.size - 1)
+    out = np.zeros(model.pixels.size)
     for k in range(len(st.kernels)):
         if dfine is not None:
             bb = convolve(dfine, st.kernels[k])
         else:
             bb = convolve(st.fine, dkernels[k])
-        uk = pixel_integrate(bb, model.grid, st.ln_edges)
+        uk = model.bin(bb, st.ln_edges)
         out += uk if st.weights is None else st.weights[k] * uk
     return out
 
@@ -157,25 +157,39 @@ def model_and_jacobian(
                 cols.append(_cti(model, params, st, c))
                 labels.append((cname, pname, j))
         elif comp is model.wavelength:
-            edges = model.pixel_edges
-            if model.detector is not None:
-                edges = model.detector.edges(params[model.detector.name], edges)
-            lam0 = comp.evaluate(params[cname], edges, ctx)
-            d = st.ln_edges[1:] - st.ln_edges[:-1]
-            bvals = [hermite_value(bb, model.grid, st.ln_edges) for bb in st.broadened]
+            pos = model.sample_positions(params)
+            lam0 = comp.evaluate(params[cname], pos, ctx)
+            point = model.sampling == "point"
+            if point:
+                hstep = 1e-3 * model.grid.step
+                bder = [
+                    (
+                        hermite_value(bb, model.grid, st.ln_edges + hstep)
+                        - hermite_value(bb, model.grid, st.ln_edges - hstep)
+                    )
+                    / (2 * hstep)
+                    for bb in st.broadened
+                ]
+            else:
+                d = st.ln_edges[1:] - st.ln_edges[:-1]
+                bvals = [hermite_value(bb, model.grid, st.ln_edges) for bb in st.broadened]
             for j in range(val.size):
                 pv = val.copy()
                 h = max(1e-6, 1e-6 * abs(pv[j]))
                 pv[j] += h
-                lam1 = comp.evaluate({**params[cname], pname: pv}, edges, ctx)
+                lam1 = comp.evaluate({**params[cname], pname: pv}, pos, ctx)
                 de = (lam1 - lam0) / h / lam0
-                du = np.zeros(d.size)
-                for k, bv in enumerate(bvals):
-                    t = (
-                        bv[1:] * de[1:]
-                        - bv[:-1] * de[:-1]
-                        - st.binned_nodes[k] * (de[1:] - de[:-1])
-                    ) / d
+                du = np.zeros(model.pixels.size)
+                for k in range(len(st.broadened)):
+                    if point:
+                        t = bder[k] * de
+                    else:
+                        bv = bvals[k]
+                        t = (
+                            bv[1:] * de[1:]
+                            - bv[:-1] * de[:-1]
+                            - st.binned_nodes[k] * (de[1:] - de[:-1])
+                        ) / d
                     du += t if st.weights is None else st.weights[k] * t
                 cols.append(_cti(model, params, st, st.pixel_factor * du))
                 labels.append((cname, pname, j))

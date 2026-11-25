@@ -435,6 +435,9 @@ class IodineCell:
     name: str = "iodine"
     #: Node grid of the learned optical-depth correction (None: no correction).
     correction: LnGrid | None = None
+    #: ``optical_depth``: ``T = exp(-k tau)`` (physical: the column scales);
+    #: ``linear``: ``T = 1 + k (exp(-tau) - 1)`` (legacy codes' depth scaling).
+    scaling: str = "optical_depth"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "lnlam", frozen_array(self.lnlam))
@@ -464,6 +467,8 @@ class IodineCell:
         tau = np.interp(coords, self.lnlam, self.tau)
         if self.correction is not None:
             tau = tau + cubic_interpolate(params["dtau"], self.correction, coords)
+        if self.scaling == "linear":
+            return 1.0 + params["k"][0] * (np.exp(-tau) - 1.0)
         return np.exp(-params["k"][0] * tau)
 
 

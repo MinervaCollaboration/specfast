@@ -17,7 +17,7 @@ from specfast.doppler.grid import gh_kernel, kernel_sigma_mps
 from specfast.doppler.library import GaussHermiteLSF, OpticsWavelength, SerialCTI
 
 
-def _rich_model(cti=False, illumination="gh"):
+def _rich_model(cti=False, illumination="gh", sampling="average"):
     """The synth scene with the optics wavelength, a GH LSF varying along the
     order with an illumination kernel, a telluric component and optional CTI."""
     sc = make_scene(seed=3)
@@ -62,6 +62,7 @@ def _rich_model(cti=False, illumination="gh"):
         grid=grid,
         pixels=m0.pixels,
         cti=SerialCTI() if cti else None,
+        sampling=sampling,
     )
     p = sc.params()
     p["wavelength"] = {"coeffs": np.array([0.01, 0.0, 0.0])}
@@ -110,8 +111,9 @@ def test_node_lsf_constant_map_matches_single_kernel():
 
 @pytest.mark.parametrize("cti", [False, True])
 @pytest.mark.parametrize("illumination", ["gh", "basis"])
-def test_jacobian_matches_finite_differences(cti, illumination):
-    model, p = _rich_model(cti=cti, illumination=illumination)
+@pytest.mark.parametrize("sampling", ["average", "point"])
+def test_jacobian_matches_finite_differences(cti, illumination, sampling):
+    model, p = _rich_model(cti=cti, illumination=illumination, sampling=sampling)
     ctx = ExposureContext(z_bary=1e-5, airmass=1.2)
     free = [
         ("star", "v"),
@@ -136,7 +138,7 @@ def test_jacobian_matches_finite_differences(cti, illumination):
         fd = (model.evaluate(pp, ctx) - model.evaluate(pm, ctx)) / (2 * h)
         scale = np.max(np.abs(fd)) + 1e-30
         # CTI columns use the linearized operator (loss frozen): ~1e-3 of it
-        tol = 2e-3 if cti else 2e-4
+        tol = 2e-3 if cti else (5e-4 if sampling == "point" else 2e-4)
         assert np.max(np.abs(J[:, col] - fd)) / scale < tol, (c, name, j)
 
 
@@ -173,3 +175,24 @@ def test_fast_fit_recovers_velocity_and_projection():
     H, b, lab, _ = schur_terms(model, off, ctx, data, sigma, free, [("telluric", "water")])
     dw = np.linalg.solve(H, b)
     assert abs(1.2 + dw[0] - 1.0) < 0.02
+
+
+@pytest.mark.parametrize("sampling", ["average", "point"])
+def test_template_operator_matches_model(sampling):
+    from specfast.doppler.template import block_pixel_operator
+
+    model, p = _rich_model(sampling=sampling)
+    ctx = ExposureContext()
+    op = block_pixel_operator(model, p, ctx, include_cti=False)
+    f = model.evaluate(p, ctx)
+    assert np.max(np.abs(op @ model.fine_spectrum(p, ctx) - f)) < 1e-10 * np.max(f)
+
+
+def test_linear_iodine_scaling():
+    from specfast.doppler import IodineCell
+
+    ln = np.linspace(8.6, 8.7, 50)
+    t = np.linspace(0.3, 1.0, 50)
+    a = IodineCell.from_transmission(ln, t, scaling="linear")
+    out = a.evaluate({"k": np.array([0.5])}, ln, ExposureContext())
+    assert np.allclose(out, 1 + 0.5 * (t - 1))

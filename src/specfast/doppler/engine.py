@@ -404,7 +404,11 @@ class OrderWorker:
             corr = None
             if mcfg.iodine.learned_correction and star_mode != "fixed":
                 corr = LnGrid.covering(np.exp(lo), np.exp(hi), mcfg.iodine.node_kms, 0.0)
-            factors.append(IodineCell.from_transmission(iln, itr, name="iodine", correction=corr))
+            factors.append(
+                IodineCell.from_transmission(
+                    iln, itr, name="iodine", correction=corr, scaling=mcfg.iodine.scaling
+                )
+            )
         tel_mask_fn = None
         if self.cal.telluric is not None and mcfg.telluric.model != "none":
             tln_, ttr = _cut(self.cal.telluric.lnlam, self.cal.telluric.transmission, lo, hi, 1.0)
@@ -490,6 +494,7 @@ class OrderWorker:
                 pixels=pixels,
                 cti=cti,
                 detector=det,
+                sampling=mcfg.sampling,
             )
             data = r["flux"][p0 : p1 + 1].astype(float)
             sig = r["sig"][p0 : p1 + 1].astype(float) * down
@@ -728,7 +733,11 @@ class OrderWorker:
         }
 
     # ------------------------------------------------------------- template
-    def template(self, block_v, zp_increment):
+    def template(self, block_v, zp_increment, omega=1.0):
+        """Template (and learned observatory) step per order, with the block
+        velocities and zero-point increments from the master. ``omega`` > 1
+        over-relaxes the template update (successive over-relaxation of the
+        alternation: old + omega * (new - old))."""
         stats = {}
         for o, sol in self.solvers.items():
             for i, p in enumerate(sol.params):
@@ -741,6 +750,9 @@ class OrderWorker:
             sol._sync()
             old = sol.flux[o].copy()
             sol.template_step()
+            if omega != 1.0:
+                sol.flux[o] = old + omega * (sol.flux[o] - old)
+                sol._sync()
             if sol.config.learn_observatory and any(sol.learned[o]):
                 sol.observatory_step()
             stats[o] = dict(
@@ -862,7 +874,7 @@ def _shift_search(b: Block, p, shifts):
     good = w > 0
     t = (m.pixels - m.continuum.x_center) / m.continuum.x_scale
     basis = np.stack([t**j for j in range(m.continuum.degree + 1)], axis=1)
-    edges = m.pixel_edges
+    edges = m.sample_positions(p)
     best, bchi, chis = 0.0, np.inf, []
     lo, hi = m.grid.lnlam[1], m.grid.lnlam[-2]
     for s in shifts:
@@ -870,7 +882,7 @@ def _shift_search(b: Block, p, shifts):
         if le[0] < lo or le[-1] > hi:
             chis.append(np.inf)
             continue
-        u = pixel_integrate(bb, m.grid, le)
+        u = m.bin(bb, le)
         X = basis * u[:, None]
         coef, *_ = np.linalg.lstsq(X[good] * w[good, None], b.data[good] * w[good], rcond=None)
         r = (b.data - X @ coef) * w
@@ -1207,16 +1219,16 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                 break
             if templ:
                 block_v, zpinc = {}, {}
-                vb = bl["v"] if f_berv is None else None
                 for j in range(len(bl["v"])):
                     k = bl["key"][j]
                     if k in vel:
                         fb = 0.0 if f_berv is None else f_berv[j]
                         block_v[(int(bl["order"][j]), int(bl["index"][j]))] = vel[k][0] + fb
-                del vb
                 if cfg.model.star.fit_zero_points:
                     zpinc = {int(o): (d, s) for o, (d, s) in off.items()}
-                st = pool.call("template", block_v=block_v, zp_increment=zpinc)
+                st = pool.call(
+                    "template", block_v=block_v, zp_increment=zpinc, omega=cfg.solver.relaxation
+                )
                 rec["template"] = {int(o): v for s in st for o, v in s.items()}
         # final projection and outputs
         _progress(out, "projection")
