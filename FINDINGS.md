@@ -324,8 +324,9 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
   2018-02: a partial copy, not a data limit. The archive's pipeline
   products hold ~1,870 B-star frames over 2016-2026 in the same
   extraction as the star frames (2016: 831; 2019: 314; 2023-26 thin: 44,
-  27, 25, 5). Per-era LSF maps are being built (lsfillum, variant B-era);
-  conclusions that rest on one B-star year should be rechecked.
+  27, 25, 5). Per-era LSF maps are now built from 1,136 of them (lsfillum,
+  2026-11-25); other conclusions that rest on one B-star year should be
+  rechecked.
 
 - Per-telescope nightly scatter (tels 1 and 2 worst): fibre illumination,
   guiding, modal noise, scrambling. Check FAU guide logs and fibre position.
@@ -1258,6 +1259,89 @@ content. Attainable per trace at S/N 200: ~1.1 m/s (Sun-like), ~0.9 m/s
 Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
+
+## 2026-11-25: Static optical LSF vs per-exposure illumination kernel (testbed branch lsfillum)
+
+Question (JDE): the LSF varies across each order; fix the optical part
+and fit only the variable part (illumination, assumed constant across the
+detector) per exposure. Does that remove the night-to-night excess?
+
+**Verdict: no.** The per-exposure kernel makes nightly rms worse on
+tau Cet and sigma Dra. The one clear gain is a static, per-era LSF map
+built from the B stars (Be0, 1,136 B-star frames over 2016-2026, 50,153
+trace fits): tau Cet nightly 4.92 -> 4.77 m/s, within-night 2.96 -> 2.78,
+RV-level sqrt(chi2r) 1.62 -> 1.50, and the two-star era zero-point steps
+fall from 9.6 / 11.7 to 1.7 / 2.7 m/s (part of the era steps is static
+LSF-shape change). (These are on the wavedist QD baseline, not the v5
+episode-corrected numbers.)
+
+Two-star fit (tau Cet + sigma Dra zero-points); nightly / within-night /
+sqrt(chi2r), m/s:
+
+| Level | tau Cet | sigma Dra |
+|---|---|---|
+| base (wavedist QD) | 4.92 / 2.96 / 1.62 | 11.15 / 5.23 / 1.78 |
+| A: Gaussian map + per-exposure width, h3 | 5.44 / 2.99 / 1.65 | 11.38 / 5.64 |
+| B0: one static B-star map | 4.97 / 2.86 / 1.64 | 11.06 / 5.47 / 1.80 |
+| B-pix: B0 + per-exposure kernel | 5.08 / 3.01 / 1.62 | 11.15 / 5.84 / 1.78 |
+| C: kernel linear along/across orders | 5.16 / 2.95 / 1.61 | 11.35 / 5.98 |
+| **Be0: per-era B-star maps, no kernel** | **4.77 / 2.78 / 1.50** | **10.95 / 5.42 / 1.80** |
+| Be0 + kernel | 5.00 / 2.99 / 1.61 | 11.11 / 5.80 / 1.82 |
+| Be0 + kernel + hierarchical prior | 4.66 / 2.83 / 1.52 | 11.00 / 5.40 / 1.78 |
+| E: 3 B-star PCs per exposure | 6.72 / 3.00 / 1.76 | 11.50 / 5.72 / 1.87 |
+
+Kernels are gated (exposure-tels with < 8 usable traces keep the static
+map; ungated they run to their bounds and move RVs by up to 400 m/s).
+
+- **Why a better LSF fit gives worse RVs.** Spectral chi2 falls at every
+  step (median chi2_r 4.53 -> 4.29), but the kernel's RV moves (2.3 m/s
+  per night) barely track the RV error (corr -0.16 nightly), and the
+  B-star-basis kernel E moves RVs in a direction that correlates
+  *positively* with the error (+0.32 nightly). The common-to-all-telescopes
+  part of the fitted kernel tracks BERV and season (E's h3-like component:
+  r = +0.42 with BERV, +0.40 with season). So on stellar frames the
+  per-exposure "LSF" mostly absorbs a BERV- and season-dependent
+  star-iodine mismatch (template), not the instrument. Real LSF changes
+  are best captured as static per-era maps from the B stars.
+- **h3 does not soak up velocity.** Injection on a real tau Cet frame: dh3
+  +0.005 recovered as 0.00517 with a -0.27 m/s leak (vs +7.8 m/s with h3
+  unfitted); a +5 m/s injection recovered as 4.70 with the kernel free and
+  4.68 frozen. d<v>/dh3 = -16 m/s per 0.01, matching iodinfo.
+- **The kernel is mostly constant across the detector** (JDE's assumption
+  holds): along-order terms and the across-order h3 term are at noise. An
+  across-order width term is real (sd 0.005-0.010 vs error 0.002) but
+  RV-neutral.
+- **Illumination vs thermal focus.** Per-exposure width follows throughput
+  and seeing (FAU star size) more than temperature; only T3 is strongly
+  covariate-driven (spectrograph pressure t = -5.9, iodine-cell
+  temperature t = -3.4). Width-temperature slopes are significant per
+  trace (57 of 92 cells, |t| > 3) but RV-neutral (map linear in bench
+  temperature: 4.91 vs 4.94). B-star PCA: PC1 (76%) is a uniform width
+  change common to all telescopes; PC2 (10%) is width varying across
+  orders, red-heavy (the thermal-focus signature); PC3 (2.5%) is an h3/h4
+  mix that differs by telescope. Velocity sensitivity per 1 sd of B-star
+  variation: PC1 +0.25, PC2 +0.88, PC3 -1.68 m/s.
+- **Known events seen in the kernel.** T2 at the 2018-12-17 break: dh3
+  +0.009, width +0.019 (the per-era B-star maps independently show T2 h3
+  going from +0.0004 to +0.0081, so a real LSF change). T2 feed deficit
+  2018-10..12: dh3 -0.008. T1, T3, T4 show nothing at the T2 events.
+- **HD 122064 is the exception.** Its 2016-20 data are dominated by T2
+  feed problems, and the kernel genuinely corrects them: nightly 9.16 ->
+  7.96 (within-night 6.49 -> 7.38); the kernel's RV change anticorrelates
+  with the RV error (-0.44). 51 Peg: K stable (54.45 +- 1.53 -> 54.75 +-
+  1.26), residual rms 3.64 -> 2.87.
+
+**Decision for specfast:** the default LSF is a static per-era optical map
+from the B stars (DESIGN.md "optics" frame). A per-exposure illumination
+kernel stays available, off by default, under a hierarchical per
+(telescope, era) prior, and only for exposures with enough traces; it
+should be switched on where a feed problem is known (T2 2018). The
+BERV/season mismatch it exposes belongs to the template (infer mode), not
+the LSF.
+
+Eras with no B-star frames fall back to the all-era map: e2016b, e2026,
+and T4 in e2024. A consistent per-era run on the new extraction (x2) waits
+for x2-0.4.
 
 ## 2026-11-25: NEID solar data through specfast (PR #9)
 
