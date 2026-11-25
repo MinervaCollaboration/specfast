@@ -1260,6 +1260,42 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: The 2016 deficit of x2-0.4: not the flat, partly the wavelength solution (testbed branch flat2016)
+
+Follow-up to the paired finding that x2-0.4 is worse than the original
+extraction in 2016 only (sigma Dra +0.95, HD 122064 +1.00 m/s ML excess).
+Frozen v5 chain, each variant's 2016 rows replacing x04's, paired
+night-block bootstrap on the same 2016 exposures (ML excess difference,
+m/s, 95% CI):
+
+| 2016 | x04 vs original | no pixel flat vs x04 | original wavelength solution vs x04 | both vs x04 |
+|---|---|---|---|---|
+| sigma Dra (146 exp, 53 nights) | +0.95 [+0.66, +1.24] | +0.11 [+0.06, +0.15] (worse) | -0.17 [-0.24, -0.09] | -0.06 [-0.12, +0.01] |
+| HD 122064 (112 exp, 42 nights) | +1.00 [-0.01, +1.91] | -0.05 [-0.14, +0.01] | -0.16 [-0.31, -0.03] | -0.18 [-0.37, 0.00] |
+| tau Cet (22 exp, 11 nights) | +0.88 [0.00, +3.68] | n.s. | n.s. | n.s. |
+
+- **Not the flat.** The original pipeline never pixel-flat-fielded (no
+  flat division in v0.1-v0.4.1; v1.0.0 resets its flat to ones), so "the
+  original's flat" is "no flat", and removing x04's flat makes sigma Dra
+  slightly worse. 2016 has no usable slit flats (Jan-Jun flooded at
+  52-56k ADU; Aug-Nov lamp off). The 2018-19 stack agrees with 2016 fibre
+  flats as well as with post-realignment ones, and changes extracted flux
+  by only ~0.1% per pixel.
+- **The wavelength solution is a small real part.** The original 2016
+  products' solution differs from the v1.0.0 solution x04 uses by 0.57 px
+  rms, per-order offsets spread over ~114 m/s, identical in every frame
+  (from 2017 on the two are identical). Using the original solution
+  recovers ~15-20% of the deficit for sigma Dra (wrms -0.12). For HD
+  122064 the gain is offset by harm to unchanged 2017 exposures through
+  the chain's shared offsets, so it is not reliable.
+- **~80% of the 2016 deficit is unexplained.** x04 has much lower 2016
+  within-night scatter (HD 122064 5.39 -> 2.79) but more night-to-night
+  excess: an error coherent within a night, consistent with a profile or
+  trace-file effect. Next: the e2016a self-profile vs a fibre-flat
+  profile, and the 2016 trace file vs the original's 2016-01-30 traces.
+
+Decision: keep x04's 2016 flat; no archive re-run yet.
+
 ## 2026-11-25: Why autofocus ran inside exposures, and why the FAU status keyword can't flag it
 
 Of 789 (exposure, telescope) cases in 2016-2020 where a FAU autofocus run
@@ -1491,7 +1527,8 @@ bootstrap, 95% CI; ML nightly excess):
 - sigma Dra +0.44 [+0.25, +0.62]; HD 122064 +0.77 [+0.33, +1.23]. **Real,
   and all in 2016** (sigma Dra 2016 +0.95 [+0.67, +1.25]; 2017-19 equal or
   better on x04; post-2018 sigma Dra x04 better by 0.20). In 2016 x2-0.4
-  uses the 2018-19 pixel-flat stack instead of nightly flats. The 2016
+  uses the 2018-19 pixel-flat stack (x04 uses stacked flats in every era;
+  2016 is the only era whose stack comes from another epoch). The 2016
   differences persist for weeks within a star, partly track BERV, and are
   not shared between stars on the same night: a flat-field or
   wavelength-solution signature, not the chain (inferred; re-extraction
