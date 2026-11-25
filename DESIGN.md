@@ -318,6 +318,26 @@ activity):
 - Unit tests for every component (normalization, Doppler sign,
   convolution width, pixel integration).
 
+### Evaluation protocol (2026-11-25; FINDINGS "how much of the chain is tuned to noise")
+
+A choice made by looking at RV residuals is a fitted parameter. Rules:
+
+1. Compare versions only by paired differences on identical exposures,
+   with night-block bootstrap CIs. Never compare two separate CIs.
+2. One pre-registered primary metric: the ML nightly excess, plus the
+   weighted rms, reported by era (2016, 2017, 2018-19, 2020+). Unweighted
+   nightly rms is a secondary metric; a pure-noise search improves it by
+   ~0.15 m/s.
+3. Tune on a fixed random half of the tuning star's nights. Other stars
+   (sigma Dra, HD 122064, 51 Peg) and the other half are evaluation-only.
+4. Freeze knob choices before comparing extractions or models; refit only
+   their fitted parameters.
+5. Every data-driven knob must beat the null gain for its search size and
+   survive cross-validation; every look at the residuals is counted.
+6. A correction with a physical prediction (timing, CTI, count slope)
+   enters only if the residuals regressed on it give a slope near 1, per
+   star and era, on held-out data.
+
 ## EXOZIPPy
 
 What it changes here: four cheap choices that would be expensive to

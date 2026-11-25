@@ -1260,6 +1260,72 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Original vs x2-0.4, and how much of the chain is tuned to noise (testbed branch overfit)
+
+Question (JDE): the test bed's v5 chain scored best on the original
+extraction and worse on the nominally better x2-0.4. Real (copy what was
+better) or spurious (find how we fooled ourselves)?
+
+**Paired differences** (x04 minus original, same exposures, night-block
+bootstrap, 95% CI; ML nightly excess):
+- tau Cet: +0.06 [-0.08, +0.19]; nightly rms +0.11 [-0.39, +0.69];
+  within-night +0.22 [-0.35, +0.80]. **No difference.** The earlier
+  "2.47 vs 3.04 within-night" compared two separate CIs on a 92-exposure
+  subset.
+- sigma Dra +0.44 [+0.25, +0.62]; HD 122064 +0.77 [+0.33, +1.23]. **Real,
+  and all in 2016** (sigma Dra 2016 +0.95 [+0.67, +1.25]; 2017-19 equal or
+  better on x04; post-2018 sigma Dra x04 better by 0.20). In 2016 x2-0.4
+  uses the 2018-19 pixel-flat stack instead of nightly flats. The 2016
+  differences persist for weeks within a star, partly track BERV, and are
+  not shared between stars on the same night: a flat-field or
+  wavelength-solution signature, not the chain (inferred; re-extraction
+  test pending).
+- Nothing flips along the chain: the difference is set before any v5
+  step. What flipped was the metric. Unweighted nightly rms favours x04
+  (it rescues faint frames); weighted rms and ML excess favour the
+  original (2016 bright frames). The extraction comparison and the
+  three-way comparison used different metrics and were both right.
+- x04 keeps more faint traces (median 64 vs 46 per exposure) whose
+  residuals are 1.15-1.31x their errors; with identical traces HD 122064's
+  deficit falls from +0.82 to +0.35.
+
+**Tuning and optimism.** About 200 looks at the residuals went into the
+chain, almost all on the original extraction and scored on tau Cet's
+unweighted nightly rms. With a fast stand-in for the chain (matches it to
+0.01-0.05 m/s on tau Cet), a menu of 14 breaks, 4 exclusions and 240
+regressions, and greedy selection:
+- **Cross-validation** (20 random night halves): in nightly rms, 60-75% of
+  the in-sample gain is optimism (tau Cet +0.45 in sample, +0.12 out). In
+  ML excess optimism is small (+0.40 vs +0.33). The actual v5 knob set,
+  frozen, shows about zero optimism (+0.37 in, +0.33 out) and helps x04
+  equally: it was not tuned to the original's noise.
+- **Null test** (40 noise-only realisations with the real times,
+  telescopes, errors and covariates): the same search adopts all 12
+  allowed knobs every time and "improves" nightly rms by 0.10-0.15 m/s
+  (95th percentile 0.34), ML excess by 0.00-0.03 (<= 0.07). So
+  nightly-rms gains of 0.1-0.2 m/s from a search are not evidence; ML
+  excess is a much more honest metric.
+- **Held-out stars, step by step:** the breaks help only tau Cet (-0.30);
+  exclusions and the T2 count slope do about nothing. **Timing helps tau
+  Cet (-0.69) but hurts HD 122064** (+0.58 [+0.28, +0.94] original, +0.35
+  x04), all pre-2018. The RV residuals regressed on the timing correction
+  give a slope of ~0 for every star pre-2018 (tau Cet 0.51 +- 0.58, sigma
+  Dra -0.51 +- 0.89, HD 122064 0.06 +- 0.63) but 0.92 +- 0.32 for tau Cet
+  post-2018. The pre-2018 timing corrections are not supported by the RVs.
+  51 Peg K is unchanged by every step.
+
+**How we fooled ourselves:** (1) compared two separate CIs on different
+exposure sets; (2) compared results scored with different metrics; (3)
+scored chain choices on a metric that a pure-noise search improves by
+~0.15 m/s; (4) accepted timing on tau Cet and reported "no significant
+change" elsewhere, although it degrades HD 122064.
+
+Consequences: the tau Cet excess of ~1.75-1.8 m/s stands (it is in ML
+excess, which barely responds to tuning, and NEID independently rules out
+the star). The timing term's attribution (FINDINGS "timing") needs
+re-validation per star and era. The evaluation protocol is now in
+DESIGN.md.
+
 ## 2026-11-25: Three-way comparison and the tau Cet budget on x2-0.4 (testbed branch threeway)
 
 Legacy production pipeline vs the test bed's v5 chain on the original
