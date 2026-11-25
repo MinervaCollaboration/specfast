@@ -147,8 +147,10 @@ def _raw_header_dict(hdr) -> dict:
     out = {}
     for card in hdr.cards:
         k = card.keyword
-        if not k or k in ("COMMENT", "HISTORY", "SIMPLE", "BITPIX", "EXTEND") or k.startswith(
-            "NAXIS"
+        if (
+            not k
+            or k in ("COMMENT", "HISTORY", "SIMPLE", "BITPIX", "EXTEND")
+            or k.startswith("NAXIS")
         ):
             continue
         v = card.value

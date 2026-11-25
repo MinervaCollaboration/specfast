@@ -144,7 +144,9 @@ class OpticsCurves:
             key = (int(z["era"][i]), str(_str(z["channel"])[i]), int(z["order"][i]))
             self.rows[key] = (
                 np.asarray(z["coeffs"][i], float),
-                float(np.asarray(z["x_center"]).reshape(-1)[i if np.size(z["x_center"]) > 1 else 0]),
+                float(
+                    np.asarray(z["x_center"]).reshape(-1)[i if np.size(z["x_center"]) > 1 else 0]
+                ),
                 float(np.asarray(z["x_scale"]).reshape(-1)[i if np.size(z["x_scale"]) > 1 else 0]),
             )
 

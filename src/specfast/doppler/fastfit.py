@@ -185,12 +185,16 @@ def model_and_jacobian(
                 vp, vm = val.copy(), val.copy()
                 vp[j] += h
                 vm[j] -= h
-                kp = comp.kernels({**params[cname], pname: vp}, model.grid) if hasattr(
-                    comp, "kernels"
-                ) else [comp.evaluate({**params[cname], pname: vp}, model.grid, ctx)]
-                km = comp.kernels({**params[cname], pname: vm}, model.grid) if hasattr(
-                    comp, "kernels"
-                ) else [comp.evaluate({**params[cname], pname: vm}, model.grid, ctx)]
+                kp = (
+                    comp.kernels({**params[cname], pname: vp}, model.grid)
+                    if hasattr(comp, "kernels")
+                    else [comp.evaluate({**params[cname], pname: vp}, model.grid, ctx)]
+                )
+                km = (
+                    comp.kernels({**params[cname], pname: vm}, model.grid)
+                    if hasattr(comp, "kernels")
+                    else [comp.evaluate({**params[cname], pname: vm}, model.grid, ctx)]
+                )
                 dk = [(a - b) / (2 * h) for a, b in zip(kp, km, strict=True)]
                 c = st.pixel_factor * _blend(model, st, dkernels=dk)
                 cols.append(_cti(model, params, st, c))
@@ -248,8 +252,10 @@ class BlockSolution:
 
 
 def _apply_step(params, labels, step, bounds):
-    out = {c: {k: np.array(v, dtype=np.float64, copy=True) for k, v in d.items()} for c, d in
-           params.items()}
+    out = {
+        c: {k: np.array(v, dtype=np.float64, copy=True) for k, v in d.items()}
+        for c, d in params.items()
+    }
     for (c, p, j), s in zip(labels, step, strict=True):
         a = np.atleast_1d(out[c][p])
         a[j] += s
@@ -283,8 +289,10 @@ def fit_block_fast(
     w = np.where(np.isfinite(s) & (s > 0), 1.0 / np.where(s > 0, s, 1.0), 0.0)
     d = np.asarray(data, dtype=np.float64)
     d = np.where(w > 0, d, 0.0)
-    p = {c: {k: np.array(v, dtype=np.float64, copy=True) for k, v in dd.items()} for c, dd in
-         start.items()}
+    p = {
+        c: {k: np.array(v, dtype=np.float64, copy=True) for k, v in dd.items()}
+        for c, dd in start.items()
+    }
     lam = 1e-4
     converged = False
     it = 0

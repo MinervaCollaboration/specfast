@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import hashlib
 import json
 import multiprocessing as mp
 import pickle
@@ -57,14 +58,12 @@ from pathlib import Path
 
 import numpy as np
 
-import hashlib
-
 from specfast.config import TemplateConfig
 from specfast.conventions import C_KMS, C_MPS, measured_redshift
 from specfast.doppler import calib as CB
 from specfast.doppler.components import ExposureContext
 from specfast.doppler.fastfit import fit_block_fast, project_block, schur_terms
-from specfast.doppler.grid import LnGrid, pixel_integrate, convolve
+from specfast.doppler.grid import LnGrid, convolve, pixel_integrate
 from specfast.doppler.library import (
     GaussHermiteLSF,
     GaussianLSF,
@@ -362,8 +361,11 @@ class OrderWorker:
                     if np.sum(np.isfinite(sig)) < 200 or np.nanmedian(flux[ok]) <= 0:
                         self.log.append((fr.name, ch, o, "no_signal", ""))
                         continue
-                    rows[o].append(dict(fr=fr, ch=ch, ci=self.channels.index(ch), flux=flux,
-                                        sig=sig, init=init))
+                    rows[o].append(
+                        dict(
+                            fr=fr, ch=ch, ci=self.channels.index(ch), flux=flux, sig=sig, init=init
+                        )
+                    )
         for o in self.orders:
             self._build_order(o, rows[o], npix, buff)
 
@@ -375,8 +377,11 @@ class OrderWorker:
             return
         lam_lo = min(r["init"][4][0] for r in rows)
         lam_hi = max(r["init"][4][-1] for r in rows)
-        pix_kms = float(np.median([C_KMS * np.median(np.diff(r["init"][4])) / r["init"][4][npix // 2]
-                                   for r in rows]))
+        pix_kms = float(
+            np.median(
+                [C_KMS * np.median(np.diff(r["init"][4])) / r["init"][4][npix // 2] for r in rows]
+            )
+        )
         search_kms = mcfg.wavelength.search_px * pix_kms
         grid = LnGrid.covering(lam_lo, lam_hi, mcfg.grid_step_kms, margin_kms=search_kms + 60.0)
         lo, hi = grid.lnlam[0], grid.lnlam[-1]
@@ -407,21 +412,30 @@ class OrderWorker:
                 tau_w = -np.log(np.clip(clean, 1e-4, None))
                 tau_d = np.zeros_like(tau_w)
                 if self.cal.telluric.transmission_dry is not None:
-                    _, tdry = _cut(self.cal.telluric.lnlam, self.cal.telluric.transmission_dry,
-                                   lo, hi, 1.0)
-                    tau_d = -np.log(np.clip(np.where(tdry > mcfg.telluric.clean_threshold, 1.0,
-                                                     tdry), 1e-4, None))
-                factors.append(Telluric(lnlam=tln_, tau_dry=tau_d, tau_water=tau_w,
-                                        name="telluric"))
+                    _, tdry = _cut(
+                        self.cal.telluric.lnlam, self.cal.telluric.transmission_dry, lo, hi, 1.0
+                    )
+                    tau_d = -np.log(
+                        np.clip(
+                            np.where(tdry > mcfg.telluric.clean_threshold, 1.0, tdry), 1e-4, None
+                        )
+                    )
+                factors.append(
+                    Telluric(lnlam=tln_, tau_dry=tau_d, tau_water=tau_w, name="telluric")
+                )
             else:
                 thr = mcfg.telluric.mask_threshold
 
                 def tel_mask_fn(lam, tln_=tln_, ttr=ttr, thr=thr):
                     return np.interp(np.log(lam), tln_, ttr) < thr
+
         cti = None
         if mcfg.cti.enabled:
-            cti = SerialCTI(amplifier_column=mcfg.cti.amplifier_column,
-                            transfer_offset=mcfg.cti.transfer_offset, name="cti")
+            cti = SerialCTI(
+                amplifier_column=mcfg.cti.amplifier_column,
+                transfer_offset=mcfg.cti.transfer_offset,
+                name="cti",
+            )
         down = float(mcfg.telluric.downweight.get(o, mcfg.telluric.downweight.get(str(o), 1.0)))
         # prior template on the node grid
         prior = None
@@ -451,25 +465,37 @@ class OrderWorker:
             # the full polynomial; optics: zero)
             if coeffs is None:
                 t = wave.scaled(pixels)
-                a0 = np.polynomial.polynomial.polyfit(t, lam[p0:p1 + 1], mcfg.wavelength.degree)
+                a0 = np.polynomial.polynomial.polyfit(t, lam[p0 : p1 + 1], mcfg.wavelength.degree)
             else:
                 a0 = np.zeros(mcfg.wavelength.degree + 1)
-            cont = PolynomialContinuum(degree=mcfg.continuum_degree, x_center=xc, x_scale=half,
-                                       name="continuum")
+            cont = PolynomialContinuum(
+                degree=mcfg.continuum_degree, x_center=xc, x_scale=half, name="continuum"
+            )
             lsf, lsfp = self._lsf(fr, ch, o, grid, p0, p1)
             if lsf is None:
                 self.log.append((fr.name, ch, o, "no_lsf_calibration", ""))
                 continue
-            model = ForwardModel(wavelength=wave, continuum=cont, lsf=lsf,
-                                 factors=tuple(factors), grid=grid, pixels=pixels, cti=cti)
-            data = r["flux"][p0:p1 + 1].astype(float)
-            sig = r["sig"][p0:p1 + 1].astype(float) * down
+            model = ForwardModel(
+                wavelength=wave,
+                continuum=cont,
+                lsf=lsf,
+                factors=tuple(factors),
+                grid=grid,
+                pixels=pixels,
+                cti=cti,
+            )
+            data = r["flux"][p0 : p1 + 1].astype(float)
+            sig = r["sig"][p0 : p1 + 1].astype(float) * down
             if tel_mask_fn is not None:
-                sig = np.where(tel_mask_fn(lam[p0:p1 + 1]), np.inf, sig)
+                sig = np.where(tel_mask_fn(lam[p0 : p1 + 1]), np.inf, sig)
             p = {
                 "wavelength": {"coeffs": a0},
-                "continuum": {"coeffs": np.r_[np.nanpercentile(data[np.isfinite(sig)], 90),
-                                              np.zeros(mcfg.continuum_degree)]},
+                "continuum": {
+                    "coeffs": np.r_[
+                        np.nanpercentile(data[np.isfinite(sig)], 90),
+                        np.zeros(mcfg.continuum_degree),
+                    ]
+                },
                 "lsf": lsfp,
                 "star": {"v": np.array([cfg.star.rv_kms * 1e3])},
             }
@@ -486,15 +512,26 @@ class OrderWorker:
                 if mcfg.cti.signal_scale is not None:
                     cp["signal_scale"] = np.array([mcfg.cti.signal_scale])
                 p["cti"] = cp
-            ctx = ExposureContext(z_bary=fr.z_bary, airmass=float(fr.airmass[self.ins.arms[0]
-                                                                       .channels.index(ch)]))
+            ctx = ExposureContext(
+                z_bary=fr.z_bary, airmass=float(fr.airmass[self.ins.arms[0].channels.index(ch)])
+            )
             key = (fr.name, ch)
-            b = Block(key=key, order=o, model=model, data=data, sigma=sig, ctx=ctx, start=p,
-                      channel=ch)
+            b = Block(
+                key=key, order=o, model=model, data=data, sigma=sig, ctx=ctx, start=p, channel=ch
+            )
             blocks.append(b)
-            meta.append(dict(frame=fr.name, ch=ch, order=o, mjd=fr.mjd_mid, z_bary=fr.z_bary,
-                             p0=p0, p1=p1, era_lsf=(self.cal.lsf_map.era(fr.mjd_mid)
-                                                    if self.cal.lsf_map else 0)))
+            meta.append(
+                dict(
+                    frame=fr.name,
+                    ch=ch,
+                    order=o,
+                    mjd=fr.mjd_mid,
+                    z_bary=fr.z_bary,
+                    p0=p0,
+                    p1=p1,
+                    era_lsf=(self.cal.lsf_map.era(fr.mjd_mid) if self.cal.lsf_map else 0),
+                )
+            )
             params.append(p)
         self.blocks[o], self.meta[o] = blocks, meta
         if star_mode != "fixed" and blocks:
@@ -513,8 +550,10 @@ class OrderWorker:
             self.solvers[o] = sol
             self.params[o] = sol.params
         else:
-            self.params[o] = [{c: {k: np.array(v, float) for k, v in d.items()} for c, d in
-                               p.items()} for p in params]
+            self.params[o] = [
+                {c: {k: np.array(v, float) for k, v in d.items()} for c, d in p.items()}
+                for p in params
+            ]
 
     def _lsf(self, fr, ch, o, grid, p0, p1):
         m = self.cfg.model.lsf
@@ -535,8 +574,16 @@ class OrderWorker:
                 raise ValueError("lsf.illumination = basis needs calibrations.lsf_basis")
             basis, bstep = self.cal.lsf_basis.for_order(o), self.cal.lsf_basis.step_mps
         lsf = GaussHermiteLSF.for_grid(
-            grid, 1.4 * row[0], nsigma=m.nsigma, pixel_lo=float(p0), pixel_hi=float(p1),
-            nnode=m.nnode, illumination=illum, basis=basis, basis_step_mps=bstep, name="lsf",
+            grid,
+            1.4 * row[0],
+            nsigma=m.nsigma,
+            pixel_lo=float(p0),
+            pixel_hi=float(p1),
+            nnode=m.nnode,
+            illumination=illum,
+            basis=basis,
+            basis_step_mps=bstep,
+            name="lsf",
         )
         p = {"map": row.copy()}
         if lsf.n_illum:
@@ -586,12 +633,25 @@ class OrderWorker:
                 free = [lf for lf in LOCAL_FREE if lf[0] in p]
                 try:
                     if cold:
-                        s1 = fit_block_fast(b.model, b.data, b.sigma, b.ctx, p,
-                                            [f for f in free if f != ("star", "v")],
-                                            max_iter=self.cfg.solver.max_iter_block)
+                        s1 = fit_block_fast(
+                            b.model,
+                            b.data,
+                            b.sigma,
+                            b.ctx,
+                            p,
+                            [f for f in free if f != ("star", "v")],
+                            max_iter=self.cfg.solver.max_iter_block,
+                        )
                         p.update(s1.params)
-                    sol = fit_block_fast(b.model, b.data, b.sigma, b.ctx, p, free,
-                                         max_iter=self.cfg.solver.max_iter_block)
+                    sol = fit_block_fast(
+                        b.model,
+                        b.data,
+                        b.sigma,
+                        b.ctx,
+                        p,
+                        free,
+                        max_iter=self.cfg.solver.max_iter_block,
+                    )
                 except Exception as exc:  # noqa: BLE001
                     self.log.append((fname, ch, o, "fit_error", repr(exc)))
                     rows.append((o, i, np.nan, np.inf, np.nan, 0, False, 0, np.nan, np.nan))
@@ -623,8 +683,10 @@ class OrderWorker:
         return rows, schur
 
     def keys(self):
-        return {o: [(b.key, m["z_bary"]) for b, m in zip(self.blocks[o], self.meta[o],
-                                                         strict=True)] for o in self.orders}
+        return {
+            o: [(b.key, m["z_bary"]) for b, m in zip(self.blocks[o], self.meta[o], strict=True)]
+            for o in self.orders
+        }
 
     # ------------------------------------------------------------- template
     def template(self, block_v, zp_increment):
@@ -642,16 +704,19 @@ class OrderWorker:
             sol.template_step()
             if sol.config.learn_observatory and any(sol.learned[o]):
                 sol.observatory_step()
-            stats[o] = dict(dflux_rms=float(np.sqrt(np.mean((sol.flux[o] - old) ** 2))),
-                            zero_point=float(sol.zero_point[o]))
+            stats[o] = dict(
+                dflux_rms=float(np.sqrt(np.mean((sol.flux[o] - old) ** 2))),
+                zero_point=float(sol.zero_point[o]),
+            )
         return stats
 
     # ------------------------------------------------------------ project
     def project(self, nseg, projection):
         rows = []
         for o in self.orders:
-            for i, (b, p, m) in enumerate(zip(self.blocks[o], self.params[o], self.meta[o],
-                                              strict=True)):
+            for i, (b, p, m) in enumerate(
+                zip(self.blocks[o], self.params[o], self.meta[o], strict=True)
+            ):
                 free = [lf for lf in LOCAL_FREE if lf[0] in p]
                 out = dict(order=o, index=i)
                 lam = b.model.wavelength.evaluate(p["wavelength"], b.model.pixels[[0, -1]], b.ctx)
@@ -661,23 +726,34 @@ class OrderWorker:
                     out["cov_local"] = sol.cov
                     out["labels"] = sol.labels
                     if projection:
-                        out["proj"] = project_block(b.model, p, b.ctx, b.data, b.sigma, free,
-                                                    nseg=nseg)
+                        out["proj"] = project_block(
+                            b.model, p, b.ctx, b.data, b.sigma, free, nseg=nseg
+                        )
                 except Exception as exc:  # noqa: BLE001
                     self.log.append((m["frame"], m["ch"], o, "project_error", repr(exc)))
-                out["params"] = {c: {k: np.asarray(v).tolist() for k, v in d.items()
-                                     if k not in ("flux", "dtau", "dtau_dry", "dtau_water")}
-                                 for c, d in p.items()}
+                out["params"] = {
+                    c: {
+                        k: np.asarray(v).tolist()
+                        for k, v in d.items()
+                        if k not in ("flux", "dtau", "dtau_dry", "dtau_water")
+                    }
+                    for c, d in p.items()
+                }
                 rows.append(out)
         return rows
 
     def templates(self):
         out = {}
         for o, sol in self.solvers.items():
-            out[o] = dict(grid=(sol.grids[o].ln_start, sol.grids[o].step, sol.grids[o].n),
-                          flux=sol.flux[o], sigma=sol.flux_sigma[o], prior=sol.prior[o],
-                          zero_point=sol.zero_point[o], zero_point_sigma=sol.zero_point_sigma[o],
-                          observatory={f"{a}.{b}": v for (a, b), v in sol.learned[o].items()})
+            out[o] = dict(
+                grid=(sol.grids[o].ln_start, sol.grids[o].step, sol.grids[o].n),
+                flux=sol.flux[o],
+                sigma=sol.flux_sigma[o],
+                prior=sol.prior[o],
+                zero_point=sol.zero_point[o],
+                zero_point_sigma=sol.zero_point_sigma[o],
+                observatory={f"{a}.{b}": v for (a, b), v in sol.learned[o].items()},
+            )
         return out
 
     def state(self):
@@ -685,13 +761,21 @@ class OrderWorker:
         for o in self.orders:
             st[o] = dict(
                 keys=[b.key for b in self.blocks[o]],
-                params=[{c: {k: np.asarray(v) for k, v in d.items() if k != "flux"}
-                         for c, d in p.items()} for p in self.params[o]],
+                params=[
+                    {
+                        c: {k: np.asarray(v) for k, v in d.items() if k != "flux"}
+                        for c, d in p.items()
+                    }
+                    for p in self.params[o]
+                ],
             )
             if o in self.solvers:
                 sol = self.solvers[o]
-                st[o].update(flux=sol.flux[o], zp=sol.zero_point[o],
-                             learned={k: v for k, v in sol.learned[o].items()})
+                st[o].update(
+                    flux=sol.flux[o],
+                    zp=sol.zero_point[o],
+                    learned={k: v for k, v in sol.learned[o].items()},
+                )
         return st
 
     def load_state(self, st):
@@ -866,13 +950,16 @@ def _shared_update(cfg, shared, schur, frames_era, hyper):
             phi = np.asarray(shared["illum"].get(key, np.zeros(n)), float)
             grp = (key[1], frames_era.get(key[0], 0))
             mu, tau = hyper.get(grp, (np.zeros(n), np.resize(np.array(lsf.tau_init, float), n)))
-            P = np.diag(1.0 / np.maximum(tau, lsf.tau_floor) ** 2) if lsf.hierarchical else \
-                np.zeros((n, n))
+            P = (
+                np.diag(1.0 / np.maximum(tau, lsf.tau_floor) ** 2)
+                if lsf.hierarchical
+                else np.zeros((n, n))
+            )
             try:
                 d = np.linalg.solve(H + P, np.atleast_1d(g) - P @ (phi - mu))
             except np.linalg.LinAlgError:
                 continue
-            d = np.clip(d, -1.0, 1.0) if lsf.illumination == "basis" else np.clip(d, -0.02, 0.02)
+            d = np.clip(d, -3.0, 3.0) if lsf.illumination == "basis" else np.clip(d, -0.05, 0.05)
             shared["illum"][key] = phi + d
             try:
                 shared.setdefault("illum_var", {})[key] = np.diag(np.linalg.inv(H + P))
@@ -890,18 +977,23 @@ def _shared_update(cfg, shared, schur, frames_era, hyper):
                 V_ = np.array([x[1] if x[1] is not None else np.zeros(P_.shape[1]) for x in items])
                 if len(items) < 3:
                     continue
+                # EM update of the hierarchical normal prior: mean and
+                # variance of the posterior means plus their posterior
+                # variances (never collapses below what the data support)
                 mu = P_.mean(axis=0)
-                var = np.maximum(P_.var(axis=0) - V_.mean(axis=0), lsf.tau_floor**2)
+                var = np.maximum(((P_ - mu) ** 2 + V_).mean(axis=0), lsf.tau_floor**2)
                 hyper[grp] = (mu, np.sqrt(var))
-            out["illum_hyper"] = {f"{g[0]}/era{g[1]}": [np.round(h[0], 4).tolist(),
-                                                        np.round(h[1], 4).tolist()]
-                                  for g, h in hyper.items()}
+            out["illum_hyper"] = {
+                f"{g[0]}/era{g[1]}": [np.round(h[0], 4).tolist(), np.round(h[1], 4).tolist()]
+                for g, h in hyper.items()
+            }
     return out
 
 
 def _legendre(x, deg):
-    return np.stack([np.polynomial.legendre.legval(x, np.eye(deg + 1)[k])
-                     for k in range(1, deg + 1)], axis=1)
+    return np.stack(
+        [np.polynomial.legendre.legval(x, np.eye(deg + 1)[k]) for k in range(1, deg + 1)], axis=1
+    )
 
 
 def _berv_pattern(cfg, bl, vel, off):
@@ -921,12 +1013,17 @@ def _berv_pattern(cfg, bl, vel, off):
         if s.sum() < 20:
             continue
         chs = sorted(set(bl["ch"][s]))
-        X = np.concatenate([np.stack([(bl["ch"][s] == c).astype(float) for c in chs], 1),
-                            _legendre(x[s], bp.degree)], axis=1)
+        X = np.concatenate(
+            [
+                np.stack([(bl["ch"][s] == c).astype(float) for c in chs], 1),
+                _legendre(x[s], bp.degree),
+            ],
+            axis=1,
+        )
         w = 1.0 / bl["sv"][s] ** 2
         A = X.T @ (X * w[:, None])
         c = np.linalg.solve(A + 1e-9 * np.eye(A.shape[0]), X.T @ (w * r[s]))
-        cb = c[len(chs):]
+        cb = c[len(chs) :]
         coefs[int(o)] = cb.tolist()
         so = bl["order"] == o
         f[so] = _legendre(x[so], bp.degree) @ cb
@@ -975,11 +1072,16 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
             for r in res:
                 for k, lst in r.items():
                     per.setdefault(k, []).extend(lst)
-            med = {k: float(np.median([s for _, s, g in lst if g > 0] or [s for _, s, _ in lst]))
-                   for k, lst in per.items()}
+            med = {
+                k: float(np.median([s for _, s, g in lst if g > 0] or [s for _, s, _ in lst]))
+                for k, lst in per.items()
+            }
             pool.call("search", shifts=med, half_range=3.0, step=0.25)
-            _progress(out, f"wavelength search done ({time.time() - t_start:.0f} s); "
-                      f"median |shift| {np.median(np.abs(list(med.values()))):.2f} px")
+            _progress(
+                out,
+                f"wavelength search done ({time.time() - t_start:.0f} s); "
+                f"median |shift| {np.median(np.abs(list(med.values()))):.2f} px",
+            )
         else:
             for k in pool.call("state"):
                 pass
@@ -1004,23 +1106,35 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
             for kk in pool.call("keys"):
                 keys.update(kk)
             bl = _block_table(rows, keys, zb)
-            ok = np.isfinite(bl["v"]) & np.isfinite(bl["sv"]) & (bl["sv"] > 0) & \
-                (bl["sv"] < 1e3)
-            vel, off = combine_velocities(bl["v"][ok], bl["sv"][ok],
-                                          [bl["key"][i] for i in np.where(ok)[0]],
-                                          bl["order"][ok], fit_offsets=True)
+            ok = np.isfinite(bl["v"]) & np.isfinite(bl["sv"]) & (bl["sv"] > 0) & (bl["sv"] < 1e3)
+            vel, off = combine_velocities(
+                bl["v"][ok],
+                bl["sv"][ok],
+                [bl["key"][i] for i in np.where(ok)[0]],
+                bl["order"][ok],
+                fit_offsets=True,
+            )
             if cfg.model.berv_pattern.enabled:
                 f_berv, bcoef = _berv_pattern(cfg, bl, vel, off)
                 bl["v_berv_corr"] = bl["v"] - f_berv
-                vel, off = combine_velocities(bl["v_berv_corr"][ok], bl["sv"][ok],
-                                              [bl["key"][i] for i in np.where(ok)[0]],
-                                              bl["order"][ok], fit_offsets=True)
+                vel, off = combine_velocities(
+                    bl["v_berv_corr"][ok],
+                    bl["sv"][ok],
+                    [bl["key"][i] for i in np.where(ok)[0]],
+                    bl["order"][ok],
+                    fit_offsets=True,
+                )
             vk = np.array([vel[k][0] for k in sorted(vel)])
-            rec = dict(sweep=sweep, seconds=time.time() - t0, nblocks=int(len(bl["v"])),
-                       nfit=int(ok.sum()), chi2=float(np.nansum(bl["chi2"])),
-                       ndata=int(np.nansum(bl["ndata"])),
-                       converged_blocks=float(np.mean(bl["conv"])),
-                       order_offsets_rms=float(np.std([d for d, _ in off.values()])))
+            rec = dict(
+                sweep=sweep,
+                seconds=time.time() - t0,
+                nblocks=int(len(bl["v"])),
+                nfit=int(ok.sum()),
+                chi2=float(np.nansum(bl["chi2"])),
+                ndata=int(np.nansum(bl["ndata"])),
+                converged_blocks=float(np.mean(bl["conv"])),
+                order_offsets_rms=float(np.std([d for d, _ in off.values()])),
+            )
             if prev is not None:
                 common = sorted(set(prev) & set(vel))
                 dv = np.array([vel[k][0] - prev[k][0] for k in common])
@@ -1033,9 +1147,20 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
             rec.update({k: v for k, v in upd.items() if k != "illum_hyper"})
             rec["illum_hyper"] = upd.get("illum_hyper")
             conv["sweeps"].append(rec)
-            _progress(out, "sweep %d: %s" % (sweep, json.dumps(
-                {k: (round(v, 4) if isinstance(v, float) else v) for k, v in rec.items()
-                 if k != "illum_hyper"})))
+            _progress(
+                out,
+                "sweep %d: %s"
+                % (
+                    sweep,
+                    json.dumps(
+                        {
+                            k: (round(v, 4) if isinstance(v, float) else v)
+                            for k, v in rec.items()
+                            if k != "illum_hyper"
+                        }
+                    ),
+                ),
+            )
             with open(out / "convergence.json", "w") as fh:
                 json.dump(conv, fh, indent=1, default=float)
             converged = prev is not None and rec.get("dv_max", np.inf) < cfg.solver.tol_mps
@@ -1058,20 +1183,25 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                 rec["template"] = {int(o): v for s in st for o, v in s.items()}
         # final projection and outputs
         _progress(out, "projection")
-        proj = [r for rr in pool.call("project", nseg=cfg.outputs.segments,
-                                      projection=cfg.outputs.projection) for r in rr]
+        proj = [
+            r
+            for rr in pool.call(
+                "project", nseg=cfg.outputs.segments, projection=cfg.outputs.projection
+            )
+            for r in rr
+        ]
         temps = {}
         for t in pool.call("templates"):
             temps.update(t)
-        _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_berv,
-                       config_path)
+        _write_outputs(
+            cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_berv, config_path
+        )
     finally:
         log.extend(pool.close())
     with open(out / "log.tsv", "w") as fh:
         fh.write("frame\tchannel\torder\treason\tdetail\n")
         for row in log:
-            fh.write("\t".join(str(x).replace("\t", " ").replace("\n", " | ") for x in row)
-                     + "\n")
+            fh.write("\t".join(str(x).replace("\t", " ").replace("\n", " | ") for x in row) + "\n")
     conv["finished"] = datetime.datetime.now(datetime.UTC).isoformat()
     conv["seconds"] = time.time() - t_start
     with open(out / "convergence.json", "w") as fh:
@@ -1105,11 +1235,21 @@ def _save_state(out, pool, shared, hyper):
 
 def _block_table(rows, keys, zb):
     n = len(rows)
-    bl = dict(order=np.zeros(n, int), index=np.zeros(n, int), v=np.full(n, np.nan),
-              sv=np.full(n, np.nan), chi2=np.full(n, np.nan), ndata=np.zeros(n, int),
-              conv=np.zeros(n, bool), niter=np.zeros(n, int), frac=np.full(n, np.nan),
-              k=np.full(n, np.nan), key=[None] * n, ch=np.empty(n, object),
-              berv_kms=np.zeros(n))
+    bl = dict(
+        order=np.zeros(n, int),
+        index=np.zeros(n, int),
+        v=np.full(n, np.nan),
+        sv=np.full(n, np.nan),
+        chi2=np.full(n, np.nan),
+        ndata=np.zeros(n, int),
+        conv=np.zeros(n, bool),
+        niter=np.zeros(n, int),
+        frac=np.full(n, np.nan),
+        k=np.full(n, np.nan),
+        key=[None] * n,
+        ch=np.empty(n, object),
+        berv_kms=np.zeros(n),
+    )
     for j, (o, i, v, sv, chi2, nd, cv, nit, frac, k) in enumerate(rows):
         bl["order"][j], bl["index"][j] = o, i
         bl["v"][j], bl["sv"][j], bl["chi2"][j] = v, sv, chi2
@@ -1122,8 +1262,7 @@ def _block_table(rows, keys, zb):
     return bl
 
 
-def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_berv,
-                   config_path):
+def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_berv, config_path):
     from astropy.table import Table
 
     from specfast.doppler.runconfig import CorrectionConfig  # noqa: F401
@@ -1139,13 +1278,26 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
         fname, ch = bl["key"][j]
         f = fr[fname]
         v = bl["v"][j]
-        r = dict(file=fname, channel=ch, tel=chans.index(ch), order=o, mjd_mid_utc=f.mjd_mid,
-                 exptime=f.exptime, z_bary_prov=f.z_bary, v=v, v_err=bl["sv"][j],
-                 cz=float(C_MPS * measured_redshift(v, f.z_bary)) if np.isfinite(v) else np.nan,
-                 chi2=bl["chi2"][j], ndata=int(bl["ndata"][j]), frac_rms=bl["frac"][j],
-                 iodine_k=bl["k"][j], converged=bool(bl["conv"][j]), niter=int(bl["niter"][j]),
-                 berv_pattern=float(f_berv[j]) if f_berv is not None else 0.0,
-                 water=float(shared["water"].get(fname, np.nan)))
+        r = dict(
+            file=fname,
+            channel=ch,
+            tel=chans.index(ch),
+            order=o,
+            mjd_mid_utc=f.mjd_mid,
+            exptime=f.exptime,
+            z_bary_prov=f.z_bary,
+            v=v,
+            v_err=bl["sv"][j],
+            cz=float(C_MPS * measured_redshift(v, f.z_bary)) if np.isfinite(v) else np.nan,
+            chi2=bl["chi2"][j],
+            ndata=int(bl["ndata"][j]),
+            frac_rms=bl["frac"][j],
+            iodine_k=bl["k"][j],
+            converged=bool(bl["conv"][j]),
+            niter=int(bl["niter"][j]),
+            berv_pattern=float(f_berv[j]) if f_berv is not None else 0.0,
+            water=float(shared["water"].get(fname, np.nan)),
+        )
         il = shared["illum"].get((fname, ch))
         r["illum"] = np.asarray(il if il is not None else [], float)
         for name, c in corrs.items():
@@ -1159,8 +1311,9 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
             r["vseg"] = np.asarray(pr["vseg"], float)
             r["vseg_cov"] = np.asarray(pr["vseg_cov"], float).ravel()
             r["shape"] = np.array([pr["shape"].get(n, np.nan) for n in SHAPE_ORDER])
-            idx = [pr["shape_names"].index(n) if n in pr["shape_names"] else -1
-                   for n in SHAPE_ORDER]
+            idx = [
+                pr["shape_names"].index(n) if n in pr["shape_names"] else -1 for n in SHAPE_ORDER
+            ]
             cov = np.full((len(SHAPE_ORDER), len(SHAPE_ORDER)), np.nan)
             sc = pr["shape_cov"]
             for a, ia in enumerate(idx):
@@ -1193,9 +1346,16 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
     erows = []
     for (fname, ch), (v, s) in sorted(vel.items()):
         f = fr[fname]
-        e = dict(file=fname, channel=ch, tel=chans.index(ch), mjd_mid_utc=f.mjd_mid,
-                 z_bary_prov=f.z_bary, v=v, v_err=s,
-                 cz=float(C_MPS * measured_redshift(v, f.z_bary)))
+        e = dict(
+            file=fname,
+            channel=ch,
+            tel=chans.index(ch),
+            mjd_mid_utc=f.mjd_mid,
+            z_bary_prov=f.z_bary,
+            v=v,
+            v_err=s,
+            cz=float(C_MPS * measured_redshift(v, f.z_bary)),
+        )
         for name, c in corrs.items():
             e[f"corr_{name}"] = c.get(fname, chans.index(ch))
         erows.append(e)
@@ -1213,18 +1373,35 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
         np.savez(out / "templates.npz", **arr)
     inputs = {}
     c = cfg.calibrations
-    for role in ("iodine_atlas", "telluric_atlas", "template", "lsf_map", "lsf_sigma",
-                 "lsf_basis", "optics", "distortion", "detector_map"):
+    for role in (
+        "iodine_atlas",
+        "telluric_atlas",
+        "template",
+        "lsf_map",
+        "lsf_sigma",
+        "lsf_basis",
+        "optics",
+        "distortion",
+        "detector_map",
+    ):
         if getattr(c, role):
             inputs[role] = getattr(c, role)
     for cc in c.corrections:
         inputs[f"correction_{cc.name}"] = cc.path
     prov = Provenance.create("doppler", config_sha256=run_config_hash(cfg), inputs=inputs)
     with open(out / "provenance.json", "w") as fh:
-        json.dump(dict(provenance=json.loads(prov.to_json()),
-                       config=dataclasses.asdict(cfg), config_path=config_path,
-                       order_offsets={int(o): list(v) for o, v in off.items()},
-                       nframes=len(frames)), fh, indent=1, default=str)
+        json.dump(
+            dict(
+                provenance=json.loads(prov.to_json()),
+                config=dataclasses.asdict(cfg),
+                config_path=config_path,
+                order_offsets={int(o): list(v) for o, v in off.items()},
+                nframes=len(frames),
+            ),
+            fh,
+            indent=1,
+            default=str,
+        )
 
 
 SHAPE_ORDER = ("lsf_width", "lsf_h3", "star_broad", "star_skew", "star_depth")
