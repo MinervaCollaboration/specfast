@@ -242,3 +242,23 @@ def test_static_positions_loader(tmp_path):
     row = sp.get(150.0, "A", 0)
     assert row[3] == 0.0 and row[4] == 0.02
     assert sp.get(150.0, "B", 0) is None
+
+
+def test_engine_warm_start_with_new_frames(tmp_path):
+    cfg, v_true, zb = _world(tmp_path)
+    first = dict(cfg, output=str(tmp_path / "first"))
+    first["inputs"] = dict(cfg["inputs"], limit=5)
+    run(parse_run_config(first))
+    second = dict(cfg, output=str(tmp_path / "second"))
+    second["solver"] = dict(cfg["solver"], warm_start=str(tmp_path / "first" / "state.pkl"))
+    out = run(parse_run_config(second))
+    t = Table.read(out / "blocks.fits")
+    assert len(t) == 2 * len(v_true)
+    log = (out / "progress.log").read_text()
+    assert "warm start: 6 blocks without saved state" in log
+    for ch in ("A", "B"):
+        s = t[t["channel"] == ch]
+        s.sort("file")
+        resid = np.asarray(s["v"], float) - v_true
+        resid -= resid.mean()
+        assert np.std(resid) < 2.0 * np.median(np.asarray(s["v_err"], float))

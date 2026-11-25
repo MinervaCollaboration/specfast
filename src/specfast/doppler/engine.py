@@ -645,7 +645,7 @@ class OrderWorker:
         return lsf, p
 
     # --------------------------------------------------------------- search
-    def search(self, shifts=None, half_range=None, step=1.0):
+    def search(self, shifts=None, half_range=None, step=1.0, only_cold=False):
         """Coarse pixel shift per block (grid search, continuum profiled):
         around 0 over +-``half_range`` px, or around the given per-(frame,
         channel) shifts. Returns {(frame, ch): [(order, shift, dchi2)]}."""
@@ -653,6 +653,8 @@ class OrderWorker:
         hr = self.cfg.model.wavelength.search_px if half_range is None else half_range
         for o in self.orders:
             for b, p in zip(self.blocks[o], self.params[o], strict=True):
+                if only_cold and id(b) not in getattr(self, "cold", set()):
+                    continue
                 c0 = 0.0 if shifts is None else shifts.get(b.key, 0.0)
                 s, gain = _shift_search(b, p, np.arange(c0 - hr, c0 + hr + 1e-9, step))
                 if shifts is not None:
@@ -691,7 +693,7 @@ class OrderWorker:
                     p["lsf"]["illum"] = np.array(illum[b.key], float)
                 free = [lf for lf in LOCAL_FREE if lf[0] in p]
                 try:
-                    if cold:
+                    if cold or id(b) in getattr(self, "cold", set()):
                         s1 = fit_block_fast(
                             b.model,
                             b.data,
@@ -739,6 +741,7 @@ class OrderWorker:
                         acc[1] = acc[1] + g
         for sol in self.solvers.values():
             sol._sync()
+        self.cold = set()
         return rows, schur
 
     def keys(self):
@@ -847,19 +850,24 @@ class OrderWorker:
         return st
 
     def load_state(self, st):
+        """Warm start from a saved state; blocks without a saved state stay
+        cold (``self.cold``) and get the wavelength search and the two-stage
+        fit. Returns the number of cold blocks."""
+        self.cold = set()
         for o in self.orders:
-            if o not in st:
-                continue
-            idx = {k: i for i, k in enumerate(st[o]["keys"])}
+            idx = {k: i for i, k in enumerate(st[o]["keys"])} if o in st else {}
             for b, p in zip(self.blocks[o], self.params[o], strict=True):
                 j = idx.get(b.key)
                 if j is None:
+                    self.cold.add(id(b))
                     continue
                 for c, d in st[o]["params"][j].items():
                     if c in p:
                         for k, v in d.items():
                             if k in p[c] and np.shape(p[c][k]) == np.shape(v):
                                 p[c][k] = np.array(v, float)
+            if o not in st:
+                continue
             if o in self.solvers and "flux" in st[o]:
                 sol = self.solvers[o]
                 if sol.flux[o].shape == st[o]["flux"].shape:
@@ -869,6 +877,7 @@ class OrderWorker:
                     if k in sol.learned[o] and sol.learned[o][k].shape == v.shape:
                         sol.learned[o][k] = np.array(v)
                 sol._sync()
+        return len(self.cold)
 
 
 def _extra_excluded(cfg, date, ch):
@@ -1167,9 +1176,23 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                 f"median |shift| {np.median(np.abs(list(med.values()))):.2f} px",
             )
         else:
-            pool.call("load_state", st=warm["workers"])
+            ncold = sum(pool.call("load_state", st=warm["workers"]))
             shared = warm["shared"]
+            for f in frames:
+                shared.setdefault("water", {}).setdefault(f.name, 1.0)
             hyper = warm.get("hyper", {})
+            if ncold:
+                res = pool.call("search", only_cold=True)
+                per = {}
+                for r in res:
+                    for k, lst in r.items():
+                        per.setdefault(k, []).extend(lst)
+                med = {
+                    k: float(np.median([s for _, s, g in lst if g > 0] or [s for _, s, _ in lst]))
+                    for k, lst in per.items()
+                }
+                pool.call("search", shifts=med, half_range=3.0, step=0.25, only_cold=True)
+            _progress(out, f"warm start: {ncold} blocks without saved state (searched, cold fit)")
         prev = None
         templ = cfg.model.star.mode != "fixed"
         f_berv = None
