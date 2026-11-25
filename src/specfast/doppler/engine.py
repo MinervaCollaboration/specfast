@@ -998,7 +998,7 @@ def _shared_update(cfg, shared, schur, frames_era, hyper):
         if not lsf.exposure_common:
             # per-channel kernels only: remove each exposure's channel mean
             byexp: dict = {}
-            for key, phi in shared["illum"].items():
+            for key in shared["illum"]:
                 byexp.setdefault(key[0], []).append(key)
             for keys in byexp.values():
                 m = np.mean([shared["illum"][k] for k in keys], axis=0)
