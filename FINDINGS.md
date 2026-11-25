@@ -1260,6 +1260,43 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Whole-archive re-extraction x2-0.4 (testbed branch extract2)
+
+Every KiwiSpec star, B-star and daytime frame in the observatory archive
+through 2026-11-07 is re-extracted with x2-0.4: 21,735 OK, 2 failed (bad
+raw files: one empty, one with no FITS header), 582 excluded (robofast
+dry runs from 2026-11-08). x2-0.4 = x2-0.2 plus the long-term stacked bias
+(479 nights), the kiwispec.yaml detector constants (gain 1.265 e-/ADU,
+read noise 2.85 ADU, 4.8 ADU in 2016-03-22..04-01; saturation 62,000 ADU
+raw; overscan handling and raw layout read from the data shape; warm-CCD
+flag), and post-2018 era profiles. 12,575 frames (2016, and 2020 on) use
+the 2018-19 pixel-flat stack because they have no usable slit flats.
+Flags carried per frame: 1,031 warm CCD, 1,084 with no usable overscan
+(era bias level), 8,426 with a saturated raw pixel, 3,265 with all four
+telescopes dark. Cost 158 CPU-h; 100 GB of products.
+
+Same-exposure comparison with the original extraction, same RV code (m/s;
+unweighted rms / nightly / within-night):
+
+| set | original | x2-0.4 |
+|---|---|---|
+| tau Cet pre-2018 (80 exp) | 5.66 / 6.08 / 3.14 | 5.75 / 6.30 / 3.06 |
+| tau Cet post-2018 (251) | 4.20 / 3.96 / 2.83 | 4.13 / 4.07 / 2.43 |
+| HD 122064 pre-2018 (202) | 6.65 / 7.34 / 5.06 | 5.69 / 6.01 / 3.89 |
+| HD 122064 post-2018 (19) | 4.77 / 4.84 / 3.41 | 3.81 / 3.85 / 3.08 |
+
+- Bright exposures are unchanged to about +-0.2 m/s; the gains are on
+  faint exposures (HD 122064 pre-2018 nightly 7.34 -> 6.01). The extraction
+  is not what limits tau Cet.
+- Pulls 0.96-1.30 in every error class. 51 Peg K = 55.3 +- 1.7 (rms 3.9)
+  against 54.3 +- 2.0 (rms 4.8). x2 recovers exposures the original lost
+  (tau Cet post-2018: 271 vs 251).
+- The T2 count-level slope (+8.0 +- 0.6 m/s/dex) survives the new
+  extraction, so it is not an extraction artefact.
+- Ten of 21 lost HD 122064 frames sit at the RV code's 150-count floor;
+  removing the floor and weighting by errors recovers all 21 (an RV-side
+  change, not yet made).
+
 ## 2026-11-25: NEID tau Ceti through specfast: the stellar floor and the MINERVA overlap
 
 Public NEID L2 (DRP v1.5.2, one master wavelength solution): 132 frames,
