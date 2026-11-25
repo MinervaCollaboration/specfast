@@ -1000,6 +1000,7 @@ def _shared_update(cfg, shared, schur, frames_era, hyper):
     out = {}
     if "water" in schur:
         dmax = 0.0
+        nclip = 0
         for fname, (H, g) in schur["water"].items():
             H = np.atleast_2d(H)
             if H[0, 0] <= 0:
@@ -1008,10 +1009,13 @@ def _shared_update(cfg, shared, schur, frames_era, hyper):
             w0 = shared["water"].get(fname, 1.0)
             pw = 1.0 / cfg.model.telluric.water_prior_sigma**2
             d = float((np.atleast_1d(g)[0] - pw * (w0 - 1.0)) / (H[0, 0] + pw))
-            d = float(np.clip(d, -0.5, 0.5))
+            lim = max(0.5, w0)  # at most a doubling per sweep
+            d = float(np.clip(d, -lim, lim))
             shared["water"][fname] = max(shared["water"].get(fname, 1.0) + d, 0.0)
             dmax = max(dmax, abs(d))
+            nclip += int(abs(d) >= lim)
         out["water_max_step"] = dmax
+        out["water_clipped"] = nclip
     if "illum" in schur:
         lsf = cfg.model.lsf
         steps = []
