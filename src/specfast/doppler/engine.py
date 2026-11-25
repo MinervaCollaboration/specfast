@@ -66,6 +66,7 @@ from specfast.doppler.components import ExposureContext
 from specfast.doppler.fastfit import fit_block_fast, project_block, schur_terms
 from specfast.doppler.grid import LnGrid, convolve, pixel_integrate
 from specfast.doppler.library import (
+    DetectorMap,
     GaussHermiteLSF,
     GaussianLSF,
     GriddedTemplate,
@@ -475,6 +476,10 @@ class OrderWorker:
             if lsf is None:
                 self.log.append((fr.name, ch, o, "no_lsf_calibration", ""))
                 continue
+            det, detp = None, None
+            if mcfg.detector_map:
+                det = DetectorMap(npix=pixels.size, name="detector")
+                detp = self._detector_map(ch, o, p0, p1)
             model = ForwardModel(
                 wavelength=wave,
                 continuum=cont,
@@ -483,6 +488,7 @@ class OrderWorker:
                 grid=grid,
                 pixels=pixels,
                 cti=cti,
+                detector=det,
             )
             data = r["flux"][p0 : p1 + 1].astype(float)
             sig = r["sig"][p0 : p1 + 1].astype(float) * down
@@ -512,6 +518,8 @@ class OrderWorker:
                 if mcfg.cti.signal_scale is not None:
                     cp["signal_scale"] = np.array([mcfg.cti.signal_scale])
                 p["cti"] = cp
+            if det is not None:
+                p["detector"] = detp
             ctx = ExposureContext(
                 z_bary=fr.z_bary, airmass=float(fr.airmass[self.ins.arms[0].channels.index(ch)])
             )
@@ -553,6 +561,27 @@ class OrderWorker:
                 {c: {k: np.array(v, float) for k, v in d.items()} for c, d in p.items()}
                 for p in params
             ]
+
+    def _detector_map(self, ch, o, p0, p1):
+        """The detector-frame map of a trace sliced to the block (a
+        calibration product, ``calibrations.detector_map``); without one, a
+        perfect detector (logged: no measured map exists yet)."""
+        npx = p1 - p0 + 1
+        path = self.cfg.calibrations.detector_map
+        if path:
+            if not hasattr(self, "_dmap"):
+                z = np.load(path)
+                self._dmap = {
+                    (str(c), int(oo)): (np.asarray(dx, float), np.asarray(r, float))
+                    for c, oo, dx, r in zip(
+                        z["channel"], z["order"], z["dx"], z["response"], strict=True
+                    )
+                }
+            row = self._dmap.get((ch, o))
+            if row is not None:
+                return {"dx": row[0][p0 : p1 + 2].copy(), "response": row[1][p0 : p1 + 1].copy()}
+        self.log.append(("", ch, o, "detector_map_identity", "no measured map"))
+        return DetectorMap.identity(npx)
 
     def _lsf(self, fr, ch, o, grid, p0, p1):
         m = self.cfg.model.lsf

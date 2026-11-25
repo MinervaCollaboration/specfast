@@ -189,7 +189,7 @@ def _world(tmp_path, n_exp=8, seed=4):
     return cfg, v_true, zb
 
 
-@pytest.mark.parametrize("variant", ["joint", "fixed_gaussian_pipeline"])
+@pytest.mark.parametrize("variant", ["joint", "fixed_gaussian_pipeline", "detector_cti"])
 def test_engine_recovers_injected_velocities(tmp_path, variant):
     cfg, v_true, zb = _world(tmp_path)
     if variant != "joint":
@@ -198,6 +198,11 @@ def test_engine_recovers_injected_velocities(tmp_path, variant):
         )
         cfg["model"]["wavelength"]["base"] = "pipeline"
         cfg["solver"]["sweeps"] = 1
+    if variant == "detector_cti":
+        # hooks on (identity map; CTI of the synthetic data is zero, so a
+        # small CTI only perturbs the fit slightly)
+        cfg["model"]["detector_map"] = True
+        cfg["model"]["cti"] = dict(enabled=True)
     with open(tmp_path / "run.yaml", "w") as fh:
         yaml.safe_dump(cfg, fh)
     out = run(parse_run_config(cfg))
