@@ -300,6 +300,24 @@ No published RV error budget table: checked Seifahrt+2018 (arXiv:1805.09276),
 
 ## Open threads
 
+- **Theoretical iodine atlas: shelved (JDE 2026-11-24).** Idea: replace or
+  check the NIST FTS scan with a synthetic atlas from theoretical I2 B-X
+  line positions (MHz-level) and strengths, forward-modelled through the
+  LSF (observed iodine features at R ~ 80k are blends of many transitions
+  with hyperfine structure, so centroids can't be mapped to line positions
+  directly). Why shelved: the NIST scan's wavelength scale only shifts the
+  zero point; its noise (0.3%/sample, ~0.18 m/s) and per-feature depth
+  errors (1%, ~0.25 m/s) are far below the 1.75 m/s common excess. The one
+  open atlas question is an ~8% static line-shape disagreement between the
+  NIST scan and I2_0.1 at R = 80k. Revisit if the B-star local-window
+  wavelength residuals show structure that follows iodine features rather
+  than the detector or the optics. Public sources: no machine-readable B-X
+  line list for 500-630 nm was found; options are a PGOPHER synthetic
+  atlas from published constants, the Knoeckel, Bodermann & Tiemann (2004,
+  EPJ D) line-position model (< 30 MHz, 2 sigma; distributed as IodineSpec,
+  likely commercial), or the Ross & Salami (2005) Doppler-limited FTS atlas
+  (14500-20000 cm-1, available from the authors on request).
+
 - **B-star coverage caveat (2026-11-24).** Every B-star result so far
   (frozen LSF sigma per (telescope, order), the iodine and lsfgrad
   branches, the lsfillum static map) used 107 frames from 2017-03 to
