@@ -147,6 +147,21 @@ through priors and airmass/water scaling. Optics and detector separate
 through optical changes (remounts, drifts) and, on a comb instrument,
 through comb lines sampling every pixel phase.
 
+Observatory-frame components are shared across targets (JDE 2026-11-25).
+The iodine model (atlas plus any learned correction) and the telluric
+species spectra are the same for every star. They are fitted once,
+jointly, from every spectrum of every target, with only the
+per-exposure scalings (water column, airmass) free per exposure. They
+are not re-derived per star. Each target adds its own template and
+barycentric track, so the shared terms are seen against many stellar
+line patterns at many barycentric velocities. That breaks the
+template/observatory degeneracy a single star leaves open (51 Peg's
+BERV trend on a 9 km/s baseline; the tau Cet iodine-correction drift
+that the template gauge projected out). Iodine-only B-star frames pin
+the iodine terms with no stellar lines at all. A star with little
+barycentric coverage then needs no gauge of its own: it inherits the
+shared terms.
+
 Optics parameters are not only per era (JDE 2026-11-24). Eras capture
 discrete events (remounts, recabling, cleanings); between them the optics
 follow the environment continuously: temperature (focus, flexure, grating
