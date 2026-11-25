@@ -121,9 +121,13 @@ class WavelengthModel:
 class LsfModel:
     model: Literal["gaussian", "gauss_hermite"] = "gauss_hermite"
     nnode: int = 5
-    illumination: Literal["none", "gh", "basis"] = "basis"
+    illumination: Literal["none", "gh", "basis"] = "none"
     #: Hierarchical (channel, era) prior on the illumination kernel.
     hierarchical: bool = True
+    #: False: the illumination kernel is per channel relative to the others
+    #: (its mean over the channels of each exposure held at zero), so no
+    #: exposure-common LSF change is fitted.
+    exposure_common: bool = True
     #: Initial prior widths (gh: [dw, dh3]; basis: per coefficient).
     tau_init: tuple[float, ...] = (2.0, 2.0, 2.0)
     tau_floor: float = 1e-3

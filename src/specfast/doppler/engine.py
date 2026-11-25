@@ -995,6 +995,15 @@ def _shared_update(cfg, shared, schur, frames_era, hyper):
                 pass
             steps.append(np.max(np.abs(d)))
         out["illum_max_step"] = float(max(steps)) if steps else 0.0
+        if not lsf.exposure_common:
+            # per-channel kernels only: remove each exposure's channel mean
+            byexp: dict = {}
+            for key, phi in shared["illum"].items():
+                byexp.setdefault(key[0], []).append(key)
+            for keys in byexp.values():
+                m = np.mean([shared["illum"][k] for k in keys], axis=0)
+                for k in keys:
+                    shared["illum"][k] = shared["illum"][k] - m
         if lsf.hierarchical:
             groups = {}
             for key, phi in shared["illum"].items():
