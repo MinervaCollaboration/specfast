@@ -95,6 +95,9 @@ class TargetConfig:
     mode: Literal["modify", "infer", "fixed", "flat"] = "modify"
     #: Optional list of frame stems to use (one per line).
     frame_list: str | None = None
+    #: Vacuum wavelength intervals [A] left out of the fit (e.g. the few
+    #: stellar lines of a featureless target), as [[lo, hi], ...].
+    mask_angstrom: tuple[tuple[float, ...], ...] = ()
 
 
 @dataclass(frozen=True)

@@ -569,6 +569,8 @@ class OrderWorker:
             )
             data = r["flux"][p0 : p1 + 1].astype(float)
             sig = r["sig"][p0 : p1 + 1].astype(float) * down
+            for lo_a, hi_a in targets[fr.target].mask_angstrom:
+                sig = np.where((lam[p0 : p1 + 1] >= lo_a) & (lam[p0 : p1 + 1] <= hi_a), np.inf, sig)
             if tel_mask_fn is not None:
                 sig = np.where(tel_mask_fn(lam[p0 : p1 + 1]), np.inf, sig)
             p = {
@@ -840,7 +842,7 @@ class OrderWorker:
     def keys(self):
         return {
             o: [
-                (b.key, m["z_bary"], m["group"])
+                (b.key, m["z_bary"], m["group"], m.get("flat", False))
                 for b, m in zip(self.blocks[o], self.meta[o], strict=True)
             ]
             for o in self.orders
@@ -1371,6 +1373,11 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                         (bl["group"] == o)
                         & (np.abs(bl["v"] - med) > cfg.solver.template_max_dev_mps)
                     )
+            if not ok.any():
+                raise RuntimeError(
+                    "no block passed the fit gates (failed fits, frac_rms > "
+                    f"{cfg.solver.template_max_frac_rms}): nothing to combine"
+                )
             vel, off = combine_velocities(
                 bl["v"][ok],
                 bl["sv"][ok],
@@ -1438,10 +1445,13 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                         block_v[(int(bl["order"][j]), int(bl["index"][j]))] = vel[k][0] + fb
                 if cfg.model.star.fit_zero_points:
                     zpinc = {int(o): (d, s) for o, (d, s) in off.items()}
+                # featureless targets have no velocity: they stay in the
+                # observed-frame step while their fits converge and fit well
+                flat_ok = bl["flat"] & bl["conv"] & (bl["frac"] <= cfg.solver.template_max_frac_rms)
                 excl = [
                     (int(bl["order"][j]), int(bl["index"][j]))
                     for j in range(len(bl["v"]))
-                    if not ok[j] or bl["key"][j] not in vel
+                    if not (flat_ok[j] or (ok[j] and bl["key"][j] in vel))
                 ]
                 st = pool.call(
                     "template",
@@ -1508,6 +1518,7 @@ def _block_table(rows, keys, zb):
     bl = dict(
         order=np.zeros(n, int),
         group=np.zeros(n, int),
+        flat=np.zeros(n, bool),
         index=np.zeros(n, int),
         v=np.full(n, np.nan),
         sv=np.full(n, np.nan),
@@ -1526,9 +1537,10 @@ def _block_table(rows, keys, zb):
         bl["v"][j], bl["sv"][j], bl["chi2"][j] = v, sv, chi2
         bl["ndata"][j], bl["conv"][j], bl["niter"][j] = nd, cv, nit
         bl["frac"][j], bl["k"][j] = frac, k
-        key, z, g = keys[o][i]
+        key, z, g, flat = keys[o][i]
         bl["key"][j] = key
         bl["group"][j] = g
+        bl["flat"][j] = flat
         bl["ch"][j] = key[1]
         bl["berv_kms"][j] = -z * C_KMS
     return bl
