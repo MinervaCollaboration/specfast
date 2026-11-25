@@ -1055,7 +1055,7 @@ class TemplateSolver:
             ab = _to_banded_upper(Ntot)
             cb = scipy.linalg.cholesky_banded(ab, lower=False, check_finite=False)
 
-            def ninv(x, homogeneous):
+            def ninv(x, homogeneous, cb=cb, con=con):
                 y = scipy.linalg.cho_solve_banded((cb, False), x, check_finite=False)
                 if con is not None:
                     gg, cc = con
