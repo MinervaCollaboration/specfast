@@ -1260,6 +1260,55 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Three-way comparison and the tau Cet budget on x2-0.4 (testbed branch threeway)
+
+Legacy production pipeline vs the test bed's v5 chain on the original
+extraction (fit_v5, reproduced bit-exactly) vs the same chain on x2-0.4
+(timing dv_best, T2 count-slope regression, kiwispec.yaml per-telescope
+breaks, CTI, era zero-points). Legacy RVs are time-stamped with the UTC
+JD of the header midpoint (not BJD); legacy covers 2016-02..2019-01.
+
+tau Cet, 153 exposures common to all three; nightly rms / within-night /
+ML nightly excess, m/s:
+
+| Period (exp / nights) | Legacy | v5, original | v5, x2-0.4 + CTI |
+|---|---|---|---|
+| 2016-17 (60 / 44) | 16.3 / 9.7 / 14.7 | 3.95 / 2.57 / 2.47 | 4.95 / 2.18 / 2.28 |
+| 2018-07..2019-01 (92 / 59) | 5.03 / 8.85 / 4.15 | 2.26 / 2.47 / 1.53 | 2.39 / 3.04 / 1.66 |
+| overall (153 / 104) | 11.6 / 9.1 / 9.2 | 3.16 / 2.50 / 1.83 | 3.75 / 2.79 / 1.85 |
+
+Legacy's scatter is uncorrelated with the test bed's (r <= 0.2) and is not
+photons (formal errors are similar): the 3-4x gain is the pipeline.
+
+**tau Cet budget on x2-0.4 + CTI** (all 352 exposures 2016-2026):
+- ML nightly excess **1.78 [1.62, 1.96] m/s** (original extraction 1.75):
+  the extraction is not the limiting term.
+- Within-night: photon-limited (excess 0.00, < 0.28 m/s).
+- Common to all four telescopes: the per-telescope part is < 0.62 m/s
+  (95%).
+- **Not BERV or season**: r(nightly residual, BERV) = +0.08; removing a
+  BERV slope and an annual sinusoid leaves 1.77. (The BERV/season
+  dependence seen in the per-exposure LSF kernels of lsfillum is absorbed
+  there, not left in the v5 residuals.)
+- Photon floor 1.48 m/s per four-telescope exposure, 1.05 m/s nightly;
+  only 15% of exposures have all four telescopes.
+
+**Per-era B-star LSF maps (Be0) in the full chain:** worse for tau Cet
+(excess 1.78 -> 2.08), neutral for HD 122064, slightly worse for sigma Dra
+(3.07 -> 3.46). lsfillum's gain (4.92 -> 4.77) was on the uncorrected QD
+baseline and does not survive the v5 corrections.
+
+Other stars on x2-0.4: sigma Dra nightly 10.94 -> 8.68 and HD 122064 8.58
+-> 6.83 (smaller era steps, cleaner faint frames), but their ML excess
+rises on common exposures (2.67 -> 3.07; 3.13 -> 3.85). 51 Peg K = 55.34
++- 1.28 (rms 3.19). CTI is a 0.2 m/s effect.
+
+**Count floor:** removing the RV code's 150-count floor lets dark or
+unfed fibres into the fit (median error 2.6 -> 7.8 m/s). A floor of 100 e-
+per exposure-telescope recovers all 21 lost HD 122064 frames and leaves
+the weighted result unchanged; specfast should keep a per-telescope count
+floor near that level.
+
 ## 2026-11-25: Whole-archive re-extraction x2-0.4 (testbed branch extract2)
 
 Every KiwiSpec star, B-star and daytime frame in the observatory archive
