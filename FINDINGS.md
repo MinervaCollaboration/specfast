@@ -1259,6 +1259,51 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: NEID solar data through specfast (PR #9)
+
+specfast reads NEID's public L1/L2 (converter and instrument description,
+PR #9) and runs its template module with no iodine on the solar feed: six
+clear days (40 x 55 s frames each), low activity 2021-04-03, 05-02, 05-29
+(sunspot number 0-15) and high activity 2024-04-22, 05-17, 06-03 (SN
+203-266). Infer mode, L1 wavelengths fixed, Gaussian LSF at R = 110k,
+1024-px segments, 18 telluric-light orders (409-639 nm), one template per
+NEID era.
+
+| | 2021 (low activity) | 2024 (high activity) |
+|---|---|---|
+| rms(specfast - NEID DRP) per exposure | 0.33 m/s | 0.36 m/s |
+| daily means: specfast / NEID / difference | 0.40 / 0.34 / 0.15 | 2.12 / 2.01 / 0.13 |
+| within-day rms: specfast / NEID | 0.80 / 0.78 | 0.87 / 0.81 |
+| formal error: specfast (18 orders) / NEID (77 orders) | 0.22 / 0.23 | 0.25 / 0.25 |
+| residual / formal per segment | 1.13 | 1.12 |
+| per-order scatter: specfast / NEID CCF | 0.7-1.7 / 1.8-3.7 | 0.8-1.8 / 2.2-4.5 |
+
+- specfast matches NEID's pipeline to ~0.35 m/s per exposure and ~0.14
+  m/s in daily means at equal formal error from a quarter of the orders;
+  its clean orders are photon-limited (1.0-1.4x formal), NEID's per-order
+  CCF scatter 2-3x. Modify mode (IAG solar atlas prior) agrees with infer
+  mode to 0.02 m/s.
+- **NEID needs era breaks too:** one template across 2021 and 2024
+  inflates residuals to 2.8x formal; per-era templates (or per-(segment,
+  era) offsets) fix it. Between the eras NEID's master wavelength solution
+  changed and the instrument was recommissioned after the 2022 fire.
+- **Red telluric orders are not photon-limited** (2-5x formal, drifting
+  against NEID). The Sun's barycentric spread within a day (~0.14 km/s)
+  can't separate template from tellurics (the separability check flags
+  it), so solar tellurics need an external model.
+- Template zero points against the IAG solar atlas are chromatic (+15..+25
+  m/s at 600-750 nm, -15..-40 at 410-460 nm): the atlas's or NEID's
+  absolute scale; open.
+- Public solar data: 2021-01..2024-06 and 2025-02..2026-11, ~250 frames
+  per day; L2 contains L1 plus tellurics, PWV, CCFs, activity indices, a
+  chromatic exposure meter and per-order flux-weighted barycentric
+  corrections. tau Ceti: 1188 public frames on 158 nights (not yet
+  downloaded). L0 extraction scoped: it needs exactly G-CLEF's
+  calibration path (per-fibre flats, 2D scattered light, fixed weights,
+  comb-light subtraction, a comb pixel-position map).
+- SDO/HMI activity references for the validation set were compiled from
+  memory and still need verifying.
+
 ## 2026-11-25: Wavelength structure measured on B-star iodine frames (testbed branch bstarwave)
 
 Test-bed branch `bstarwave` (private test-bed repo, afae175). 50,132
