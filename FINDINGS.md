@@ -1327,6 +1327,50 @@ m/s, 95% CI):
 
 Decision: keep x04's 2016 flat; no archive re-run yet.
 
+### Follow-up: fibre-flat profile and reference traces (flat2016, 278701f)
+
+Same frozen chain and scoring, on the 402 frames taken before the
+2016-11 realignment. Two variants:
+- **fprof:** the fibre-flat profile replaces the 2016 self-profile.
+- **trv02:** reference traces rebuilt the way the original v0.2 built
+  them, from the four 2016-01-30 fibre flats, with a centre every 20
+  columns and a 6th-order polynomial per trace. 94 of 116 traces were
+  refitted; the faint and edge traces are kept.
+  - They differ from x04's 2016 trace file mainly by per-trace offsets
+    (median -0.28 px, up to 1.8 px), which x04's per-frame re-centring
+    absorbs.
+  - After removing a constant and slope per trace, the shapes differ by
+    only 0.014 px (median), at most 0.06 px.
+
+ML excess change vs x04, m/s, 95% CI:
+
+| 2016 | fprof | trv02 |
+|---|---|---|
+| sigma Dra | -0.23 [-0.40, -0.12] | **-0.36 [-0.51, -0.25]** |
+| HD 122064 | +0.03 [+0.01, +0.06] | -0.06 [-0.13, +0.01] |
+| tau Cet | 0.00 | -0.01 |
+
+- **Neither variant harms the exposures it leaves unchanged.** 2017 and
+  later move by at most ±0.04 m/s.
+- **The traces are the biggest lever found for 2016.** Once re-centred,
+  trv02's final centres differ from x04's by only ~0.02 px rms, yet
+  sigma Dra's excess moves by 0.36 m/s. The 2016 RVs are sensitive to
+  trace-shape differences below 0.05 px.
+- x04's 2016 trace file needs larger per-frame shifts than trv02 does
+  (0.25 vs 0.17 px rms), so it matches the early-2016 frames worse.
+- **Still unexplained:** relative to the original extraction, sigma Dra
+  is +0.59 [+0.26, +0.93] m/s worse with trv02 and HD 122064 about
+  +0.9. That is about 60% of sigma Dra's deficit and most of HD
+  122064's.
+
+**specfast requirement:** the extraction must measure the trace shape
+per frame or per night, not take it from a static file: errors of
+0.02 px in trace shape reach the RVs at the 0.3 m/s level.
+
+Next: a combined variant on the same frames (trv02 plus the original
+wavelength solution, then per-frame trace re-measurement). No archive
+re-run yet.
+
 ## 2026-11-25: Why autofocus ran inside exposures, and why the FAU status keyword can't flag it
 
 Of 789 (exposure, telescope) cases in 2016-2020 where a FAU autofocus run
