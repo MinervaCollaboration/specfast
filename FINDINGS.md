@@ -1452,13 +1452,38 @@ ML excess change vs x04, m/s, 95% CI:
   +0.9. That is about 60% of sigma Dra's deficit and most of HD
   122064's.
 
-**specfast requirement:** the extraction must measure the trace shape
-per frame or per night, not take it from a static file: errors of
-0.02 px in trace shape reach the RVs at the 0.3 m/s level.
+**specfast requirement:** the trace reference must match the epoch
+(rebuilt after every optical change). Trace-shape differences of
+~0.02 px after re-centring reach the RVs at the 0.3 m/s level.
 
-Next: a combined variant on the same frames (trv02 plus the original
-wavelength solution, then per-frame trace re-measurement). No archive
-re-run yet.
+**Combinations (flat2016, 8460045).** ML excess change vs x04, m/s, 95%
+CI:
+
+| 2016 variant | sigma Dra vs x04 | sigma Dra vs original | HD 122064 vs x04 | HD 122064 unchanged 2017-03..12 |
+|---|---|---|---|---|
+| trv02 | -0.36 | +0.59 | -0.06 | -0.02 |
+| trv02 + original wavelength | **-0.52 [-0.66, -0.38]** | **+0.43 [+0.14, +0.79]** | -0.15 [-0.25, -0.04] | **+0.34 [0.00, +0.77]** |
+| per-frame traces (trfr) | -0.33 | +0.62 | -0.08 | -0.02 |
+| trfr + original wavelength | -0.47 | +0.48 | -0.17 | +0.34 |
+
+- **For sigma Dra the effects add** (-0.36 and -0.17 give -0.52).
+- **The original wavelength solution always costs HD 122064's unchanged
+  2017 exposures** (+0.31 to +0.75 across every variant that uses it).
+  It acts through the era offsets the chain shares across eras. tau Cet
+  2016 also gets slightly worse (+0.19, 11 nights).
+- **Re-measuring the traces on every frame is no better than the static
+  v0.2-style traces.** The lever is the reference trace shape, not
+  per-frame tracking. That qualifies the requirement above: what
+  matters is a trace reference that matches the epoch.
+
+Decision for an x2-0.5 2016 re-extraction (not run): use trv02. The
+original wavelength solution goes in only if the chain gets an
+independent 2016 offset, so it can't leak into 2017.
+
+Still unexplained: in 2016, relative to the original extraction,
+sigma Dra is +0.43-0.59 m/s worse and HD 122064 about +0.85. Not
+explained by the flat, the profile, the traces or the wavelength
+solution.
 
 ## 2026-11-25: Why autofocus ran inside exposures, and why the FAU status keyword can't flag it
 

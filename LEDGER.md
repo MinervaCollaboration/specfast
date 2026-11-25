@@ -43,12 +43,7 @@ Rules:
 Each item below was scored only on its own (or only against a different
 baseline). Measure the combination before assuming the gains add.
 
-- **trv02 + original 2016 wavelength solution** (`v5_x04trv02` and
-  `v5_x04ow16`): **pending**, running now; rows go in when FINDINGS
-  reports it.
 - trv02 + fibre-flat profile (`v5_x04trv02`, `v5_x04fprof16`).
-- Any 2016 variant (trv02, fprof, ow) + per-frame trace re-measurement
-  (not yet built).
 - The 2016 variants + timing from 2018 only: every flat2016 run uses
   timing everywhere (`v5_x04`), not `v5_x04_timing18`.
 - Timing from 2018 only + CTI (`v5_x04_timing18`, `v5_x04_cti`), and
