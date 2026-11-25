@@ -395,6 +395,9 @@ class OrderWorker:
         )
         search_kms = mcfg.wavelength.search_px * pix_kms
         grid = LnGrid.covering(lam_lo, lam_hi, mcfg.grid_step_kms, margin_kms=search_kms + 60.0)
+        if mcfg.grid_phase:
+            # grid-phase check: the same grid shifted by a fraction of a step
+            grid = dataclasses.replace(grid, ln_start=grid.ln_start + mcfg.grid_phase * grid.step)
         lo, hi = grid.lnlam[0], grid.lnlam[-1]
         # spectral factors shared by the order
         factors = []
@@ -773,10 +776,16 @@ class OrderWorker:
             if omega != 1.0:
                 sol.flux[o] = old + omega * (sol.flux[o] - old)
                 sol._sync()
+            dobs = 0.0
             if sol.config.learn_observatory and any(sol.learned[o]):
+                before = {t: v.copy() for t, v in sol.learned[o].items()}
                 sol.observatory_step()
+                dobs = float(
+                    max(np.sqrt(np.mean((sol.learned[o][t] - before[t]) ** 2)) for t in before)
+                )
             stats[o] = dict(
                 dflux_rms=float(np.sqrt(np.mean((sol.flux[o] - old) ** 2))),
+                dobs_rms=dobs,
                 zero_point=float(sol.zero_point[o]),
             )
         return stats
@@ -1259,6 +1268,7 @@ def run(cfg: DopplerRunConfig, config_path: str | None = None) -> Path:
                 dv = dv - np.median(dv)
                 rec["dv_max"] = float(np.max(np.abs(dv)))
                 rec["dv_p95"] = float(np.percentile(np.abs(dv), 95))
+                rec["dv_med"] = float(np.median(np.abs(dv)))
                 rec["dv_rms"] = float(np.sqrt(np.mean(dv**2)))
                 rec["n_dv"] = len(common)
                 if conv["sweeps"] and "dv_rms" in conv["sweeps"][-1]:

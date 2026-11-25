@@ -204,6 +204,8 @@ class BervPatternModel:
 @dataclass(frozen=True)
 class ModelConfig:
     grid_step_kms: float = 0.25
+    #: Offset of the fine grid by this fraction of its step (grid-phase check).
+    grid_phase: float = 0.0
     #: Pixel sampling of the model: ``average`` (physical) or ``point``.
     sampling: Literal["average", "point"] = "average"
     #: Order indices; None = the arm's rv_orders.
