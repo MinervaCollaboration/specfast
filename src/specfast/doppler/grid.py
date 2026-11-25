@@ -62,7 +62,14 @@ def convolve(values: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     Output has the input's length; the first and last ``len(kernel) // 2``
     samples see zero padding and must lie in the grid margin.
     """
-    return np.convolve(values, kernel, mode="same")
+    if kernel.size <= 1000:
+        return np.convolve(values, kernel, mode="same")
+    # long kernels (fine grids): FFT convolution, same result to rounding
+    n = values.size + kernel.size - 1
+    nfft = 1 << int(np.ceil(np.log2(n)))
+    full = np.fft.irfft(np.fft.rfft(values, nfft) * np.fft.rfft(kernel, nfft), nfft)[:n]
+    h = kernel.size // 2
+    return full[h : h + values.size]
 
 
 def _slopes(values: np.ndarray, step: float) -> np.ndarray:
