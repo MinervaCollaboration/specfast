@@ -163,7 +163,12 @@ not filled.
 
 The model is evaluated on a fine uniform grid in ln(lambda) (step about
 0.05 km/s below 30 cm/s: a 0.25 km/s grid with the raw iodine scan
-leaves 0.69 m/s; FINDINGS 2026-11-24, iodinfo), convolved,
+leaves 0.69 m/s; FINDINGS 2026-11-24, iodinfo). The iodine atlas is
+interpolated in optical depth from its native samples, and convergence is
+tested by shifting the grid phase and changing the interpolation, not only
+the step: at 0.25 km/s those choices move a trace by 3-5 m/s and an
+exposure by ~1 m/s (FINDINGS 2026-11-25, cross-start). Requirement: < 0.1
+m/s per exposure under both. The model is then convolved,
 then integrated onto pixels. Without a gas cell (G-CLEF) `I2 = 1`, and
 `lam(x)` is the calibration solution shifted by the drift measured from
 the simultaneous reference channels.

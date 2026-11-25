@@ -1260,6 +1260,53 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Why two implementations of the same model disagree (cross-start test, PR #10)
+
+specfast (v5-equivalent: point sampling, linear iodine depth) and the
+test bed (wavedist QD) fitted the same model to the same exposures differ
+by ~1.1-1.5 m/s per exposure, partly common across telescopes. Test on 40
+exposures (2017-2020, 2,431 traces), parameters mapped exactly between
+the two parameterizations:
+
+- **Not the optimisers.** Each code's own solution is its own chi2
+  minimum (the other code's solution is worse by a median chi2 of 807 and
+  959). Started from the other's solution, specfast returns to its own
+  velocity within a median 0.002 m/s and the test bed within 0.06 m/s;
+  the disagreement is unchanged (per trace 6.4 -> 6.3 m/s robust,
+  per exposure 1.47 -> 1.55).
+- **The test bed's optimiser adds a little noise.** Spread of converged
+  velocity over starts at v +-50 m/s and wavelength +-0.1 px: test bed
+  (scipy trf) median 0.067, 90th percentile 0.38 m/s; specfast
+  (Gauss-Newton) 0.004 / 0.03 m/s. At most a few tenths of a m/s per
+  exposure; fixable with tighter tolerances.
+- **The models differ in how the iodine atlas is represented.** Switching
+  specfast's conventions toward the test bed's one at a time (10
+  exposures; per-trace / per-exposure robust sd of the difference):
+
+  | specfast variant | per trace | per exposure |
+  |---|---|---|
+  | base | 5.31 | 2.41 |
+  | kernel truncated at 4 sigma | 5.35 | 2.40 |
+  | atlas interpolated in transmission, not optical depth | 3.48 | 2.75 |
+  | model grid anchored per trace | 4.52 | 2.37 |
+  | all three | 1.72 | 1.02 |
+
+  The remaining 1.7 m/s per trace is probably the pixel window, which
+  still differs on 27% of traces.
+
+**Reading.** The NIST scan (0.23 km/s steps) resampled onto a 0.25 km/s
+model grid is not converged: the interpolation choice (linear in T or in
+tau) and the grid phase move a trace's velocity by 3-5 m/s and an
+exposure's by ~1 m/s. Neither convention is "right"; a 0.0625 km/s grid
+moves per-trace velocities by ~2 m/s in both codes. These per-exposure
+differences are not the common nightly excess, though they are of
+similar size: the fine grid leaves both codes' ML excess unchanged
+(test bed 1.54 -> 1.54, specfast 1.84 -> 1.81 m/s). Practical
+consequence: the atlas must be represented on its native samples (or
+oversampled well beyond them) with a stated interpolation, and the
+representation tested by grid phase and interpolation changes, not by
+grid step alone.
+
 ## 2026-11-25: Static optical LSF vs per-exposure illumination kernel (testbed branch lsfillum)
 
 Question (JDE): the LSF varies across each order; fix the optical part
