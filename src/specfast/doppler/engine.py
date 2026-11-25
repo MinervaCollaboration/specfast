@@ -260,6 +260,7 @@ class Calibrations:
     lsf_basis: CB.LsfBasis | None
     optics: CB.OpticsCurves | None
     distortion: CB.Distortion | None
+    static: CB.StaticPositions | None = None
 
     @classmethod
     def load(cls, cfg: DopplerRunConfig) -> Calibrations:
@@ -276,6 +277,7 @@ class Calibrations:
             lsf_basis=CB.LsfBasis(c.lsf_basis) if c.lsf_basis else None,
             optics=CB.OpticsCurves(c.optics) if c.optics else None,
             distortion=CB.Distortion(c.distortion) if c.distortion else None,
+            static=CB.StaticPositions(c.wavelength_static) if c.wavelength_static else None,
         )
 
 
@@ -311,6 +313,14 @@ class OrderWorker:
         """(base coeffs, base centre, base scale, D, start lambda(p))."""
         m = self.cfg.model.wavelength
         D = self.cal.distortion.get(fr.mjd_mid) if (m.distortion and self.cal.distortion) else None
+        if m.static_table:
+            if self.cal.static is None:
+                raise ValueError("wavelength.static_table needs calibrations.wavelength_static")
+            S = self.cal.static.get(fr.mjd_mid, ch, order)
+            if S is None:
+                self.log.append((fr.name, ch, order, "no_static_table_row", "S = 0"))
+            else:
+                D = S.copy() if D is None else D + S
         cols = np.arange(npix, dtype=float)
         pd = cols if D is None else cols + np.interp(cols, np.arange(D.size), D)
         if m.base == "optics":
@@ -658,7 +668,12 @@ class OrderWorker:
     def _shared_free(self, b):
         sh = []
         if "telluric" in [f.name for f in b.model.factors]:
-            sh.append(("telluric", "water"))
+            # only blocks that see water lines constrain the column
+            tel = b.model.factor("telluric")
+            lo, hi = b.model.grid.lnlam[0], b.model.grid.lnlam[-1]
+            sel = (tel.lnlam >= lo) & (tel.lnlam <= hi)
+            if np.any(sel) and float(np.max(tel.tau_water[sel])) > 1e-3:
+                sh.append(("telluric", "water"))
         if isinstance(b.model.lsf, GaussHermiteLSF) and b.model.lsf.n_illum:
             sh.append(("lsf", "illum"))
         return sh
@@ -1431,6 +1446,7 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
         "lsf_basis",
         "optics",
         "distortion",
+        "wavelength_static",
         "detector_map",
     ):
         if getattr(c, role):

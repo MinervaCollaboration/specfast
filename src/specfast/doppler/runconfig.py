@@ -102,6 +102,9 @@ class CalibrationsConfig:
     lsf_basis: str | None = None
     optics: str | None = None
     distortion: str | None = None
+    #: Static per-(era, channel, order) pixel-position table S(p) on top of
+    #: D(p) (doppler.calib.StaticPositions).
+    wavelength_static: str | None = None
     detector_map: str | None = None
     corrections: tuple[CorrectionConfig, ...] = ()
 
@@ -112,6 +115,9 @@ class WavelengthModel:
     #: polynomial started from the product's stored wavelengths.
     base: Literal["optics", "pipeline"] = "optics"
     distortion: bool = True
+    #: Apply the static position table S(p) (needs
+    #: calibrations.wavelength_static).
+    static_table: bool = False
     degree: int = 2
     #: Coarse pixel-shift search half-range [px] per (exposure, channel).
     search_px: float = 80.0

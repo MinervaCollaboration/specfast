@@ -76,7 +76,8 @@ Alternation (``strategy="alternate"``):
    detector map under a strong prior.
 
 A joint sparse solve of all blocks is the natural next step; the hook is
-``strategy="joint"`` (:meth:`TemplateSolver.joint_step`, not implemented).
+``strategy="joint"`` (:meth:`TemplateSolver.joint_step`): template and block
+velocities solved together each sweep.
 
 Degeneracies (read before trusting a template)
 ----------------------------------------------
@@ -137,7 +138,7 @@ from specfast.doppler.grid import (
     pixel_integrate,
 )
 from specfast.doppler.library import GriddedTemplate
-from specfast.doppler.model import ForwardModel
+from specfast.doppler.model import ForwardModel, ParameterLayout
 
 __all__ = [
     "Block",
@@ -969,10 +970,126 @@ class TemplateSolver:
         self._ops.clear()
         self._sync()
 
-    def joint_step(self) -> None:
-        """Hook for a joint sparse Gauss-Newton step over template, velocities
-        and nuisances of all blocks at once (not implemented yet)."""
-        raise NotImplementedError("joint template/velocity solve: use strategy='alternate'")
+    def joint_step(self, local: Sequence[tuple[str, str]] | None = None) -> dict:
+        """Joint Gauss-Newton step for every order's template nodes AND the
+        block velocities (``strategy="joint"``), replacing
+        :meth:`template_step`.
+
+        The alternation converges slowly along the template-velocity valley
+        (a template change that one set of velocities can absorb). Here, per
+        order, the normal equations of (template s, block velocities v) are
+        solved together:
+
+            [N + R   B] [s ]   [A' W d + R p]
+            [B'      C] [dv] = [J' W d      ]
+
+        with A the block's template operator, J its velocity column with the
+        block's other ``local`` parameters (wavelength, iodine strength,
+        continuum) profiled out (J - J_o (J_o' W J_o)^-1 J_o' W J), B = A' W J,
+        C = J' W J. The banded N is solved for all velocity columns at once
+        and the small Schur system for dv is dense (one row per block), so the
+        cost stays close to a template step. The template shift gauge of
+        :meth:`template_step` applies (as an exact linear constraint). The
+        local parameters are refitted by the next nuisance step; the coupling
+        of the template to them (not to the velocity) stays alternating.
+        Returns per-order velocity-step statistics.
+        """
+        from specfast.doppler.fastfit import model_and_jacobian
+
+        cfg = self.config
+        stats = {}
+        for o in self.orders:
+            g = self.grids[o]
+            N = sp.csr_matrix((g.n, g.n))
+            rhs = np.zeros(g.n)
+            idx, Bcols, C, rv = [], [], [], []
+            for i, (b, p) in enumerate(zip(self.blocks, self.params, strict=True)):
+                if b.order != o:
+                    continue
+                m = b.model
+                star = m.factor(self.star)
+                M = self._pixel_operator(i)
+                obs = m.fine_spectrum(p, b.ctx, skip=(self.star,))
+                sp_ = p[self.star]
+                W = interpolation_matrix(g, star.rest_lnlam(sp_, m.grid.lnlam, b.ctx))
+                A = M @ sp.diags(obs) @ W
+                w = self._weights(b)
+                d = np.asarray(b.data, dtype=np.float64) - cti_offset(m, p, b.ctx)
+                Aw = A.T @ sp.diags(w)
+                N = N + Aw @ A
+                rhs += Aw @ d
+                # velocity column at the current template, other locals profiled
+                h = 1.0
+                v0 = float(sp_["v"][0])
+                fp = star.evaluate({**sp_, "v": np.array([v0 + h])}, m.grid.lnlam, b.ctx)
+                fm = star.evaluate({**sp_, "v": np.array([v0 - h])}, m.grid.lnlam, b.ctx)
+                jv = M @ (obs * (fp - fm) / (2 * h))
+                if local is None:
+                    lay = ParameterLayout.free(m, exclude=b.exclude)
+                    cand = [(c, n) for c, n, _ in lay.entries]
+                else:
+                    cand = list(local)
+                others = [lp for lp in cand if lp != (self.star, "v") and lp[0] in p]
+                if others:
+                    _, Jo, _, _ = model_and_jacobian(m, p, b.ctx, others)
+                    Jow = Jo * w[:, None]
+                    try:
+                        coef = np.linalg.solve(Jow.T @ Jo, Jow.T @ jv)
+                        jv = jv - Jo @ coef
+                    except np.linalg.LinAlgError:
+                        pass
+                c = float(jv @ (w * jv))
+                if not np.isfinite(c) or c <= 0:
+                    continue
+                idx.append(i)
+                Bcols.append(Aw @ jv)
+                C.append(c)
+                rv.append(float(jv @ (w * d)))
+            D = second_difference(g.n)
+            R = sp.identity(g.n) / self.prior_sigma**2 + (D.T @ D) / cfg.smooth_sigma**2
+            ref = self.prior[o] if self.mode == "modify" else self.flux[o]
+            gvec = N @ np.gradient(ref)
+            con = (gvec, float(gvec @ ref)) if np.any(gvec) else None
+            Ntot = N + R
+            rs = rhs + R @ self.prior[o]
+            ab = _to_banded_upper(Ntot)
+            cb = scipy.linalg.cholesky_banded(ab, lower=False, check_finite=False)
+
+            def ninv(x, homogeneous):
+                y = scipy.linalg.cho_solve_banded((cb, False), x, check_finite=False)
+                if con is not None:
+                    gg, cc = con
+                    ng = scipy.linalg.cho_solve_banded((cb, False), gg, check_finite=False)
+                    den = float(gg @ ng)
+                    target = 0.0 if homogeneous else cc
+                    if den > 0:
+                        corr = (gg @ y - target) / den
+                        y = y - np.outer(ng, corr) if y.ndim == 2 else y - ng * corr
+                return y
+
+            s0 = ninv(rs, homogeneous=False)
+            if idx:
+                B = np.stack(Bcols, axis=1)
+                NB = ninv(B, homogeneous=True)
+                S = np.diag(C) - B.T @ NB
+                dv = np.linalg.solve(S, np.array(rv) - B.T @ s0)
+                snew = s0 - NB @ dv
+                for j, i in enumerate(idx):
+                    p = self.params[i]
+                    p[self.star]["v"] = np.array([float(p[self.star]["v"][0]) + dv[j]])
+                stats[o] = dict(
+                    dv_rms=float(np.sqrt(np.mean(dv**2))),
+                    dv_max=float(np.max(np.abs(dv))),
+                    nblocks=len(idx),
+                )
+            else:
+                snew = s0
+            self.flux[o] = snew
+            if self.want_sigma:
+                self.flux_sigma[o] = np.sqrt(np.clip(banded_inverse_diagonal(cb), 0, None))
+        self._ops.clear()
+        self._sync()
+        return stats
 
     # ------------------------------------------------------------ helpers
     def lsf_sigma_kms(self) -> float:
@@ -1063,8 +1180,6 @@ def infer_template(
     and warns if not; the report is in the result.
     """
     cfg = config or TemplateConfig()
-    if cfg.strategy != "alternate":
-        raise NotImplementedError(f"strategy {cfg.strategy!r}: only 'alternate' exists")
     solver = TemplateSolver(
         blocks,
         prior,
@@ -1077,7 +1192,10 @@ def infer_template(
     learn_obs = cfg.learn_observatory and any(solver.learned[o] for o in solver.orders)
 
     def update_rest():
-        solver.template_step()
+        if cfg.strategy == "joint":
+            solver.joint_step()
+        else:
+            solver.template_step()
         if learn_obs:
             solver.observatory_step()
         if cfg.fit_detector and solver.detector:

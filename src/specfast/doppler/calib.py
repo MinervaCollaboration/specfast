@@ -25,6 +25,10 @@ optics curves          ``era_starts``, ``era``, ``channel``, ``order``,
                        (p - x_center) / x_scale, lowest first),
                        ``x_center``, ``x_scale``
 distortion D(p)        ``era_starts``, ``D`` (n_era, n_columns) [px]
+static positions S(p)  ``era_starts``, ``era``, ``channel``, ``order``, ``S``
+                       (n, n_columns) [px]: per-(era, channel, order)
+                       pixel-position table on top of D (position =
+                       p + D(p) + S(p)); NaN = no measurement (taken as 0)
 detector map           ``channel``, ``order``, ``dx`` (n, npix + 1),
                        ``response`` (n, npix)
 =====================  ======================================================
@@ -49,6 +53,7 @@ __all__ = [
     "LsfMap",
     "LsfSigma",
     "OpticsCurves",
+    "StaticPositions",
     "era_index",
     "load_atlas",
 ]
@@ -165,6 +170,19 @@ class Distortion:
 
     def get(self, mjd: float) -> np.ndarray:
         return self.D[min(era_index(self.starts, mjd), len(self.D) - 1)]
+
+
+class StaticPositions:
+    def __init__(self, path):
+        z = np.load(path)
+        self.starts = np.asarray(z["era_starts"], float)
+        self.rows = {
+            (int(e), str(c), int(o)): np.nan_to_num(np.asarray(sv, float))
+            for e, c, o, sv in zip(z["era"], _str(z["channel"]), z["order"], z["S"], strict=True)
+        }
+
+    def get(self, mjd: float, channel: str, order: int) -> np.ndarray | None:
+        return self.rows.get((era_index(self.starts, mjd), channel, order))
 
 
 class Corrections:

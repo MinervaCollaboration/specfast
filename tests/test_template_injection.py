@@ -394,3 +394,21 @@ def test_operator_cache_off_gives_the_same_answer():
     ]
     np.testing.assert_allclose(res[0].block_velocity, res[1].block_velocity, rtol=0, atol=1e-9)
     np.testing.assert_allclose(res[0].templates[0].flux, res[1].templates[0].flux, atol=1e-12)
+
+
+def test_joint_strategy_matches_alternation():
+    # strategy="joint" solves template and block velocities together each
+    # sweep; noise-free it must reach the same velocities as the alternation
+    sc = make_scene(n_orders=1, npix=200, n_exp=8, seed=5)
+    data, drift = observe(sc, snr=None)
+    models = [build_model(sc, o) for o in sc.orders]
+    prior = {0: sc.orders[0].truth}
+    out = {}
+    for strat in ("alternate", "joint"):
+        blocks = make_blocks(sc, data, models, np.full(len(sc.v), GAMMA))
+        cfg = TemplateConfig(mode="modify", iterations=6, strategy=strat)
+        res = infer_template(blocks, prior, cfg)
+        v, _ = res.velocity_array(range(len(sc.v)))
+        out[strat] = v - sc.v - np.mean(v - sc.v)
+    assert np.std(out["joint"]) < 0.5
+    assert np.std(out["joint"] - out["alternate"]) < 0.3

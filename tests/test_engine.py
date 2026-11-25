@@ -221,3 +221,24 @@ def test_engine_recovers_injected_velocities(tmp_path, variant):
         assert np.allclose(cz, s["cz"])
     assert (out / "convergence.json").exists() and (out / "provenance.json").exists()
     assert np.all(np.isfinite(np.asarray(t["vseg"], float)))
+
+
+def test_static_positions_loader(tmp_path):
+    from specfast.doppler.calib import StaticPositions
+
+    S = np.zeros((2, 10))
+    S[1, 3] = np.nan
+    S[1, 4] = 0.02
+    np.savez(
+        tmp_path / "s.npz",
+        era_starts=np.array([0.0, 100.0]),
+        era=np.array([0, 1]),
+        channel=np.array(["A", "A"]),
+        order=np.array([0, 0]),
+        S=S,
+    )
+    sp = StaticPositions(tmp_path / "s.npz")
+    assert np.all(sp.get(50.0, "A", 0) == 0)
+    row = sp.get(150.0, "A", 0)
+    assert row[3] == 0.0 and row[4] == 0.02
+    assert sp.get(150.0, "B", 0) is None
