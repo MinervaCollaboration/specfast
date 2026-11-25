@@ -1330,8 +1330,19 @@ median, by period:
 - The temperature does not explain all of the decline. 2020 is
   slightly warm (55.1) but already has k 0.97, compared with 1.04 in
   2018-19 at 55.0. So there is probably a slow decline in addition to
-  the temperature effect. An independent probe, a PT100 that sat on
-  the iodine cell until 2023-06, can fill the 2021-23 gap.
+  the temperature effect.
+- **The independent iodine-cell PT100 does not measure the cell
+  itself.** It read 27-31 C, so it sat on the housing or mount, not at
+  the cell's 55 C. It is cell-related only until it lost contact in
+  2023-06.
+  - Yearly means: 2016-18 27.5-28.0, 2019 28.5, 2020 30.4, 2021 29.7,
+    2022 26.8.
+  - The warm housing in 2020 coincides with the cell reading 55.1. The
+    later cold period coincides with the cell reading below its
+    setpoint (the room/bench probe is ~23 C in 2024-26).
+  - Suggestion (not tested): the cell's control loop does not fully
+    reject ambient temperature, so the cell follows the room by
+    roughly 0.1-0.4 C.
 - The absolute median k is 0.934: the NIST atlas is 5-7% too deep.
 - Caveat: k could also absorb LSF-width changes. B-star frames in M1
   will separate the two.
