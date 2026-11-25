@@ -1335,6 +1335,20 @@ exposures.
   infer mode on the same orders to 0.27 m/s rms (formal 0.53), excess
   0.62 m/s. DSST segment zero points span +-100-185 m/s (the known DSST
   zero-point problem); inferred templates avoid it.
+- **NEID's "BERV slope" is not a barycentric-correction error.** specfast
+  applied NEID's own barycentric correction (z_bary from the L2 header;
+  0.08 m/s rms difference from re-applying it), so both pipelines share it
+  and it cancels in their difference, yet NEID minus specfast still trends.
+  Within each season tau Ceti's BERV and time are correlated at r = -0.93
+  to -0.98, so a BERV slope can't be told from a drift through the season.
+  A within-season time trend fits NEID at least as well (0.0096 +- 0.0019
+  m/s per day, about 1.3 m/s over a season; NEID minus specfast 0.0073 +-
+  0.0014). With both terms fitted, neither is cleanly separated. The likely
+  sources are in NEID's CCF RVs (mask and template mismatch, telluric
+  contamination that moves with BERV) or a slow instrument or calibration
+  drift that specfast's template fit absorbs differently. A wrong proper
+  motion or coordinate would give a secular trend, not one that resets each
+  season.
 - **Red orders with NEID's telluric model divided out** (584-787 nm):
   per-order scatter reaches the formal error (2.1 vs 2.1-2.4 m/s; NEID's
   per-order CCF RVs scatter 7-14 m/s there). This works on tau Ceti, not on
