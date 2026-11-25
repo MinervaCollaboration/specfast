@@ -1259,6 +1259,56 @@ Caveats: synthetic and noise-free, one trace, Gaussian LSF as truth,
 scaled-solar K dwarf, iodine atlas exactly known in (d). The 0.25 km/s
 grid artefact should be checked on real data before sub-30 cm/s work.
 
+## 2026-11-25: Wavelength structure measured on B-star iodine frames (testbed branch bstarwave)
+
+Test-bed branch `bstarwave` (private test-bed repo, afae175). 50,132
+B-star traces from 892 frames (2016-2026); 2.61M independent 32-px
+windows, each with a local shift fitted against the NIST atlas through the
+per-era B-star LSF (no stellar template involved). Same-night pairs show the
+formal window errors are ~1.18x too small.
+
+| Model | chi2_r | Excess beyond noise (px / m/s) |
+|---|---|---|
+| Quadratic | 11.2 | 0.072 / 82 |
+| Quadratic + D | 3.51 | 0.036 / 41 |
+| Quartic + D | 2.69 | 0.029 / 34 |
+| Sextic + D | 1.93 | 0.021 / 24 |
+| Spline, 128-px knots + D | 1.83 | 0.017 / 20 |
+| **Static table S (cross-fitted) + quadratic + D** | **1.62** | **0.018 / 21** |
+| Static table + sextic + D | 1.55 | 0.016 / 19 |
+
+- **JDE was right that the solution needs much more than a quadratic, but
+  nearly all of it is static.** Same-night pairs (< 2.4 h) show nothing
+  varying beyond noise; per-(tel, era) maps of ~0.04 px (48 m/s) have
+  split-half r 0.87-0.98, are ~90% common to all telescopes (r 0.82-0.90),
+  stable across eras (r 0.86-0.97), move with the spectrum across the
+  remount (r 0.70-0.79 at the same wavelength vs 0.49-0.57 at the same
+  pixel: optics or the iodine/LSF model, not the detector), and are
+  identical for 8 different B stars (r 0.97-0.99). Largest in the red
+  orders 19-23 and at order edges.
+- **Per exposure:** higher-order terms are worth <= 1 m/s at exposure
+  level; a small all-order degree 4-6 component (~0.01 px) correlates only
+  with exposure time (untested, possibly count-level).
+- **Cost in RV if left unmodelled:** 11-18 m/s rms per (tel, order) and
+  21-35 m/s per quarter-segment, static, absorbed by the nuisance offsets;
+  ~25 m/s of the 77-120 m/s static per-segment structure in star fits is
+  wavelength, the rest template (as wavedist concluded). It predicts
+  per-order BERV curves of ~4 m/s rms (stars cross it as BERV changes):
+  weak match to bervcheck overall (r 0.16) but good in orders 8 and 19.
+- **Stitching:** e2v CCD42-40-class, block layout unpublished. The pixel
+  flat shows no stitch line crossing the dispersion (it can't see lines
+  along the dispersion). Local step fits at 256/512/1024 multiples: no
+  common detector step above ~0.01 px (signs flip across the remount;
+  1536 is a marginal candidate). Predicted BERV errors from such steps
+  0.6-1.0 m/s rms per order, uncorrelated with bervcheck. Stitching does
+  not explain the BERV pattern.
+- e2016c (Dec 2016-Apr 2017) B-star frames are unreliable (stale
+  wavelengths); its map falls back to e2017.
+
+Design consequence: wavelength = p + D(p) + S(tel, era, order, p) as
+per-era calibration products from B stars, plus a per-exposure quadratic.
+Product: kiwispec_wavestatic_v1.fits (radish results directory).
+
 ## 2026-11-24: Is the common nightly excess stellar? (testbed branch activity)
 
 Test-bed branch `activity` (private test-bed repo, 5f054de). Chain =

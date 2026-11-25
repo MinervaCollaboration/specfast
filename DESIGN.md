@@ -439,6 +439,13 @@ Wavelength component, production form:
   (best cross-era match at the ~68 px remount shift), so it is optical.
 - D(x) is a per-era calibration product. A detector map stays possible
   if better data (a comb) ever demands it.
+- A static per-era table S(tel, era, order, p) from B-star iodine frames
+  goes on top of D: position = p + D(p) + S(p). It halves the remaining
+  wavelength residual (0.036 -> 0.018 px per 32-px window), is ~90% common
+  to all telescopes, fixed in wavelength across optical changes, and has
+  no per-exposure variation beyond noise; per exposure a quadratic
+  suffices (FINDINGS 2026-11-25, bstarwave). No CCD stitching steps above
+  ~0.01 px.
 - Fixing D(x) cuts the spectral chi2_r by 2-5% (4-5x the quartic's gain)
   and leaves the RVs unchanged; the quartic gains nothing once D is in
   and can hurt. So: quadratic per (exposure, fibre, order), no quartic
