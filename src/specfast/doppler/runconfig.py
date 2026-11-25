@@ -151,6 +151,17 @@ class IodineModel:
     node_kms: float = 0.6
     prior_sigma: float = 0.01
     smooth_sigma: float = 0.01
+    #: Fit the correction (False: keep it at its start, e.g. ``correction_file``).
+    learn: bool = True
+    #: ``templates.npz`` of an earlier run whose learned correction starts
+    #: (or, with ``learn: false``, fixes) this one: an observed-frame property
+    #: is best learned from a star with a large barycentric range.
+    correction_file: str | None = None
+    #: ``template``: constrain the correction to have no component along the
+    #: template's mean observed-frame imprint or its derivative (see
+    #: ``TemplateConfig.observatory_gauge``); ``none``: priors only.
+    gauge: Literal["none", "template"] = "none"
+    gauge_kms: float = 30.0
 
 
 @dataclass(frozen=True)

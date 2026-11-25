@@ -104,6 +104,14 @@ class TemplateConfig:
     learn_observatory: bool = True
     observatory_prior_sigma: float = 0.01
     observatory_smooth_sigma: float = 0.01
+    #: Gauge of the learned observatory corrections against the template:
+    #: ``template`` constrains each correction to have no component along the
+    #: template's mean observed-frame imprint (high-passed log flux) or its
+    #: derivative, the directions in which an observed-frame correction and the
+    #: star-frame template trade off when the barycentric range is small.
+    observatory_gauge: Literal["none", "template"] = "none"
+    #: High-pass width [km/s] of the imprint used by the template gauge.
+    observatory_gauge_kms: float = 30.0
     #: Fit the detector maps (default: fixed calibration), with these priors.
     fit_detector: bool = False
     detector_dx_sigma_px: float = 0.002

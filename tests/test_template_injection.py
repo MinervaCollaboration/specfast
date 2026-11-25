@@ -412,3 +412,39 @@ def test_joint_strategy_matches_alternation():
         out[strat] = v - sc.v - np.mean(v - sc.v)
     assert np.std(out["joint"]) < 0.5
     assert np.std(out["joint"] - out["alternate"]) < 0.3
+
+
+def test_template_gauge_on_learned_iodine_correction():
+    # a small barycentric range: the learned observed-frame iodine correction
+    # and the star-frame template trade off. The template gauge removes the
+    # correction's component along the template's mean imprint (and its
+    # derivative); the constraint holds and the velocities are not degraded.
+    from specfast.doppler.template import TemplateSolver
+
+    sc = make_scene(n_orders=1, npix=200, n_exp=8, berv_kms=3.0, seed=13)
+    data, drift = observe(sc, snr=200, seed=113)
+    o = sc.orders[0]
+    rng = np.random.default_rng(5)
+    c, d = o.lines
+    prior = {0: star_nodes(o.tgrid, c, d * (1 + 0.1 * rng.normal(size=d.size)), 3.0, 0.0)}
+    models = [build_model(sc, o, iodine_correction=True)]
+    errs = {}
+    for gauge in ("none", "template"):
+        blocks = make_blocks(sc, data, models, np.full(len(sc.v), GAMMA))
+        cfg = TemplateConfig(mode="modify", iterations=4, observatory_gauge=gauge)
+        res = infer_template(blocks, prior, cfg)
+        v, _ = res.velocity_array(range(len(sc.v)))
+        errs[gauge] = np.std(v - sc.v - np.mean(v - sc.v))
+        if gauge == "template":
+            sol = TemplateSolver(blocks, prior, cfg)
+            sol.params = res.block_params
+            sol.flux = {0: res.templates[0].flux}
+            sol._sync()
+            term = ("iodine", "dtau")
+            dt = res.block_params[0]["iodine"]["dtau"]
+            grid = blocks[0].model.factor("iodine").correction
+            C = sol._gauge_rows(0, [term], {term: grid}, np.array([0, grid.n]))
+            assert C.shape == (2, grid.n)
+            assert np.max(np.abs(C @ dt)) < 1e-8 * max(np.linalg.norm(dt), 1e-12) + 1e-12
+    print(f"\ngauge: RV rms none {errs['none']:.3g}, template {errs['template']:.3g} m/s")
+    assert errs["template"] < 1.5 * errs["none"] + 0.5

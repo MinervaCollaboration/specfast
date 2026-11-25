@@ -568,11 +568,15 @@ class OrderWorker:
                 prior_sigma=mcfg.star.prior_sigma,
                 smooth_sigma=mcfg.star.smooth_sigma,
                 fit_zero_points=mcfg.star.fit_zero_points,
-                learn_observatory=mcfg.iodine.learned_correction,
+                learn_observatory=mcfg.iodine.learned_correction and mcfg.iodine.learn,
                 observatory_prior_sigma=mcfg.iodine.prior_sigma,
                 observatory_smooth_sigma=mcfg.iodine.smooth_sigma,
+                observatory_gauge=mcfg.iodine.gauge,
+                observatory_gauge_kms=mcfg.iodine.gauge_kms,
             )
             sol = TemplateSolver(blocks, {o: prior}, tc, star="star", cache_operators=False)
+            if mcfg.iodine.correction_file and factors[1].correction is not None:
+                self._load_correction(o, sol, factors[1].correction)
             self.solvers[o] = sol
             self.params[o] = sol.params
         else:
@@ -580,6 +584,22 @@ class OrderWorker:
                 {c: {k: np.array(v, float) for k, v in d.items()} for c, d in p.items()}
                 for p in params
             ]
+
+    def _load_correction(self, o, sol, grid):
+        """Start the learned iodine correction of order ``o`` from an earlier
+        run's ``templates.npz`` (interpolated in ln wavelength onto this grid;
+        zero outside the source range)."""
+        path = self.cfg.model.iodine.correction_file
+        with np.load(path) as z:
+            kv, kg = f"o{o}_obs_iodine.dtau", f"o{o}_obsgrid_iodine.dtau"
+            if kv not in z.files or kg not in z.files:
+                self.log.append(("", "", o, "no_learned_correction", "start at zero"))
+                return
+            v = np.asarray(z[kv], float)
+            g0, gs, gn = z[kg]
+        src = g0 + gs * np.arange(int(gn))
+        sol.learned[o][("iodine", "dtau")] = np.interp(grid.lnlam, src, v, left=0.0, right=0.0)
+        sol._sync()
 
     def _detector_map(self, ch, o, p0, p1):
         """The detector-frame map of a trace sliced to the block (a
@@ -833,8 +853,21 @@ class OrderWorker:
                 zero_point=sol.zero_point[o],
                 zero_point_sigma=sol.zero_point_sigma[o],
                 observatory={f"{a}.{b}": v for (a, b), v in sol.learned[o].items()},
+                observatory_grid={
+                    f"{a}.{b}": self._learned_grid(sol, o, (a, b)) for (a, b) in sol.learned[o]
+                },
             )
         return out
+
+    @staticmethod
+    def _learned_grid(sol, o, term):
+        for b, p in zip(sol.blocks, sol.params, strict=True):
+            if b.order == o:
+                f = b.model.factor(term[0])
+                for name, grid, _ in f.learned_terms(p[f.name], b.ctx):
+                    if name == term[1]:
+                        return np.array([grid.ln_start, grid.step, grid.n], float)
+        return np.zeros(3)
 
     def state(self):
         st = {}
@@ -1501,6 +1534,8 @@ def _write_outputs(cfg, ins, out, frames, bl, proj, vel, off, shared, temps, f_b
             arr[f"o{o}_zero_point"] = np.array([d["zero_point"], d["zero_point_sigma"]])
             for k, v in d["observatory"].items():
                 arr[f"o{o}_obs_{k}"] = v
+            for k, v in d.get("observatory_grid", {}).items():
+                arr[f"o{o}_obsgrid_{k}"] = v
         np.savez(out / "templates.npz", **arr)
     inputs = {}
     c = cfg.calibrations

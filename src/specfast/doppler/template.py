@@ -912,10 +912,57 @@ class TemplateSolver:
                     + (D.T @ D) / cfg.observatory_smooth_sigma**2
                 )
             R = sp.block_diag(regs).tocsc()
-            delta = scipy.sparse.linalg.spsolve((N + R).tocsc(), rhs - R @ cur)
+            g = rhs - R @ cur
+            C = (
+                self._gauge_rows(o, terms, grids, off)
+                if cfg.observatory_gauge == "template"
+                else np.zeros((0, ntot))
+            )
+            if len(C):
+                lu = scipy.sparse.linalg.splu((N + R).tocsc())
+                x = lu.solve(g)
+                Y = np.column_stack([lu.solve(c) for c in C])
+                lam = np.linalg.solve(C @ Y, C @ (cur + x))
+                delta = x - Y @ lam
+            else:
+                delta = scipy.sparse.linalg.spsolve((N + R).tocsc(), g)
             for t, a, z in zip(terms, off[:-1], off[1:], strict=True):
                 self.learned[o][t] = self.learned[o][t] + delta[a:z]
         self._sync()
+
+    def _gauge_rows(self, o, terms, grids, off) -> np.ndarray:
+        """Constraint rows (unit vectors) for the template gauge of order
+        ``o``: per learned term, the template's mean observed-frame imprint
+        on the term's nodes (log flux, high-passed) and its derivative."""
+        cfg = self.config
+        rows = []
+        for t, a, z in zip(terms, off[:-1], off[1:], strict=True):
+            num = np.zeros(z - a)
+            den = np.zeros(z - a)
+            for b, p in zip(self.blocks, self.params, strict=True):
+                if b.order != o or id(b) in self.excluded:
+                    continue
+                m = b.model
+                s = m.factor(self.star).evaluate(p[self.star], m.grid.lnlam, b.ctx)
+                Wt = interpolation_matrix(grids[t], m.grid.lnlam)
+                num += Wt.T @ np.log(np.clip(s, 1e-6, None))
+                den += Wt.T @ np.ones(m.grid.n)
+            ok = den > 0
+            u = np.where(ok, num / np.where(ok, den, 1.0), 0.0)
+            step_kms = grids[t].step * C_KMS
+            w = max(int(round(cfg.observatory_gauge_kms / step_kms)) | 1, 3)
+            kern = np.ones(w) / w
+            norm = np.convolve(ok.astype(float), kern, mode="same")
+            smooth = np.convolve(u, kern, mode="same") / np.where(norm > 0, norm, 1.0)
+            u = np.where(ok, u - smooth, 0.0)
+            du = np.where(ok, np.gradient(u), 0.0)
+            for v in (u, du):
+                r = np.zeros(int(off[-1]))
+                nv = np.linalg.norm(v)
+                if nv > 0:
+                    r[a:z] = v / nv
+                    rows.append(r)
+        return np.array(rows) if rows else np.zeros((0, int(off[-1])))
 
     def detector_step(self) -> None:
         """One Gauss-Newton step for each trace's detector map (edge offsets
