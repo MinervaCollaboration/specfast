@@ -1319,9 +1319,19 @@ median, by period:
 |---|---|---|---|---|---|---|
 | 1.03 | 1.00 | 1.04 | 0.97 | 0.94 | 0.925 | 0.92 |
 
-- The cell temperature header reads exactly 55.00 through 2019, then
-  54.8 ± 0.13 (54.6-55.1) from 2020: the setpoint is no longer held.
-- Within 2020+, k tracks it (r 0.85, 0.17 per K).
+- **The cell temperature is a real reading, recorded in 0.1 C steps.**
+  The setpoint is always 55.0. The reading is 55.0 ± 0.1 C through
+  2022, so the cell held its setpoint until then.
+  - In 2024 it reads 54.8-54.9, in 2025 54.6-54.9 (mostly 54.7-54.8),
+    and in 2026 54.6-54.8.
+  - The cell has drifted 0.2-0.4 C below its setpoint since sometime
+    in 2023-24. There are almost no tau Cet frames in 2021-23.
+- Within 2020+, k tracks the temperature (r 0.85, 0.17 per K).
+- The temperature does not explain all of the decline. 2020 is
+  slightly warm (55.1) but already has k 0.97, compared with 1.04 in
+  2018-19 at 55.0. So there is probably a slow decline in addition to
+  the temperature effect. An independent probe, a PT100 that sat on
+  the iodine cell until 2023-06, can fill the 2021-23 gap.
 - The absolute median k is 0.934: the NIST atlas is 5-7% too deep.
 - Caveat: k could also absorb LSF-width changes. B-star frames in M1
   will separate the two.
