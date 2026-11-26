@@ -203,8 +203,8 @@ def test_iodine_transmission_interpolation():
 
     ln = np.linspace(8.6, 8.7, 50)
     t = np.linspace(0.3, 1.0, 50)
-    a = IodineCell.from_transmission(ln, t, interp="transmission")
-    b = IodineCell.from_transmission(ln, t)
+    a = IodineCell.from_transmission(ln, t)  # default: linear in transmission
+    b = IodineCell.from_transmission(ln, t, interp="tau")
     x = 0.5 * (ln[1:] + ln[:-1])
     ka = {"k": np.array([1.0])}
     assert np.allclose(a.evaluate(ka, ln, ExposureContext()), t)

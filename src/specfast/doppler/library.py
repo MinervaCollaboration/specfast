@@ -438,11 +438,12 @@ class IodineCell:
     #: ``optical_depth``: ``T = exp(-k tau)`` (physical: the column scales);
     #: ``linear``: ``T = 1 + k (exp(-tau) - 1)`` (legacy codes' depth scaling).
     scaling: str = "optical_depth"
-    #: Interpolate the atlas linearly in optical depth (``tau``), linearly in
-    #: transmission (``transmission``, legacy codes' choice), or with a cubic
-    #: spline in optical depth (``cubic``: smooth between the atlas samples,
-    #: which matters when the atlas is sampled at about a line-core width).
-    interp: str = "tau"
+    #: Interpolate the atlas linearly in transmission (``transmission``, the
+    #: default: a tabulated FTS atlas sampled at about a line-core width
+    #: behaves like bin averages), linearly in optical depth (``tau``), or
+    #: with a cubic spline in optical depth (``cubic``; it sharpens the cores
+    #: of a bin-averaged atlas).
+    interp: str = "transmission"
     #: Average the transmission over each fine-grid cell from this many
     #: sub-samples (1: point sampling at the grid nodes). An atlas whose lines
     #: are narrower than the grid step is otherwise aliased: the model then

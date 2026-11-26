@@ -170,9 +170,12 @@ class IodineModel:
     learned_correction: bool = True
     #: ``optical_depth`` (exp(-k tau)) or ``linear`` (1 + k (T - 1)).
     scaling: Literal["optical_depth", "linear"] = "optical_depth"
-    #: Atlas interpolation onto the fine grid: linear in optical depth,
-    #: linear in transmission, or a cubic spline in optical depth.
-    interp: Literal["tau", "transmission", "cubic"] = "tau"
+    #: Atlas interpolation onto the fine grid: linear in transmission (the
+    #: default: tabulated FTS atlases behave like bin averages, and on
+    #: KiwiSpec data it fits best and gives an iodine scale k of 1), linear in
+    #: optical depth, or a cubic spline in optical depth (documented option;
+    #: it sharpens the line cores of a bin-averaged atlas and fits much worse).
+    interp: Literal["tau", "transmission", "cubic"] = "transmission"
     #: Sub-samples per fine-grid cell for the cell-averaged transmission
     #: (1 = point sampling; see ``IodineCell.supersample``).
     supersample: int = 1
