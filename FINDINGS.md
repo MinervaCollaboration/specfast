@@ -1450,9 +1450,29 @@ the chain vs the test bed on 2020+ T3 (32 exposures):
     Cet's ML excess is 1.75 m/s, the same as the test bed's.
   - **Still worse in 2020+:** +0.65 [+0.24, +1.39], wrms +0.36. The T3
     outlier is gone (per-exposure difference 1.0 m/s, like T1/T2).
-    The remaining candidates are: interpolation in optical depth vs
-    transmission, the 2020+ calibration inputs, and the trace gates.
-    specfast still drops ~1,970 traces the test bed keeps.
+  - **Explained: 2020+, paired vs the test bed** (118 exposures, 58
+    nights):
+
+    | Switch | ML excess d | wrms d |
+    |---|---|---|
+    | base (interpolation in optical depth) | +0.65 [+0.24, +1.39] | +0.36 |
+    | + common traces only | +0.55 | +0.32 |
+    | + interpolation in transmission | +0.37 [+0.04, +0.90] | +0.06 |
+    | + both | **+0.07 [-0.18, +0.41]** | +0.03 |
+
+    - Calibration inputs were already identical.
+    - Interpolating the atlas linearly in optical depth vs in
+      transmission halves the per-trace difference (4.8 -> 2.5 m/s).
+      It accounts for most of the wrms and about half of the excess.
+    - The trace gates account for the rest. Restricting the test bed
+      to the common traces raises its own 2020+ excess, 1.39 -> 1.66.
+  - **Why the interpolation choice matters:** the NIST atlas is
+    sampled every 0.227 km/s, about the width of a line core. So
+    linear interpolation in optical depth and in transmission differ
+    at the percent level in the cores, at any model grid. Neither is
+    exact: the atlas is under-resolved for linear interpolation. Next:
+    a band-limited interpolant, and a check of whether the learned
+    iodine correction absorbs the choice.
 - The test bed's own iodine sampling is being checked the same way
   (testbed branch i2super). Its earlier "0.0625 km/s grid leaves the
   excess unchanged" result was also point-sampled.
