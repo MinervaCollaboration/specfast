@@ -1473,6 +1473,16 @@ the chain vs the test bed on 2020+ T3 (32 exposures):
     exact: the atlas is under-resolved for linear interpolation. Next:
     a band-limited interpolant, and a check of whether the learned
     iodine correction absorbs the choice.
+- **The multi-star joint model is unchanged by the grid fix**
+  (tau Cet 0.00 [-0.05, +0.05]).
+  - The aliasing is a static observed-frame error, and the learned
+    iodine correction and depth absorb it: the correction moves (r
+    0.969 vs before) while the RVs do not.
+  - The v5-equivalent chain has no learned correction, so the error
+    leaks into its velocities through each exposure's wavelength shift.
+  - On the 97-exposure subset, the joint model still does not beat the
+    v5-equivalent chain: +0.57 [-0.28, +1.62] m/s.
+  - 51 Peg: K 56.0 ± 1.6, BERV slope +0.12.
 - The test bed's own iodine sampling is being checked the same way
   (testbed branch i2super). Its earlier "0.0625 km/s grid leaves the
   excess unchanged" result was also point-sampled.
