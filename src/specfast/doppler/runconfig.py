@@ -170,9 +170,9 @@ class IodineModel:
     learned_correction: bool = True
     #: ``optical_depth`` (exp(-k tau)) or ``linear`` (1 + k (T - 1)).
     scaling: Literal["optical_depth", "linear"] = "optical_depth"
-    #: Atlas interpolation onto the fine grid: in optical depth or in
-    #: transmission.
-    interp: Literal["tau", "transmission"] = "tau"
+    #: Atlas interpolation onto the fine grid: linear in optical depth,
+    #: linear in transmission, or a cubic spline in optical depth.
+    interp: Literal["tau", "transmission", "cubic"] = "tau"
     #: Sub-samples per fine-grid cell for the cell-averaged transmission
     #: (1 = point sampling; see ``IodineCell.supersample``).
     supersample: int = 1

@@ -171,3 +171,17 @@ def test_iodine_cell_average_is_grid_phase_invariant():
     assert d_cell < 0.1 * d_point
     with pytest.raises(ValueError):
         IodineCell(lnlam=ln, tau=tau, supersample=0)
+    with pytest.raises(ValueError):
+        IodineCell(lnlam=ln, tau=tau, interp="sinc")
+    # a cubic spline in optical depth: between the samples, closer to the
+    # truth than linear interpolation when the atlas is coarsely sampled
+    coarse = slice(None, None, 25)  # 0.25 km/s samples of 0.25 km/s lines
+    probe_ln = ln[12::25][:-1]
+    truth = np.exp(-tau[12::25][:-1])
+    errs = {}
+    for interp in ("tau", "transmission", "cubic"):
+        cell = IodineCell(lnlam=ln[coarse], tau=tau[coarse], interp=interp)
+        errs[interp] = np.sqrt(
+            np.mean((cell.evaluate({"k": np.ones(1)}, probe_ln, None) - truth) ** 2)
+        )
+    assert errs["cubic"] < min(errs["tau"], errs["transmission"])

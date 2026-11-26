@@ -438,8 +438,10 @@ class IodineCell:
     #: ``optical_depth``: ``T = exp(-k tau)`` (physical: the column scales);
     #: ``linear``: ``T = 1 + k (exp(-tau) - 1)`` (legacy codes' depth scaling).
     scaling: str = "optical_depth"
-    #: Interpolate the atlas linearly in optical depth (``tau``) or in
-    #: transmission (``transmission``, legacy codes' choice).
+    #: Interpolate the atlas linearly in optical depth (``tau``), linearly in
+    #: transmission (``transmission``, legacy codes' choice), or with a cubic
+    #: spline in optical depth (``cubic``: smooth between the atlas samples,
+    #: which matters when the atlas is sampled at about a line-core width).
     interp: str = "tau"
     #: Average the transmission over each fine-grid cell from this many
     #: sub-samples (1: point sampling at the grid nodes). An atlas whose lines
@@ -451,6 +453,8 @@ class IodineCell:
     def __post_init__(self) -> None:
         if self.supersample < 1:
             raise ValueError("supersample must be >= 1")
+        if self.interp not in ("tau", "transmission", "cubic"):
+            raise ValueError(f"interp must be tau, transmission or cubic, got {self.interp!r}")
         object.__setattr__(self, "lnlam", frozen_array(self.lnlam))
         object.__setattr__(self, "tau", frozen_array(self.tau))
         if self.lnlam.shape != self.tau.shape or np.any(np.diff(self.lnlam) <= 0):
@@ -485,8 +489,19 @@ class IodineCell:
         sub = coords[:, None] + step[:, None] * off[None, :]
         return self._transmission(params, sub.ravel()).reshape(sub.shape).mean(axis=1)
 
+    def _spline(self):
+        sp_ = self.__dict__.get("_cubic")
+        if sp_ is None:
+            from scipy.interpolate import CubicSpline
+
+            sp_ = CubicSpline(self.lnlam, self.tau, extrapolate=False)
+            object.__setattr__(self, "_cubic", sp_)
+        return sp_
+
     def _transmission(self, params: Params, coords: np.ndarray) -> np.ndarray:
-        if self.interp == "transmission":
+        if self.interp == "cubic":
+            tau = self._spline()(np.clip(coords, self.lnlam[0], self.lnlam[-1]))
+        elif self.interp == "transmission":
             tau = -np.log(np.clip(np.interp(coords, self.lnlam, np.exp(-self.tau)), 1e-300, None))
         else:
             tau = np.interp(coords, self.lnlam, self.tau)
