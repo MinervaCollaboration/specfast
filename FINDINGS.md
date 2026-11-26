@@ -825,6 +825,58 @@ Base nightly rms: tau Cet / sigma Dra / HD 122064 = 4.63 / 11.24 / 9.23 m/s.
   end in early 2020, so post-2020 per-telescope breaks are untestable. Static
   h3 at the 2018-12-17 break (T2 h3 +0.008) is plausible but untested.
 
+### Held-out test (2026-11-26, testbed branch telbreak-holdout)
+
+Asked: the overfit study found the frozen breaks help only tau Cet (-0.30).
+Are they real or tuned to tau Cet? Frozen v5 set: T2 and T3 at
+2018-12-17, T3 2024-11-20, T2 2025-12-10; exclusions T2 2019-05-08..07-14
+and T3 2019-11-05..12-04. Full v5 chain (x2-0.4, timing from 2018, CTI,
+floor 100, era zero-points) on 34 stars. Splits were fixed in advance.
+
+- **The T2 2018-12-17 break (the site trip) is real.**
+  - It is reselected in 7 of 8 half-splits (night or season, tau Cet
+    alone or with sigma Dra and HD 122064). No other knob is chosen
+    consistently.
+  - Held out on tau Cet, alone: -0.23 [-0.47, +0.01], -0.45 [-0.76,
+    -0.14], -0.59 [-0.83, -0.34], +0.00 [-0.11, +0.12] m/s ML excess
+    (night A->B, B->A, season A->B, B->A).
+  - It is far outside a null of 500 random-date draws: in-sample tau
+    Cet gain -0.42 for the fixed set vs null 5-95% [-0.22, +0.01],
+    P < 0.002.
+  - **It improves stars never used to choose it**, paired, all data:
+    HD 19373 -0.49 [-0.68, -0.29], HD 26965 -0.35 [-0.62, -0.13],
+    HD 34411 -0.39 [-0.68, -0.07], HD 84737 -0.99 [-1.67, -0.57];
+    sigma Dra -0.29 [-0.52, -0.08] in 2018-19. Over 16 other stars
+    that span the break, 2018-19: 6 significant improvements, 1
+    significant worsening (HD 62613 +0.12); median -0.06. Overall,
+    HD 62613 +0.21 and 55 Cnc +0.48 get worse.
+  - "Only tau Cet benefits" was sample size: HD 122064 has 4 nights of
+    T2 after the trip.
+  - Reservation: fitted on seasons B and scored on seasons A, the T2
+    step gives nothing. The pre-trip T2 level was probably not constant
+    (episode E1, 2018-10..12, sits inside it); untested.
+- **The other knobs are not supported.**
+  - T3 2018-12-17: about 0 in ML excess, slightly worse nightly rms.
+  - T3 2024-11-20: no star has T3 data after it.
+  - T2 2025-12-10: only tau Cet can test it; held out 0 to +0.14.
+  - Both exclusions: about 0 on tau Cet. HD 190360 gets worse by +1.32
+    [+0.88, +2.20] (19 of its 50 nights are in the T2 2019 window).
+  - Recommendation: keep T2 2018-12-17; drop T3 2018-12-17, T2
+    2025-12-10 and both exclusions unless an independent diagnostic
+    supports them.
+- **The original selection procedure could not tell real breaks from
+  noise:** its 3-star nightly-rms objective is not unusual against the
+  null (P = 0.21). Random exclusions alone cut sigma Dra's nightly rms by
+  up to 1.9 m/s. ML excess discriminates; nightly rms does not.
+- Caveats: HD 161797 (-3.7) and HD 95128 (-3.1) move in ML excess but
+  not in weighted rms; do not use them as evidence. HD 93148 failed
+  (ZeroDivisionError at level 1). The per-star era zero-point fit
+  returns NaN for stars missing an adopted era; the holdout driver
+  refits on the eras each star spans.
+- Ledger: run ids `tbho_*`, `v5_x04_notelbrk` (baseline),
+  `v5_x04_brkonly`, `v5_x04_tbh`. Test-3 rows hold the real gain in
+  value and the null's 2.5-97.5% range in ci_lo/ci_hi.
+
 ## 2026-11-22: Fibre feed (JDE) and what it implies
 
 Each telescope feeds an octagonal fibre butt-coupled to a circular fibre.
