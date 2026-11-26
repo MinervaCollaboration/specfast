@@ -486,6 +486,7 @@ class OrderWorker:
                     correction=corr,
                     scaling=mcfg.iodine.scaling,
                     interp=mcfg.iodine.interp,
+                    supersample=mcfg.iodine.supersample,
                 )
             )
         tel_mask_fn = None

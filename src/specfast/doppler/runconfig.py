@@ -173,6 +173,9 @@ class IodineModel:
     #: Atlas interpolation onto the fine grid: in optical depth or in
     #: transmission.
     interp: Literal["tau", "transmission"] = "tau"
+    #: Sub-samples per fine-grid cell for the cell-averaged transmission
+    #: (1 = point sampling; see ``IodineCell.supersample``).
+    supersample: int = 1
     node_kms: float = 0.6
     prior_sigma: float = 0.01
     smooth_sigma: float = 0.01

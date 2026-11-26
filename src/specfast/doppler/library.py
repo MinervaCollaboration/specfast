@@ -441,8 +441,16 @@ class IodineCell:
     #: Interpolate the atlas linearly in optical depth (``tau``) or in
     #: transmission (``transmission``, legacy codes' choice).
     interp: str = "tau"
+    #: Average the transmission over each fine-grid cell from this many
+    #: sub-samples (1: point sampling at the grid nodes). An atlas whose lines
+    #: are narrower than the grid step is otherwise aliased: the model then
+    #: depends on where the grid nodes fall (its phase). Cell averaging is a
+    #: box of one grid step on top of the LSF (variance step^2 / 12).
+    supersample: int = 1
 
     def __post_init__(self) -> None:
+        if self.supersample < 1:
+            raise ValueError("supersample must be >= 1")
         object.__setattr__(self, "lnlam", frozen_array(self.lnlam))
         object.__setattr__(self, "tau", frozen_array(self.tau))
         if self.lnlam.shape != self.tau.shape or np.any(np.diff(self.lnlam) <= 0):
@@ -467,6 +475,17 @@ class IodineCell:
         return (("dtau", self.correction, float(params["k"][0])),)
 
     def evaluate(self, params: Params, coords: np.ndarray, ctx: ExposureContext) -> np.ndarray:
+        coords = np.asarray(coords, dtype=np.float64)
+        n = self.supersample
+        if n == 1 or coords.size < 2:
+            return self._transmission(params, coords)
+        # cell average: n sub-samples evenly spaced across each grid cell
+        step = np.gradient(coords)
+        off = (np.arange(n) + 0.5) / n - 0.5
+        sub = coords[:, None] + step[:, None] * off[None, :]
+        return self._transmission(params, sub.ravel()).reshape(sub.shape).mean(axis=1)
+
+    def _transmission(self, params: Params, coords: np.ndarray) -> np.ndarray:
         if self.interp == "transmission":
             tau = -np.log(np.clip(np.interp(coords, self.lnlam, np.exp(-self.tau)), 1e-300, None))
         else:
