@@ -1416,6 +1416,36 @@ the chain vs the test bed on 2020+ T3 (32 exposures):
   requirement. specfast needs a finer grid, or a sampling-invariant
   atlas representation, before the port comparison means anything.
 
+**Fix: average the iodine over each grid cell (PR #10, 322e50a).**
+- Cause: the NIST atlas was point-sampled at the grid nodes, and its
+  lines are narrower than 0.25 km/s.
+  - A half-step phase changes the iodine factor by up to 5% and a
+    block's velocity by 10-15 m/s.
+  - Point sampling at 0.0625 km/s still leaves ~0.9 m/s per block.
+    That is why grid refinement alone had appeared converged.
+- `iodine.supersample: n` averages the transmission over n sub-samples
+  per cell.
+- Grid-phase test (phase 0 vs 0.5) on tau Cet 2018+, 393
+  exposure-telescopes. Robust sd of the per-(exposure, telescope)
+  difference:
+
+| Setting | per exposure-telescope (m/s) | per block (m/s) |
+|---|---|---|
+| 0.25 km/s, point-sampled (old default) | 2.05 | 4.3 |
+| 0.25 km/s, supersample 4 | 0.14 | 0.72 |
+| 0.125 km/s, supersample 4 (adopted) | **0.068** | 0.27 |
+
+  The adopted setting meets the < 0.1 m/s requirement at ~2x the CPU.
+- **The shared correction saturates at a few hundred frames.** Using
+  the 219 highest-S/N frames instead of M1's 428 gives the same
+  correction (r 0.999, difference 5% of its rms). Fewer frames do cost
+  the per-star templates: tau Cet's excess +0.28 [+0.12, +0.43], and
+  51 Peg K 60.7 with BERV slope +1.1. More data is for the templates,
+  not the shared term.
+- The test bed's own iodine sampling is being checked the same way
+  (testbed branch i2super). Its earlier "0.0625 km/s grid leaves the
+  excess unchanged" result was also point-sampled.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra

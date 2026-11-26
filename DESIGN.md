@@ -183,7 +183,12 @@ interpolated in optical depth from its native samples, and convergence is
 tested by shifting the grid phase and changing the interpolation, not only
 the step: at 0.25 km/s those choices move a trace by 3-5 m/s and an
 exposure by ~1 m/s (FINDINGS 2026-11-25, cross-start). Requirement: < 0.1
-m/s per exposure under both. The model is then convolved,
+m/s per exposure under both. The atlas is cell-averaged, never
+point-sampled: its transmission is averaged over each grid cell from
+several sub-samples. Point sampling at 0.25 km/s moves exposures by
+2 m/s under a half-step phase shift, and still ~0.9 m/s per block at
+0.0625. Grid 0.125 km/s with 4 sub-samples meets the requirement
+(0.07 m/s; FINDINGS 2026-11-25, M1 follow-up). The model is then convolved,
 then integrated onto pixels. Without a gas cell (G-CLEF) `I2 = 1`, and
 `lam(x)` is the calibration solution shifted by the drift measured from
 the simultaneous reference channels.
