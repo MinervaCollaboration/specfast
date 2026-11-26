@@ -170,6 +170,9 @@ class IodineModel:
     learned_correction: bool = True
     #: ``optical_depth`` (exp(-k tau)) or ``linear`` (1 + k (T - 1)).
     scaling: Literal["optical_depth", "linear"] = "optical_depth"
+    #: Atlas interpolation onto the fine grid: in optical depth or in
+    #: transmission.
+    interp: Literal["tau", "transmission"] = "tau"
     node_kms: float = 0.6
     prior_sigma: float = 0.01
     smooth_sigma: float = 0.01

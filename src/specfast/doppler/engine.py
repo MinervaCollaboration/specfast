@@ -480,7 +480,12 @@ class OrderWorker:
                 corr = LnGrid.covering(np.exp(lo), np.exp(hi), mcfg.iodine.node_kms, 0.0)
             factors.append(
                 IodineCell.from_transmission(
-                    iln, itr, name="iodine", correction=corr, scaling=mcfg.iodine.scaling
+                    iln,
+                    itr,
+                    name="iodine",
+                    correction=corr,
+                    scaling=mcfg.iodine.scaling,
+                    interp=mcfg.iodine.interp,
                 )
             )
         tel_mask_fn = None
@@ -659,7 +664,11 @@ class OrderWorker:
         zero outside the source range)."""
         path = self.cfg.model.iodine.correction_file
         with np.load(path) as z:
-            kv, kg = f"o{o}_obs_iodine.dtau", f"o{o}_obsgrid_iodine.dtau"
+            # one-star runs key by order, multi-star runs by 100 * order + target
+            # (the correction is shared, so any target of the order will do)
+            cands = [o] + [100 * o + t for t in range(100)]
+            g = next((c for c in cands if f"o{c}_obsgrid_iodine.dtau" in z.files), o)
+            kv, kg = f"o{g}_obs_iodine.dtau", f"o{g}_obsgrid_iodine.dtau"
             if kv not in z.files or kg not in z.files:
                 self.log.append(("", "", o, "no_learned_correction", "start at zero"))
                 return
