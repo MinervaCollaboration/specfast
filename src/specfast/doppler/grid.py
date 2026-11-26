@@ -62,7 +62,14 @@ def convolve(values: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     Output has the input's length; the first and last ``len(kernel) // 2``
     samples see zero padding and must lie in the grid margin.
     """
-    return np.convolve(values, kernel, mode="same")
+    if kernel.size <= 1000:
+        return np.convolve(values, kernel, mode="same")
+    # long kernels (fine grids): FFT convolution, same result to rounding
+    n = values.size + kernel.size - 1
+    nfft = 1 << int(np.ceil(np.log2(n)))
+    full = np.fft.irfft(np.fft.rfft(values, nfft) * np.fft.rfft(kernel, nfft), nfft)[:n]
+    h = kernel.size // 2
+    return full[h : h + values.size]
 
 
 def _slopes(values: np.ndarray, step: float) -> np.ndarray:
@@ -183,3 +190,59 @@ def kernel_sigma_mps(kernel: np.ndarray, step_mps: float) -> float:
     u = (np.arange(k.size) - 0.5 * (k.size - 1)) * step_mps
     mu = np.sum(u * k) / np.sum(k)
     return float(np.sqrt(np.sum((u - mu) ** 2 * k) / np.sum(k)))
+
+
+#: Normalizations of the Hermite polynomials H3, H4 of the Gauss-Hermite
+#: series (van der Marel & Franx 1993).
+_SQ3 = np.sqrt(3.0)
+_SQ24 = np.sqrt(24.0)
+
+
+def gh_kernel(
+    sigma_mps: float, h3: float, h4: float, step_mps: float, half_width: int
+) -> np.ndarray:
+    """Sampled Gauss-Hermite profile ``G(y) [1 + h3 H3(y) + h4 H4(y)]``,
+    ``y = u / sigma`` with ``u`` the velocity offset (positive = red), so a
+    positive ``h3`` is a red tail. ``H3 = (2 y^3 - 3 y) / sqrt 3``,
+    ``H4 = (4 y^4 - 12 y^2 + 3) / sqrt 24``. Clipped at zero, normalized to
+    unit sum, ``2 * half_width + 1`` taps (index increasing = redward, as
+    :func:`convolve` expects)."""
+    y = np.arange(-half_width, half_width + 1) * (step_mps / max(float(sigma_mps), 1e-6))
+    y2 = y * y
+    k = np.exp(-0.5 * y2) * (
+        1.0 + h3 * (2.0 * y2 * y - 3.0 * y) / _SQ3 + h4 * (4.0 * y2 * y2 - 12.0 * y2 + 3.0) / _SQ24
+    )
+    k = np.clip(k, 0.0, None)
+    return k / k.sum()
+
+
+def lagrange_weights(u: np.ndarray, nodes: np.ndarray) -> np.ndarray:
+    """Lagrange interpolation weights (len(nodes), len(u)) from ``nodes`` to
+    ``u``: a quantity known at the nodes is ``weights.T @ values``."""
+    u = np.asarray(u, dtype=np.float64)
+    nodes = np.asarray(nodes, dtype=np.float64)
+    w = np.ones((nodes.size, u.size))
+    for k in range(nodes.size):
+        for j in range(nodes.size):
+            if j != k:
+                w[k] *= (u - nodes[j]) / (nodes[k] - nodes[j])
+    return w
+
+
+def hermite_value(values: np.ndarray, grid: LnGrid, ln_x: np.ndarray) -> np.ndarray:
+    """The cubic Hermite interpolant of :func:`integral_at` (node slopes from
+    finite differences) evaluated at ``ln_x``: the derivative of that running
+    integral, consistent with :func:`pixel_integrate`."""
+    h = grid.step
+    m = _slopes(values, h)
+    pos = (np.asarray(ln_x, dtype=np.float64) - grid.ln_start) / h
+    i = np.clip(np.floor(pos).astype(np.int64), 0, grid.n - 2)
+    s = pos - i
+    s2 = s * s
+    s3 = s2 * s
+    return (
+        values[i] * (2 * s3 - 3 * s2 + 1)
+        + m[i] * h * (s3 - 2 * s2 + s)
+        + values[i + 1] * (-2 * s3 + 3 * s2)
+        + m[i + 1] * h * (s3 - s2)
+    )

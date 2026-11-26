@@ -76,7 +76,8 @@ Alternation (``strategy="alternate"``):
    detector map under a strong prior.
 
 A joint sparse solve of all blocks is the natural next step; the hook is
-``strategy="joint"`` (:meth:`TemplateSolver.joint_step`, not implemented).
+``strategy="joint"`` (:meth:`TemplateSolver.joint_step`): template and block
+velocities solved together each sweep.
 
 Degeneracies (read before trusting a template)
 ----------------------------------------------
@@ -132,11 +133,12 @@ from specfast.doppler.fit import fit_block
 from specfast.doppler.grid import (
     LnGrid,
     cubic_weights,
+    hermite_value,
     kernel_sigma_mps,
     pixel_integrate,
 )
 from specfast.doppler.library import GriddedTemplate
-from specfast.doppler.model import ForwardModel
+from specfast.doppler.model import ForwardModel, ParameterLayout
 
 __all__ = [
     "Block",
@@ -146,6 +148,7 @@ __all__ = [
     "TemplateResult",
     "TemplateSolver",
     "banded_inverse_diagonal",
+    "block_pixel_operator",
     "check_separability",
     "combine_velocities",
     "infer_template",
@@ -323,11 +326,125 @@ def pixel_matrix(grid: LnGrid, ln_edges: np.ndarray) -> sp.csr_matrix:
     )
 
 
+def point_matrix(grid: LnGrid, ln_x: np.ndarray) -> sp.csr_matrix:
+    """The point-sampling operator (cubic Hermite value at ``ln_x``,
+    :func:`~specfast.doppler.grid.hermite_value`) as a sparse matrix,
+    built by probing like :func:`pixel_matrix`."""
+    pos = (np.asarray(ln_x) - grid.ln_start) / grid.step
+    i = np.floor(pos).astype(np.int64)
+    lo, hi = i - 2, i + 3
+    s = 8
+    rows, cols, vals = [], [], []
+    k = np.arange(i.size)
+    for r in range(s):
+        vec = np.zeros(grid.n)
+        vec[r::s] = 1.0
+        out = hermite_value(vec, grid, ln_x)
+        j = lo + np.mod(r - lo, s)
+        ok = (j <= hi) & (j >= 0) & (j < grid.n)
+        rows.append(k[ok])
+        cols.append(j[ok])
+        vals.append(out[ok])
+    m = sp.csr_matrix(
+        (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
+        shape=(i.size, grid.n),
+    )
+    m.eliminate_zeros()
+    return m
+
+
 def convolution_matrix(kernel: np.ndarray, n: int) -> sp.csr_matrix:
     """``np.convolve(values, kernel, mode="same")`` as a sparse matrix."""
     hw = kernel.size // 2
     offsets = np.arange(-hw, hw + 1)
     return sp.diags([np.full(n, kernel[hw - d]) for d in offsets], offsets, shape=(n, n)).tocsr()
+
+
+def block_pixel_operator(
+    model: ForwardModel, params: Mapping, ctx: ExposureContext, include_cti: bool = True
+):
+    """``diag(R C) . P . K`` of one block (npix x fine grid) as a sparse
+    matrix; for an LSF varying along the order, ``sum_k diag(R C W_k) P K_k``
+    over its nodes (:meth:`~specfast.doppler.model.ForwardModel.node_kernels`)."""
+    if model.sampling == "point":
+        P = point_matrix(model.grid, model.ln_sample(params, ctx))
+    else:
+        P = pixel_matrix(model.grid, model.ln_edges(params, ctx)).tocsr()
+    pf = model.pixel_factor(params, ctx)
+    ks, w = model.node_kernels(params, ctx)
+    # P is banded (contiguous columns per row): convolve each row's band with
+    # the (reversed) kernels directly instead of multiplying sparse matrices
+    npix, n = P.shape
+    P.sort_indices()
+    starts = np.array(
+        [P.indices[P.indptr[i]] if P.indptr[i + 1] > P.indptr[i] else 0 for i in range(npix)]
+    )
+    ends = np.array(
+        [
+            P.indices[P.indptr[i + 1] - 1] if P.indptr[i + 1] > P.indptr[i] else 0
+            for i in range(npix)
+        ]
+    )
+    width = int(np.max(ends - starts)) + 1
+    Pb = np.zeros((npix, width))
+    for i in range(npix):
+        a, b = P.indptr[i], P.indptr[i + 1]
+        Pb[i, P.indices[a:b] - starts[i]] = P.data[a:b]
+    L = ks[0].size
+    hw = L // 2
+    band = np.zeros((npix, width + L - 1))
+    weights = [np.ones(npix)] if w is None else list(w)
+    for k, ker in enumerate(ks):
+        kr = ker[::-1]
+        pk = np.zeros_like(band)
+        for a in range(width):
+            pk[:, a : a + L] += Pb[:, a : a + 1] * kr[None, :]
+        band += (pf * weights[k])[:, None] * pk
+    cols = starts[:, None] - hw + np.arange(width + L - 1)[None, :]
+    band = np.where((cols >= 0) & (cols < n), band, 0.0)
+    cols = np.clip(cols, 0, n - 1)
+    out = sp.csr_matrix(
+        (band.ravel(), cols.ravel(), np.arange(npix + 1) * band.shape[1]), shape=(npix, n)
+    )
+    out.sum_duplicates()
+    if model.cti is not None and include_cti:
+        out = cti_matrix(model, params, ctx) @ out
+    return out.tocsr()
+
+
+def cti_offset(model: ForwardModel, params: Mapping, ctx: ExposureContext) -> np.ndarray:
+    """``model with CTI - model without CTI`` at ``params`` (zero without
+    CTI). The CTI perturbation is ~1e-3 of the flux; the template solver
+    subtracts it from the data at the current model instead of carrying the
+    CTI operator (a wide band) in its normal equations."""
+    if model.cti is None:
+        return np.zeros(model.pixels.size)
+    flux = model.pixel_factor(params, ctx) * model.broaden_and_bin(
+        model.fine_spectrum(params, ctx),
+        *model.node_kernels(params, ctx),
+        model.ln_edges(params, ctx),
+    )
+    return model.evaluate(params, ctx) - flux
+
+
+def cti_matrix(model: ForwardModel, params: Mapping, ctx: ExposureContext) -> sp.csr_matrix:
+    """The linearized CTI operator of a block (npix x npix; loss fraction at
+    the current model)."""
+    cti = model.cti
+    cp = params[cti.name]
+    loss = model.cti_loss(params, ctx)
+    n = loss.size
+    tau = cti.trail(cp)
+    rows, cols, vals = [np.arange(n)], [np.arange(n)], [1.0 - loss]
+    sign = 1 if cti.amplifier_column <= float(np.min(model.pixels)) else -1
+    for k in range(1, min(tau.size, n - 1) + 1):
+        src = np.arange(n - k) if sign > 0 else np.arange(k, n)
+        rows.append(src + sign * k)
+        cols.append(src)
+        vals.append(tau[k - 1] * loss[src])
+    return sp.csr_matrix(
+        (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))), shape=(n, n)
+    )
 
 
 def interpolation_matrix(grid: LnGrid, ln_x: np.ndarray) -> sp.csr_matrix:
@@ -630,6 +747,12 @@ class TemplateSolver:
         self.velocities: dict = {}
         self.history: list = []
         self._ops: dict = {}
+        #: Blocks (by id) left out of the template, observatory and detector
+        #: steps (failed or outlying fits; set by the caller).
+        self.excluded: set = set()
+        #: Compute the template's own variance (selected inversion) at every
+        #: template step; switch off to save time until the last one.
+        self.want_sigma = True
         self._sync()
 
     # ----------------------------------------------------------- state sync
@@ -651,16 +774,16 @@ class TemplateSolver:
         if i in self._ops:
             return self._ops[i]
         b, p = self.blocks[i], self.params[i]
-        m = b.model
-        P = pixel_matrix(m.grid, m.ln_edges(p, b.ctx))
-        K = convolution_matrix(m.kernel(p, b.ctx), m.grid.n)
-        op = sp.diags(m.pixel_factor(p, b.ctx)) @ P @ K
+        op = block_pixel_operator(b.model, p, b.ctx, include_cti=False)
         if self.cache_operators:
             self._ops[i] = op
         return op
 
-    @staticmethod
-    def _weights(b: Block) -> np.ndarray:
+    def _weights(self, b: Block) -> np.ndarray:
+        """Per-pixel weights of a block in the template, observatory and
+        detector steps (zero for blocks in ``excluded``)."""
+        if id(b) in self.excluded:
+            return np.zeros(np.size(b.sigma))
         s = np.asarray(b.sigma, dtype=np.float64)
         return np.where(np.isfinite(s) & (s > 0), 1.0 / s**2, 0.0)
 
@@ -722,7 +845,7 @@ class TemplateSolver:
                 w = self._weights(b)
                 Aw = A.T @ sp.diags(w)
                 N = N + Aw @ A
-                rhs += Aw @ np.asarray(b.data, dtype=np.float64)
+                rhs += Aw @ (np.asarray(b.data, dtype=np.float64) - cti_offset(m, p, b.ctx))
             D = second_difference(g.n)
             R = sp.identity(g.n) / self.prior_sigma**2 + (D.T @ D) / cfg.smooth_sigma**2
             # Gauge: the update must not shift the template (a shift is the
@@ -733,63 +856,89 @@ class TemplateSolver:
             ref = self.prior[o] if self.mode == "modify" else self.flux[o]
             gvec = N @ np.gradient(ref)
             con = (gvec, float(gvec @ ref)) if np.any(gvec) else None
-            x, var = solve_banded_spd(N + R, rhs + R @ self.prior[o], constraint=con)
+            x, var = solve_banded_spd(
+                N + R, rhs + R @ self.prior[o], want_diag=self.want_sigma, constraint=con
+            )
             self.flux[o] = x
-            self.flux_sigma[o] = np.sqrt(var)
+            if var is not None:
+                self.flux_sigma[o] = np.sqrt(var)
         self._sync()
 
     def observatory_step(self) -> None:
         """One Gauss-Newton step for the learned observatory corrections of
         every order, all terms jointly (they share the observed frame)."""
-        cfg = self.config
         for o in self.orders:
-            terms = list(self.learned[o])
-            if not terms:
+            if self.learned[o]:
+                pooled_observatory_step([self], o)
+
+    def observatory_system(self, o):
+        """Normal equations of this solver's blocks of order ``o`` for its
+        learned observatory terms: (terms, grids, offsets, N, rhs)."""
+        terms = list(self.learned[o])
+        grids = {}
+        for b, p in zip(self.blocks, self.params, strict=True):
+            if b.order == o:
+                for f in b.model.factors:
+                    if hasattr(f, "learned_terms") and f.name != self.star:
+                        for name, grid, _ in f.learned_terms(p[f.name], b.ctx):
+                            grids[(f.name, name)] = grid
+        sizes = [grids[t].n for t in terms]
+        off = np.concatenate([[0], np.cumsum(sizes)]).astype(int)
+        ntot = int(off[-1])
+        N = sp.csr_matrix((ntot, ntot))
+        rhs = np.zeros(ntot)
+        for i, (b, p) in enumerate(zip(self.blocks, self.params, strict=True)):
+            if b.order != o:
                 continue
-            sizes = []
-            grids = {}
+            m = b.model
+            M = self._pixel_operator(i)
+            fine = m.fine_spectrum(p, b.ctx)
+            cols = []
+            for t in terms:
+                f = m.factor(t[0])
+                scale = {n: s for n, _, s in f.learned_terms(p[f.name], b.ctx)}[t[1]]
+                Wt = interpolation_matrix(grids[t], m.grid.lnlam)
+                cols.append(-(M @ sp.diags(fine * scale) @ Wt))
+            J = sp.hstack(cols).tocsr()
+            r = np.asarray(b.data, dtype=np.float64) - m.evaluate(p, b.ctx)
+            Jw = J.T @ sp.diags(self._weights(b))
+            N = N + Jw @ J
+            rhs += Jw @ r
+        return terms, grids, off, N, rhs
+
+    def _gauge_rows(self, o, terms, grids, off) -> np.ndarray:
+        """Constraint rows (unit vectors) for the template gauge of order
+        ``o``: per learned term, the template's mean observed-frame imprint
+        on the term's nodes (log flux, high-passed) and its derivative."""
+        cfg = self.config
+        rows = []
+        for t, a, z in zip(terms, off[:-1], off[1:], strict=True):
+            num = np.zeros(z - a)
+            den = np.zeros(z - a)
             for b, p in zip(self.blocks, self.params, strict=True):
-                if b.order == o:
-                    for f in b.model.factors:
-                        if hasattr(f, "learned_terms") and f.name != self.star:
-                            for name, grid, _ in f.learned_terms(p[f.name], b.ctx):
-                                grids[(f.name, name)] = grid
-            sizes = [grids[t].n for t in terms]
-            off = np.concatenate([[0], np.cumsum(sizes)])
-            ntot = int(off[-1])
-            N = sp.csr_matrix((ntot, ntot))
-            rhs = np.zeros(ntot)
-            for i, (b, p) in enumerate(zip(self.blocks, self.params, strict=True)):
-                if b.order != o:
+                if b.order != o or id(b) in self.excluded:
                     continue
                 m = b.model
-                M = self._pixel_operator(i)
-                fine = m.fine_spectrum(p, b.ctx)
-                cols = []
-                for t in terms:
-                    f = m.factor(t[0])
-                    scale = {n: s for n, _, s in f.learned_terms(p[f.name], b.ctx)}[t[1]]
-                    Wt = interpolation_matrix(grids[t], m.grid.lnlam)
-                    cols.append(-(M @ sp.diags(fine * scale) @ Wt))
-                J = sp.hstack(cols).tocsr()
-                r = np.asarray(b.data, dtype=np.float64) - m.evaluate(p, b.ctx)
-                Jw = J.T @ sp.diags(self._weights(b))
-                N = N + Jw @ J
-                rhs += Jw @ r
-            regs = []
-            cur = np.concatenate([self.learned[o][t] for t in terms])
-            for t in terms:
-                n = grids[t].n
-                D = second_difference(n)
-                regs.append(
-                    sp.identity(n) / cfg.observatory_prior_sigma**2
-                    + (D.T @ D) / cfg.observatory_smooth_sigma**2
-                )
-            R = sp.block_diag(regs).tocsc()
-            delta = scipy.sparse.linalg.spsolve((N + R).tocsc(), rhs - R @ cur)
-            for t, a, z in zip(terms, off[:-1], off[1:], strict=True):
-                self.learned[o][t] = self.learned[o][t] + delta[a:z]
-        self._sync()
+                s = m.factor(self.star).evaluate(p[self.star], m.grid.lnlam, b.ctx)
+                Wt = interpolation_matrix(grids[t], m.grid.lnlam)
+                num += Wt.T @ np.log(np.clip(s, 1e-6, None))
+                den += Wt.T @ np.ones(m.grid.n)
+            ok = den > 0
+            u = np.where(ok, num / np.where(ok, den, 1.0), 0.0)
+            step_kms = grids[t].step * C_KMS
+            w = max(int(round(cfg.observatory_gauge_kms / step_kms)) | 1, 3)
+            kern = np.ones(w) / w
+            norm = np.convolve(ok.astype(float), kern, mode="same")
+            smooth = np.convolve(u, kern, mode="same") / np.where(norm > 0, norm, 1.0)
+            u = np.where(ok, u - smooth, 0.0)
+            du = np.where(ok, np.gradient(u), 0.0)
+            for v in (u, du):
+                r = np.zeros(int(off[-1]))
+                nv = np.linalg.norm(v)
+                if nv > 0:
+                    r[a:z] = v / nv
+                    rows.append(r)
+        return np.array(rows) if rows else np.zeros((0, int(off[-1])))
 
     def detector_step(self) -> None:
         """One Gauss-Newton step for each trace's detector map (edge offsets
@@ -850,10 +999,126 @@ class TemplateSolver:
         self._ops.clear()
         self._sync()
 
-    def joint_step(self) -> None:
-        """Hook for a joint sparse Gauss-Newton step over template, velocities
-        and nuisances of all blocks at once (not implemented yet)."""
-        raise NotImplementedError("joint template/velocity solve: use strategy='alternate'")
+    def joint_step(self, local: Sequence[tuple[str, str]] | None = None) -> dict:
+        """Joint Gauss-Newton step for every order's template nodes AND the
+        block velocities (``strategy="joint"``), replacing
+        :meth:`template_step`.
+
+        The alternation converges slowly along the template-velocity valley
+        (a template change that one set of velocities can absorb). Here, per
+        order, the normal equations of (template s, block velocities v) are
+        solved together:
+
+            [N + R   B] [s ]   [A' W d + R p]
+            [B'      C] [dv] = [J' W d      ]
+
+        with A the block's template operator, J its velocity column with the
+        block's other ``local`` parameters (wavelength, iodine strength,
+        continuum) profiled out (J - J_o (J_o' W J_o)^-1 J_o' W J), B = A' W J,
+        C = J' W J. The banded N is solved for all velocity columns at once
+        and the small Schur system for dv is dense (one row per block), so the
+        cost stays close to a template step. The template shift gauge of
+        :meth:`template_step` applies (as an exact linear constraint). The
+        local parameters are refitted by the next nuisance step; the coupling
+        of the template to them (not to the velocity) stays alternating.
+        Returns per-order velocity-step statistics.
+        """
+        from specfast.doppler.fastfit import model_and_jacobian
+
+        cfg = self.config
+        stats = {}
+        for o in self.orders:
+            g = self.grids[o]
+            N = sp.csr_matrix((g.n, g.n))
+            rhs = np.zeros(g.n)
+            idx, Bcols, C, rv = [], [], [], []
+            for i, (b, p) in enumerate(zip(self.blocks, self.params, strict=True)):
+                if b.order != o:
+                    continue
+                m = b.model
+                star = m.factor(self.star)
+                M = self._pixel_operator(i)
+                obs = m.fine_spectrum(p, b.ctx, skip=(self.star,))
+                sp_ = p[self.star]
+                W = interpolation_matrix(g, star.rest_lnlam(sp_, m.grid.lnlam, b.ctx))
+                A = M @ sp.diags(obs) @ W
+                w = self._weights(b)
+                d = np.asarray(b.data, dtype=np.float64) - cti_offset(m, p, b.ctx)
+                Aw = A.T @ sp.diags(w)
+                N = N + Aw @ A
+                rhs += Aw @ d
+                # velocity column at the current template, other locals profiled
+                h = 1.0
+                v0 = float(sp_["v"][0])
+                fp = star.evaluate({**sp_, "v": np.array([v0 + h])}, m.grid.lnlam, b.ctx)
+                fm = star.evaluate({**sp_, "v": np.array([v0 - h])}, m.grid.lnlam, b.ctx)
+                jv = M @ (obs * (fp - fm) / (2 * h))
+                if local is None:
+                    lay = ParameterLayout.free(m, exclude=b.exclude)
+                    cand = [(c, n) for c, n, _ in lay.entries]
+                else:
+                    cand = list(local)
+                others = [lp for lp in cand if lp != (self.star, "v") and lp[0] in p]
+                if others:
+                    _, Jo, _, _ = model_and_jacobian(m, p, b.ctx, others)
+                    Jow = Jo * w[:, None]
+                    try:
+                        coef = np.linalg.solve(Jow.T @ Jo, Jow.T @ jv)
+                        jv = jv - Jo @ coef
+                    except np.linalg.LinAlgError:
+                        pass
+                c = float(jv @ (w * jv))
+                if not np.isfinite(c) or c <= 0:
+                    continue
+                idx.append(i)
+                Bcols.append(Aw @ jv)
+                C.append(c)
+                rv.append(float(jv @ (w * d)))
+            D = second_difference(g.n)
+            R = sp.identity(g.n) / self.prior_sigma**2 + (D.T @ D) / cfg.smooth_sigma**2
+            ref = self.prior[o] if self.mode == "modify" else self.flux[o]
+            gvec = N @ np.gradient(ref)
+            con = (gvec, float(gvec @ ref)) if np.any(gvec) else None
+            Ntot = N + R
+            rs = rhs + R @ self.prior[o]
+            ab = _to_banded_upper(Ntot)
+            cb = scipy.linalg.cholesky_banded(ab, lower=False, check_finite=False)
+
+            def ninv(x, homogeneous, cb=cb, con=con):
+                y = scipy.linalg.cho_solve_banded((cb, False), x, check_finite=False)
+                if con is not None:
+                    gg, cc = con
+                    ng = scipy.linalg.cho_solve_banded((cb, False), gg, check_finite=False)
+                    den = float(gg @ ng)
+                    target = 0.0 if homogeneous else cc
+                    if den > 0:
+                        corr = (gg @ y - target) / den
+                        y = y - np.outer(ng, corr) if y.ndim == 2 else y - ng * corr
+                return y
+
+            s0 = ninv(rs, homogeneous=False)
+            if idx:
+                B = np.stack(Bcols, axis=1)
+                NB = ninv(B, homogeneous=True)
+                S = np.diag(C) - B.T @ NB
+                dv = np.linalg.solve(S, np.array(rv) - B.T @ s0)
+                snew = s0 - NB @ dv
+                for j, i in enumerate(idx):
+                    p = self.params[i]
+                    p[self.star]["v"] = np.array([float(p[self.star]["v"][0]) + dv[j]])
+                stats[o] = dict(
+                    dv_rms=float(np.sqrt(np.mean(dv**2))),
+                    dv_max=float(np.max(np.abs(dv))),
+                    nblocks=len(idx),
+                )
+            else:
+                snew = s0
+            self.flux[o] = snew
+            if self.want_sigma:
+                self.flux_sigma[o] = np.sqrt(np.clip(banded_inverse_diagonal(cb), 0, None))
+        self._ops.clear()
+        self._sync()
+        return stats
 
     # ------------------------------------------------------------ helpers
     def lsf_sigma_kms(self) -> float:
@@ -919,6 +1184,62 @@ def _free(fit) -> set:
     return {(c, p) for c, p, _ in fit.layout.entries}
 
 
+def pooled_observatory_step(solvers, o, weights=None) -> dict:
+    """One Gauss-Newton step for the learned observatory corrections of order
+    ``o`` shared by several solvers (one per star): their normal equations
+    are summed (each times its weight, default 1) and solved once under the
+    first solver's priors and gauge, and the result is set in every solver.
+    The correction must live on the same node grid in all of them. Returns
+    each solver's share of the information (trace of its weighted normal
+    matrix over the total)."""
+    weights = [1.0] * len(solvers) if weights is None else list(weights)
+    cfg = solvers[0].config
+    systems = [s.observatory_system(o) for s in solvers]
+    terms, grids, off = systems[0][0], systems[0][1], systems[0][2]
+    for sy in systems[1:]:
+        if sy[0] != terms or any(sy[1][t].n != grids[t].n for t in terms):
+            raise ValueError(f"order {o!r}: solvers disagree on the learned terms or grids")
+    ntot = int(off[-1])
+    N = sp.csr_matrix((ntot, ntot))
+    rhs = np.zeros(ntot)
+    tr = []
+    for w, sy in zip(weights, systems, strict=True):
+        N = N + w * sy[3]
+        rhs += w * sy[4]
+        tr.append(float(w * sy[3].diagonal().sum()))
+    cur = np.concatenate([solvers[0].learned[o][t] for t in terms])
+    regs = []
+    for t in terms:
+        n = grids[t].n
+        D = second_difference(n)
+        regs.append(
+            sp.identity(n) / cfg.observatory_prior_sigma**2
+            + (D.T @ D) / cfg.observatory_smooth_sigma**2
+        )
+    R = sp.block_diag(regs).tocsc()
+    g = rhs - R @ cur
+    rows = [
+        s._gauge_rows(o, terms, grids, off)
+        for s in solvers
+        if s.config.observatory_gauge == "template"
+    ]
+    C = np.vstack(rows) if rows else np.zeros((0, ntot))
+    if len(C):
+        lu = scipy.sparse.linalg.splu((N + R).tocsc())
+        x = lu.solve(g)
+        Y = np.column_stack([lu.solve(c) for c in C])
+        lam = np.linalg.lstsq(C @ Y, C @ (cur + x), rcond=None)[0]
+        delta = x - Y @ lam
+    else:
+        delta = scipy.sparse.linalg.spsolve((N + R).tocsc(), g)
+    for s in solvers:
+        for t, a, z in zip(terms, off[:-1], off[1:], strict=True):
+            s.learned[o][t] = cur[a:z] + delta[a:z]
+        s._sync()
+    tot = sum(tr) or 1.0
+    return dict(share=[x / tot for x in tr], rms_step=float(np.sqrt(np.mean(delta**2))))
+
+
 def infer_template(
     blocks: Sequence[Block],
     prior: Mapping,
@@ -944,8 +1265,6 @@ def infer_template(
     and warns if not; the report is in the result.
     """
     cfg = config or TemplateConfig()
-    if cfg.strategy != "alternate":
-        raise NotImplementedError(f"strategy {cfg.strategy!r}: only 'alternate' exists")
     solver = TemplateSolver(
         blocks,
         prior,
@@ -958,7 +1277,10 @@ def infer_template(
     learn_obs = cfg.learn_observatory and any(solver.learned[o] for o in solver.orders)
 
     def update_rest():
-        solver.template_step()
+        if cfg.strategy == "joint":
+            solver.joint_step()
+        else:
+            solver.template_step()
         if learn_obs:
             solver.observatory_step()
         if cfg.fit_detector and solver.detector:

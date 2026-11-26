@@ -21,7 +21,13 @@ from specfast.doppler.components import (
     frozen_array,
     register,
 )
-from specfast.doppler.grid import LnGrid, cubic_interpolate, gaussian_kernel
+from specfast.doppler.grid import (
+    LnGrid,
+    cubic_interpolate,
+    gaussian_kernel,
+    gh_kernel,
+    lagrange_weights,
+)
 
 PER_TRACE = Scope.EXPOSURE | Scope.CHANNEL | Scope.ORDER
 
@@ -75,6 +81,79 @@ class PolynomialWavelength(_PixelPolynomial):
 
     def evaluate(self, params: Params, coords, ctx: ExposureContext) -> np.ndarray:
         return _horner(params["coeffs"], self.scaled(coords))
+
+
+@register("wavelength", "optics")
+@dataclass(frozen=True, eq=False)
+class OpticsWavelength:
+    """Optics-frame wavelength solution of one trace (DESIGN, "Wavelength
+    component, production form"):
+
+        lambda(p) = L(p') + sum_k a_k t^k,   p' = p + D(p),
+        t = (p' - x_center) / x_scale
+
+    - ``L``: the static optical-model curve of the trace (the optics
+      guess), a polynomial in ``(p' - base_center) / base_scale``
+      (``base`` coefficients, lowest first; empty = no base, so the
+      solution is a plain polynomial in p');
+    - ``D(p)`` [px]: the static along-order distortion (a per-era
+      calibration, common to all orders and fibres; a pixel whose nominal
+      centre is p samples p + D(p)), tabulated at the detector columns
+      0..len-1 and linearly interpolated (pixel edges); None = no distortion;
+    - ``a_k``: the free perturbation, per (exposure, channel, order).
+
+    D lives in the optics frame: it moves with the spectrum when the optics
+    change, unlike the detector map (:class:`DetectorMap`), which stays with
+    the pixels.
+    """
+
+    kind: ClassVar[str] = "wavelength"
+    frame: ClassVar[Frame] = Frame.PIXEL
+    degree: int
+    x_center: float
+    x_scale: float
+    base: np.ndarray = None
+    base_center: float = 0.0
+    base_scale: float = 1.0
+    distortion: np.ndarray | None = None
+    name: str = "wavelength"
+
+    def __post_init__(self) -> None:
+        base = np.zeros(0) if self.base is None else self.base
+        object.__setattr__(self, "base", frozen_array(base))
+        if self.distortion is not None:
+            object.__setattr__(self, "distortion", frozen_array(self.distortion))
+
+    def parameters(self) -> tuple[ParameterSpec, ...]:
+        return (
+            ParameterSpec(
+                "coeffs",
+                self.degree + 1,
+                PER_TRACE,
+                "Angstrom",
+                "perturbation polynomial in the scaled distorted pixel t",
+            ),
+        )
+
+    def distorted(self, x: np.ndarray) -> np.ndarray:
+        """p + D(p) [px]."""
+        x = np.asarray(x, dtype=np.float64)
+        if self.distortion is None:
+            return x
+        cols = np.arange(self.distortion.size, dtype=np.float64)
+        return x + np.interp(x, cols, self.distortion)
+
+    def base_curve(self, xd: np.ndarray) -> np.ndarray:
+        if self.base.size == 0:
+            return np.zeros_like(xd)
+        return _horner(self.base, (xd - self.base_center) / self.base_scale)
+
+    def scaled(self, x: np.ndarray) -> np.ndarray:
+        return (self.distorted(x) - self.x_center) / self.x_scale
+
+    def evaluate(self, params: Params, coords, ctx: ExposureContext) -> np.ndarray:
+        xd = self.distorted(coords)
+        return self.base_curve(xd) + _horner(params["coeffs"], (xd - self.x_center) / self.x_scale)
 
 
 @register("continuum", "polynomial")
@@ -137,6 +216,156 @@ class GaussianLSF:
 
     def evaluate(self, params: Params, coords: LnGrid, ctx: ExposureContext) -> np.ndarray:
         return gaussian_kernel(params["sigma"][0], coords.step_mps, self.half_width)
+
+
+@register("lsf", "gauss_hermite")
+@dataclass(frozen=True, eq=False)
+class GaussHermiteLSF:
+    """Gauss-Hermite LSF that varies along the order, from a static map plus
+    a per-exposure illumination kernel.
+
+    **Static map** (per channel and order, per era; a calibration from
+    B-star frames): along the order, with ``u`` the pixel fraction across
+    the block minus 1/2,
+
+        sigma(u) = s0 (1 + g u + q (u^2 - 1/12)),  h3(u) = h3 + h3g u,  h4
+
+    (``map`` = [s0 (m/s), g, q, h3, h3g, h4], fixed). The kernel is evaluated
+    exactly at ``nnode`` nodes along the order and the model is blended
+    between them with Lagrange weights (:meth:`node_weights`; the forward
+    model convolves once per node and blends per pixel).
+
+    **Illumination kernel** (``illum``, per exposure and channel, shared by
+    every order): a fibre-illumination change convolves every detector
+    position with the same small kernel. Two forms:
+
+    - ``"gh"``: ``illum`` = [dw, dh3], cumulants added at a reference width
+      ``sig_ref_mps``: ``sigma^2 = sigma_s^2 + 2 dw sig_ref^2``,
+      ``h3 = h3_s + dh3 (sig_ref / sigma_s)^3``;
+    - ``"basis"``: ``illum`` = coefficients of empirical zero-sum kernel
+      perturbations ``basis`` (nk, L) on a velocity grid of ``basis_step_mps``
+      (one unit = one standard deviation of the B-star scatter), added to
+      the static kernel and renormalized.
+
+    ``illum`` is declared ``fixed``: the per-block fit leaves it alone and a
+    shared-parameter step fits it across the orders of an exposure, under a
+    hierarchical (channel, era) prior.
+    """
+
+    kind: ClassVar[str] = "lsf"
+    frame: ClassVar[Frame] = Frame.OBSERVED
+    half_width: int
+    step_mps: float
+    #: Block pixel range spanned by u = -1/2 .. +1/2 [px].
+    pixel_lo: float
+    pixel_hi: float
+    nnode: int = 5
+    illumination: str = "gh"
+    sig_ref_mps: float = 1500.0
+    basis: np.ndarray | None = None
+    basis_step_mps: float | None = None
+    name: str = "lsf"
+
+    def __post_init__(self) -> None:
+        if self.illumination not in ("gh", "basis", "none"):
+            raise ValueError(f"illumination must be gh, basis or none, got {self.illumination!r}")
+        if self.illumination == "basis":
+            if self.basis is None or self.basis_step_mps is None:
+                raise ValueError("basis illumination needs basis and basis_step_mps")
+            b = np.atleast_2d(np.asarray(self.basis, dtype=np.float64))
+            # resample onto this grid's velocity step (zero outside)
+            m = b.shape[1] // 2
+            ub = (np.arange(b.shape[1]) - m) * self.basis_step_mps
+            ug = np.arange(-self.half_width, self.half_width + 1) * self.step_mps
+            rs = np.array([np.interp(ug, ub, row, left=0.0, right=0.0) for row in b])
+            rs *= self.basis_step_mps / self.step_mps
+            object.__setattr__(self, "basis", frozen_array(rs))
+
+    @classmethod
+    def for_grid(cls, grid: LnGrid, max_sigma_mps: float, nsigma: float = 6.0, **kw):
+        return cls(
+            half_width=int(np.ceil(nsigma * max_sigma_mps / grid.step_mps)),
+            step_mps=grid.step_mps,
+            **kw,
+        )
+
+    @property
+    def n_illum(self) -> int:
+        if self.illumination == "gh":
+            return 2
+        if self.illumination == "basis":
+            return int(self.basis.shape[0])
+        return 0
+
+    def parameters(self) -> tuple[ParameterSpec, ...]:
+        specs = [
+            ParameterSpec(
+                "map",
+                6,
+                Scope.ERA | Scope.CHANNEL | Scope.ORDER,
+                "",
+                "static map: s0 [m/s], g, q, h3, h3g, h4",
+                fixed=True,
+            )
+        ]
+        if self.n_illum:
+            specs.append(
+                ParameterSpec(
+                    "illum",
+                    self.n_illum,
+                    Scope.EXPOSURE | Scope.CHANNEL,
+                    "",
+                    "illumination kernel (shared by all orders of an exposure and channel)",
+                    fixed=True,
+                )
+            )
+        return tuple(specs)
+
+    @property
+    def nodes(self) -> np.ndarray:
+        return np.linspace(-0.5, 0.5, self.nnode) if self.nnode > 1 else np.zeros(1)
+
+    def node_weights(self, pixels: np.ndarray) -> np.ndarray:
+        """(nnode, npix) blending weights of the node kernels."""
+        u = (np.asarray(pixels, dtype=np.float64) - self.pixel_lo) / (
+            self.pixel_hi - self.pixel_lo
+        ) - 0.5
+        if self.nnode == 1:
+            return np.ones((1, u.size))
+        return lagrange_weights(u, self.nodes)
+
+    def node_shapes(self, params: Params) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """(sigma [m/s], h3, h4) of the static map at the nodes, with the
+        illumination cumulants added in the ``gh`` form."""
+        s0, g, q, h3, h3g, h4 = (float(v) for v in params["map"])
+        u = self.nodes
+        sig = s0 * (1.0 + g * u + q * (u * u - 1.0 / 12.0))
+        hh3 = h3 + h3g * u
+        hh4 = np.full_like(u, h4)
+        if self.illumination == "gh":
+            dw, dh = (float(v) for v in params["illum"])
+            r = self.sig_ref_mps
+            s2 = np.clip(sig * sig + 2.0 * dw * r * r, (0.2 * s0) ** 2, None)
+            hh3 = hh3 + dh * (r / sig) ** 3
+            sig = np.sqrt(s2)
+        return sig, hh3, hh4
+
+    def kernels(self, params: Params, coords: LnGrid) -> list[np.ndarray]:
+        """The normalized kernel at each node, on the fine grid."""
+        sig, h3, h4 = self.node_shapes(params)
+        out = []
+        for k in range(sig.size):
+            ker = gh_kernel(sig[k], h3[k], h4[k], coords.step_mps, self.half_width)
+            if self.illumination == "basis":
+                ker = ker + np.asarray(params["illum"], dtype=np.float64) @ self.basis
+                ker = ker / ker.sum()
+            out.append(ker)
+        return out
+
+    def evaluate(self, params: Params, coords: LnGrid, ctx: ExposureContext) -> np.ndarray:
+        """The kernel at the middle node (a representative single kernel)."""
+        ks = self.kernels(params, coords)
+        return ks[len(ks) // 2]
 
 
 @register("star", "template")
@@ -206,8 +435,27 @@ class IodineCell:
     name: str = "iodine"
     #: Node grid of the learned optical-depth correction (None: no correction).
     correction: LnGrid | None = None
+    #: ``optical_depth``: ``T = exp(-k tau)`` (physical: the column scales);
+    #: ``linear``: ``T = 1 + k (exp(-tau) - 1)`` (legacy codes' depth scaling).
+    scaling: str = "optical_depth"
+    #: Interpolate the atlas linearly in transmission (``transmission``, the
+    #: default: a tabulated FTS atlas sampled at about a line-core width
+    #: behaves like bin averages), linearly in optical depth (``tau``), or
+    #: with a cubic spline in optical depth (``cubic``; it sharpens the cores
+    #: of a bin-averaged atlas).
+    interp: str = "transmission"
+    #: Average the transmission over each fine-grid cell from this many
+    #: sub-samples (1: point sampling at the grid nodes). An atlas whose lines
+    #: are narrower than the grid step is otherwise aliased: the model then
+    #: depends on where the grid nodes fall (its phase). Cell averaging is a
+    #: box of one grid step on top of the LSF (variance step^2 / 12).
+    supersample: int = 1
 
     def __post_init__(self) -> None:
+        if self.supersample < 1:
+            raise ValueError("supersample must be >= 1")
+        if self.interp not in ("tau", "transmission", "cubic"):
+            raise ValueError(f"interp must be tau, transmission or cubic, got {self.interp!r}")
         object.__setattr__(self, "lnlam", frozen_array(self.lnlam))
         object.__setattr__(self, "tau", frozen_array(self.tau))
         if self.lnlam.shape != self.tau.shape or np.any(np.diff(self.lnlam) <= 0):
@@ -232,9 +480,36 @@ class IodineCell:
         return (("dtau", self.correction, float(params["k"][0])),)
 
     def evaluate(self, params: Params, coords: np.ndarray, ctx: ExposureContext) -> np.ndarray:
-        tau = np.interp(coords, self.lnlam, self.tau)
+        coords = np.asarray(coords, dtype=np.float64)
+        n = self.supersample
+        if n == 1 or coords.size < 2:
+            return self._transmission(params, coords)
+        # cell average: n sub-samples evenly spaced across each grid cell
+        step = np.gradient(coords)
+        off = (np.arange(n) + 0.5) / n - 0.5
+        sub = coords[:, None] + step[:, None] * off[None, :]
+        return self._transmission(params, sub.ravel()).reshape(sub.shape).mean(axis=1)
+
+    def _spline(self):
+        sp_ = self.__dict__.get("_cubic")
+        if sp_ is None:
+            from scipy.interpolate import CubicSpline
+
+            sp_ = CubicSpline(self.lnlam, self.tau, extrapolate=False)
+            object.__setattr__(self, "_cubic", sp_)
+        return sp_
+
+    def _transmission(self, params: Params, coords: np.ndarray) -> np.ndarray:
+        if self.interp == "cubic":
+            tau = self._spline()(np.clip(coords, self.lnlam[0], self.lnlam[-1]))
+        elif self.interp == "transmission":
+            tau = -np.log(np.clip(np.interp(coords, self.lnlam, np.exp(-self.tau)), 1e-300, None))
+        else:
+            tau = np.interp(coords, self.lnlam, self.tau)
         if self.correction is not None:
             tau = tau + cubic_interpolate(params["dtau"], self.correction, coords)
+        if self.scaling == "linear":
+            return 1.0 + params["k"][0] * (np.exp(-tau) - 1.0)
         return np.exp(-params["k"][0] * tau)
 
 
@@ -403,6 +678,95 @@ class Telluric:
 
     def evaluate(self, params: Params, coords: np.ndarray, ctx: ExposureContext) -> np.ndarray:
         return np.exp(-self.optical_depth(params, coords, ctx))
+
+
+@register("cti", "serial")
+@dataclass(frozen=True)
+class SerialCTI:
+    """Serial charge-transfer inefficiency of a trace (detector frame).
+
+    The serial register runs along the dispersion with the amplifier at
+    column ``amplifier_column`` (KiwiSpec: the blue end of every order), so
+    pixel p makes ``|p - amplifier_column| + transfer_offset`` transfers.
+    A fraction ``L(p) = n(p) q(S)`` of its charge is captured and re-emitted
+    into the pixels read after it (away from the amplifier) with the
+    two-species trail ``tau(k) ~ a1 exp(-k / l1) + a2 exp(-k / l2)``,
+    normalized to one (charge is conserved):
+
+        F_obs(p) = F(p) (1 - L(p)) + sum_k tau(k) F(p -+ k) L(p -+ k)
+
+    ``q(S) = q_ref (S / s_ref)^alpha`` per transfer, with ``S`` the signal of
+    the trace's peak detector pixel [ADU] = ``signal_scale * F`` (flux per
+    extracted pixel times the inverse of gain x effective profile rows).
+
+    All parameters are calibration constants (``fixed``; from extended pixel
+    edge responses per era). The model applies the operator to the model
+    flux with ``L`` evaluated on that flux; :meth:`operator` returns the
+    linearized operator (``L`` frozen), which is what the solvers use for
+    Jacobian columns and the template's linear operator.
+    """
+
+    kind: ClassVar[str] = "cti"
+    frame: ClassVar[Frame] = Frame.PIXEL
+    amplifier_column: float = 0.0
+    transfer_offset: float = 51.0
+    trail_length: int = 120
+    name: str = "cti"
+
+    def parameters(self) -> tuple[ParameterSpec, ...]:
+        return (
+            ParameterSpec(
+                "trap",
+                7,
+                Scope.ERA,
+                "",
+                "q_ref (per transfer), s_ref [ADU], alpha, a1, l1 [px], a2, l2 [px]",
+                fixed=True,
+            ),
+            ParameterSpec("signal_scale", 1, Scope.GLOBAL, "ADU per flux unit", "", fixed=True),
+        )
+
+    def trail(self, params: Params) -> np.ndarray:
+        _, _, _, a1, l1, a2, l2 = (float(v) for v in params["trap"])
+        k = np.arange(1, self.trail_length + 1, dtype=np.float64)
+        t = a1 * np.exp(-k / l1) + a2 * np.exp(-k / l2)
+        return t / t.sum()
+
+    def loss(self, params: Params, flux: np.ndarray, pixels: np.ndarray) -> np.ndarray:
+        q_ref, s_ref, alpha = (float(v) for v in params["trap"][:3])
+        sig = np.clip(np.asarray(flux) * float(params["signal_scale"][0]), 1.0, None)
+        n = np.abs(np.asarray(pixels, dtype=np.float64) - self.amplifier_column)
+        n = n + self.transfer_offset
+        return np.clip(n * q_ref * (sig / s_ref) ** alpha, 0.0, 0.5)
+
+    def _redistribute(self, lost: np.ndarray, tau: np.ndarray, pixels) -> np.ndarray:
+        """Re-emitted charge per pixel (away from the amplifier)."""
+        full = np.convolve(lost, np.concatenate([[0.0], tau]))
+        if self.amplifier_column <= float(np.min(pixels)):
+            return full[: lost.size]
+        # amplifier at the high-column end: trail toward lower columns
+        rev = np.convolve(lost[::-1], np.concatenate([[0.0], tau]))[: lost.size]
+        return rev[::-1]
+
+    def apply_linear(self, params: Params, loss: np.ndarray, values: np.ndarray, pixels):
+        """The linearized operator (``L`` = ``loss`` frozen) applied to ``values``."""
+        lost = values * loss
+        return values - lost + self._redistribute(lost, self.trail(params), pixels)
+
+    def evaluate(self, params: Params, coords, ctx: ExposureContext, flux=None) -> np.ndarray:
+        """Observed flux for the model flux ``flux`` at pixels ``coords``."""
+        loss = self.loss(params, flux, coords)
+        return self.apply_linear(params, loss, flux, coords)
+
+    @staticmethod
+    def kiwispec_default() -> dict[str, np.ndarray]:
+        """Trap parameters from the KiwiSpec serial EPER fits (2016-2026, one
+        set; era differences are within +-30%): 4e-6 per transfer at 1000 ADU
+        falling as S^-0.5; trail 2.5e-4 exp(-k/2.2) + 1.5e-4 exp(-k/20)."""
+        return {
+            "trap": np.array([4.0e-6, 1000.0, -0.5, 2.5e-4, 2.2, 1.5e-4, 20.0]),
+            "signal_scale": np.array([1.0 / (1.265 * 4.6)]),
+        }
 
 
 @register("detector", "map")

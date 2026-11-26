@@ -16,6 +16,8 @@ FITS layout (extension names; ``<ARM>`` is the arm name, upper-cased)::
 
     PRIMARY          no data; SFPRODUC, SFFORMAT, INSTRUME, DATE-OBS, EXPTIME
     HEADER           1-row table, column JSON: the NormalizedHeader
+    RAWHEADER        optional 1-row table, column JSON: the source frame's
+                     own header cards {keyword: value} (kept verbatim)
     PROVENANCE       1-row table, column JSON: the Provenance record
     FLUX_<ARM>       float64 (channel, order, pixel), header ARM
     VAR_<ARM>        float64
@@ -173,6 +175,9 @@ class ExtractedSpectrum:
     header: NormalizedHeader
     arms: tuple[ArmSpectrum, ...]
     provenance: Provenance
+    #: The source frame's own header cards {keyword: value}, kept verbatim
+    #: (None = not kept). Optional extension RAWHEADER.
+    raw_header: dict | None = None
 
     def arm(self, name: str) -> ArmSpectrum:
         for a in self.arms:
@@ -196,6 +201,8 @@ class ExtractedSpectrum:
             _json_hdu("HEADER", hdr.to_json()),
             _json_hdu("PROVENANCE", self.provenance.to_json()),
         ]
+        if self.raw_header is not None:
+            hdus.append(_json_hdu("RAWHEADER", json.dumps(self.raw_header, sort_keys=True)))
         for a in self.arms:
             tag = a.arm.upper()
             for ext, data in (("FLUX", a.flux), ("VAR", a.variance), ("MASK", a.mask)):
@@ -225,13 +232,14 @@ class ExtractedSpectrum:
                 )
             header = NormalizedHeader.from_json(_read_json(hl["HEADER"]))
             prov = Provenance.from_json(_read_json(hl["PROVENANCE"]))
+            raw = json.loads(_read_json(hl["RAWHEADER"])) if "RAWHEADER" in hl else None
             arms = []
             for h in hl:
                 if not h.name.startswith("TRACES_"):
                     continue
                 tag = h.name[len("TRACES_") :]
                 arms.append(_read_arm(hl, tag, h))
-        return cls(header=header, arms=tuple(arms), provenance=prov)
+        return cls(header=header, arms=tuple(arms), provenance=prov, raw_header=raw)
 
 
 def _json_hdu(name: str, text: str) -> fits.BinTableHDU:

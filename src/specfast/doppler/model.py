@@ -26,7 +26,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from specfast.doppler.components import Component, ExposureContext, ParameterSpec
-from specfast.doppler.grid import LnGrid, convolve, pixel_integrate
+from specfast.doppler.grid import LnGrid, convolve, hermite_value, pixel_integrate
 
 ModelParams = Mapping[str, Mapping[str, np.ndarray]]
 
@@ -45,11 +45,21 @@ class ForwardModel:
     pixels: np.ndarray
     #: Detector-frame map (pixel-edge offsets, response); None = perfect.
     detector: Component | None = None
+    #: Serial charge-transfer inefficiency (detector frame), applied to the
+    #: model flux after the continuum; None = none.
+    cti: Component | None = None
+    #: ``average``: the mean of the broadened spectrum over each pixel (the
+    #: physical model); ``point``: its value at the pixel centre (legacy
+    #: codes' convention; calibrations made that way absorb the pixel box
+    #: into their LSF widths).
+    sampling: str = "average"
 
     def __post_init__(self) -> None:
         names = [c.name for c in self.components]
         if len(set(names)) != len(names):
             raise ValueError(f"component names must be unique: {names}")
+        if self.sampling not in ("average", "point"):
+            raise ValueError(f"sampling must be 'average' or 'point', got {self.sampling!r}")
         px = np.asarray(self.pixels, dtype=np.float64)
         if px.ndim != 1 or px.size < 2 or np.any(np.diff(px) != 1.0):
             raise ValueError("pixels must be consecutive pixel centres")
@@ -58,7 +68,8 @@ class ForwardModel:
     @property
     def components(self) -> tuple[Component, ...]:
         det = () if self.detector is None else (self.detector,)
-        return (self.wavelength, self.continuum, self.lsf, *self.factors, *det)
+        cti = () if self.cti is None else (self.cti,)
+        return (self.wavelength, self.continuum, self.lsf, *self.factors, *det, *cti)
 
     def factor(self, name: str) -> Component:
         """The spectral factor called ``name``."""
@@ -90,8 +101,74 @@ class ForwardModel:
         return out
 
     def kernel(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
-        """The LSF kernel on the fine grid."""
+        """The LSF kernel on the fine grid (for an LSF varying along the
+        order, its representative kernel; see :meth:`node_kernels`)."""
         return self.lsf.evaluate(params[self.lsf.name], self.grid, ctx)
+
+    def node_kernels(
+        self, params: ModelParams, ctx: ExposureContext
+    ) -> tuple[list[np.ndarray], np.ndarray | None]:
+        """The LSF kernels and their per-pixel blending weights.
+
+        An LSF that varies along the order (one exposing ``kernels`` and
+        ``node_weights``, e.g. :class:`~specfast.doppler.library.
+        GaussHermiteLSF`) is evaluated exactly at a few nodes; the model is
+        convolved once per node and blended per pixel. Returns (kernels,
+        weights (nnode, npix)), or ([kernel], None) for a single kernel.
+        """
+        if hasattr(self.lsf, "kernels"):
+            ks = self.lsf.kernels(params[self.lsf.name], self.grid)
+            if len(ks) > 1:
+                return ks, self.lsf.node_weights(self.pixels)
+            return ks, None
+        return [self.kernel(params, ctx)], None
+
+    def broaden_and_bin(
+        self,
+        fine: np.ndarray,
+        kernels: list[np.ndarray],
+        weights: np.ndarray | None,
+        ln_edges: np.ndarray,
+    ) -> np.ndarray:
+        """Convolve a fine-grid spectrum with the node kernels, sample the
+        pixels (:meth:`bin`; ``ln_edges`` from :meth:`ln_sample`) and blend:
+        the LSF and pixel part of the model."""
+        if weights is None:
+            return self.bin(convolve(fine, kernels[0]), ln_edges)
+        out = np.zeros(self.pixels.size)
+        for k, ker in enumerate(kernels):
+            out += weights[k] * self.bin(convolve(fine, ker), ln_edges)
+        return out
+
+    def bin(self, values: np.ndarray, ln_sample: np.ndarray) -> np.ndarray:
+        """Pixel values of a fine-grid spectrum: pixel averages between the
+        edges (``average``) or values at the centres (``point``)."""
+        if self.sampling == "point":
+            return hermite_value(values, self.grid, ln_sample)
+        return pixel_integrate(values, self.grid, ln_sample)
+
+    def ln_sample(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
+        """ln(lambda) where the pixels sample the spectrum: the pixel edges
+        (``average``) or centres (``point``)."""
+        if self.sampling == "point":
+            x = self.pixels
+            if self.detector is not None:
+                e = self.detector.edges(params[self.detector.name], self.pixel_edges)
+                x = 0.5 * (e[:-1] + e[1:])
+            return np.log(self.wavelength.evaluate(params[self.wavelength.name], x, ctx))
+        return self.ln_edges(params, ctx)
+
+    def sample_positions(self, params: ModelParams) -> np.ndarray:
+        """Detector positions [px] whose wavelengths :meth:`ln_sample` uses."""
+        if self.sampling == "point":
+            if self.detector is not None:
+                e = self.detector.edges(params[self.detector.name], self.pixel_edges)
+                return 0.5 * (e[:-1] + e[1:])
+            return self.pixels
+        edges = self.pixel_edges
+        if self.detector is not None:
+            edges = self.detector.edges(params[self.detector.name], edges)
+        return edges
 
     def ln_edges(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
         """ln(lambda) at the (detector-corrected) pixel edges."""
@@ -109,9 +186,25 @@ class ForwardModel:
 
     def evaluate(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray:
         """Model flux per pixel."""
-        broadened = convolve(self.fine_spectrum(params, ctx), self.kernel(params, ctx))
-        binned = pixel_integrate(broadened, self.grid, self.ln_edges(params, ctx))
-        return self.pixel_factor(params, ctx) * binned
+        ks, w = self.node_kernels(params, ctx)
+        binned = self.broaden_and_bin(
+            self.fine_spectrum(params, ctx), ks, w, self.ln_sample(params, ctx)
+        )
+        out = self.pixel_factor(params, ctx) * binned
+        if self.cti is not None:
+            out = self.cti.evaluate(params[self.cti.name], self.pixels, ctx, flux=out)
+        return out
+
+    def cti_loss(self, params: ModelParams, ctx: ExposureContext) -> np.ndarray | None:
+        """Per-pixel CTI loss fraction at the current model (None without CTI)."""
+        if self.cti is None:
+            return None
+        flux = self.pixel_factor(params, ctx) * self.broaden_and_bin(
+            self.fine_spectrum(params, ctx),
+            *self.node_kernels(params, ctx),
+            self.ln_sample(params, ctx),
+        )
+        return self.cti.loss(params[self.cti.name], flux, self.pixels)
 
 
 @dataclass(frozen=True)

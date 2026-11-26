@@ -104,6 +104,14 @@ class TemplateConfig:
     learn_observatory: bool = True
     observatory_prior_sigma: float = 0.01
     observatory_smooth_sigma: float = 0.01
+    #: Gauge of the learned observatory corrections against the template:
+    #: ``template`` constrains each correction to have no component along the
+    #: template's mean observed-frame imprint (high-passed log flux) or its
+    #: derivative, the directions in which an observed-frame correction and the
+    #: star-frame template trade off when the barycentric range is small.
+    observatory_gauge: Literal["none", "template"] = "none"
+    #: High-pass width [km/s] of the imprint used by the template gauge.
+    observatory_gauge_kms: float = 30.0
     #: Fit the detector maps (default: fixed calibration), with these priors.
     fit_detector: bool = False
     detector_dx_sigma_px: float = 0.002
@@ -192,6 +200,10 @@ def _build(tp: Any, value: Any, where: str) -> Any:
         if not isinstance(value, dict):
             raise ConfigError(f"{where}: expected a mapping, got {type(value).__name__}")
         return build_dataclass(tp, value, where)
+    if tp is dict or origin is dict:
+        if not isinstance(value, dict):
+            raise ConfigError(f"{where}: expected a mapping, got {type(value).__name__}")
+        return dict(value)
     if tp is datetime.date:
         if isinstance(value, datetime.datetime):
             raise ConfigError(f"{where}: expected a date, got a datetime {value!r}")

@@ -140,3 +140,48 @@ def test_layout_round_trip():
     assert q["lsf"] is not p["lsf"] and np.array_equal(q["lsf"]["sigma"], p["lsf"]["sigma"])
     with pytest.raises(ValueError):
         layout.unpack(np.zeros(3), p)
+
+
+def test_iodine_cell_average_is_grid_phase_invariant():
+    # an atlas with lines narrower than the grid step: point sampling at the
+    # grid nodes aliases (the result depends on where the nodes fall); the
+    # cell average does not, to well below the photon limit of a fit
+    from specfast.doppler.library import IodineCell
+
+    rng = np.random.default_rng(3)
+    ln = np.arange(np.log(5400.0), np.log(5410.0), 0.01 / C_KMS)
+    c = rng.uniform(ln[0], ln[-1], 200)
+    tau = np.zeros_like(ln)
+    for x in c:
+        tau += rng.uniform(0.05, 0.5) * np.exp(-0.5 * ((ln - x) / (0.25 / C_KMS)) ** 2)
+    step = 0.25 / C_KMS
+    probe = np.arange(np.log(5402.0), np.log(5408.0), 2.0 / C_KMS)  # smooth read-out points
+
+    def smooth_at(cell, phase):
+        g = np.arange(np.log(5401.0) + phase * step, np.log(5409.0), step)
+        t = cell.evaluate({"k": np.array([1.0])}, g, None)
+        # read out through a 1.5 km/s Gaussian (an LSF), the way a fit sees it
+        w = np.exp(-0.5 * ((probe[:, None] - g[None, :]) / (1.5 / C_KMS)) ** 2)
+        return (w @ t) / w.sum(axis=1)
+
+    point = IodineCell(lnlam=ln, tau=tau)
+    cellavg = IodineCell(lnlam=ln, tau=tau, supersample=8)
+    d_point = np.max(np.abs(smooth_at(point, 0.0) - smooth_at(point, 0.5)))
+    d_cell = np.max(np.abs(smooth_at(cellavg, 0.0) - smooth_at(cellavg, 0.5)))
+    assert d_cell < 0.1 * d_point
+    with pytest.raises(ValueError):
+        IodineCell(lnlam=ln, tau=tau, supersample=0)
+    with pytest.raises(ValueError):
+        IodineCell(lnlam=ln, tau=tau, interp="sinc")
+    # a cubic spline in optical depth: between the samples, closer to the
+    # truth than linear interpolation when the atlas is coarsely sampled
+    coarse = slice(None, None, 25)  # 0.25 km/s samples of 0.25 km/s lines
+    probe_ln = ln[12::25][:-1]
+    truth = np.exp(-tau[12::25][:-1])
+    errs = {}
+    for interp in ("tau", "transmission", "cubic"):
+        cell = IodineCell(lnlam=ln[coarse], tau=tau[coarse], interp=interp)
+        errs[interp] = np.sqrt(
+            np.mean((cell.evaluate({"k": np.ones(1)}, probe_ln, None) - truth) ** 2)
+        )
+    assert errs["cubic"] < min(errs["tau"], errs["transmission"])
