@@ -1442,6 +1442,17 @@ the chain vs the test bed on 2020+ T3 (32 exposures):
   the per-star templates: tau Cet's excess +0.28 [+0.12, +0.43], and
   51 Peg K 60.7 with BERV slope +1.1. More data is for the templates,
   not the shared term.
+- **The port deficit closes over all eras** with the adopted setting.
+  specfast's copy of the chain, paired on identical exposures:
+  - vs its old point-sampled self: ML excess -0.30 [-0.52, -0.11],
+    wrms -0.20 [-0.32, -0.08]. The aliasing was costing real precision.
+  - vs the test bed: ML excess +0.04 [-0.22, +0.29] (was +0.35); tau
+    Cet's ML excess is 1.75 m/s, the same as the test bed's.
+  - **Still worse in 2020+:** +0.65 [+0.24, +1.39], wrms +0.36. The T3
+    outlier is gone (per-exposure difference 1.0 m/s, like T1/T2).
+    The remaining candidates are: interpolation in optical depth vs
+    transmission, the 2020+ calibration inputs, and the trace gates.
+    specfast still drops ~1,970 traces the test bed keeps.
 - The test bed's own iodine sampling is being checked the same way
   (testbed branch i2super). Its earlier "0.0625 km/s grid leaves the
   excess unchanged" result was also point-sampled.
