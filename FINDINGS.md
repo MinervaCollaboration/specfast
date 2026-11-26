@@ -1470,9 +1470,41 @@ the chain vs the test bed on 2020+ T3 (32 exposures):
     sampled every 0.227 km/s, about the width of a line core. So
     linear interpolation in optical depth and in transmission differ
     at the percent level in the cores, at any model grid. Neither is
-    exact: the atlas is under-resolved for linear interpolation. Next:
-    a band-limited interpolant, and a check of whether the learned
-    iodine correction absorbs the choice.
+    exact: the atlas is under-resolved for linear interpolation.
+  - **Linear in transmission is the right choice (c7d2bef, all 371 tau
+    Cet frames, phase-invariant grid).**
+
+    | Interpolation | chi2/ndata | median chi2r | median iodine k |
+    |---|---|---|---|
+    | linear in optical depth | 6.587 | 4.632 | 0.935 |
+    | linear in transmission | 6.381 | 4.474 | 1.001 |
+    | cubic spline in optical depth | 13.207 | 7.234 | 0.956 |
+
+    - The cubic spline sharpens the line cores and doubles chi2. The
+      NIST samples behave like bin averages, not point samples of a
+      band-limited function, so a band-limited interpolant through them
+      is the wrong reconstruction. Linear in transmission is close to
+      preserving the bin averages.
+    - With transmission, k is 1.00: the "NIST is 5-7% too deep" seen
+      with optical-depth interpolation was partly that interpolation.
+    - Paired tau Cet, timing from 2018:
+
+      | Comparison | ML excess d | wrms d |
+      |---|---|---|
+      | optical depth -> transmission, all (326 exp, 195 nights) | -0.13 [-0.29, +0.07] | -0.14 [-0.24, -0.03] |
+      | optical depth -> transmission, 2020+ | -0.49 [-0.96, -0.22] | -0.30 [-0.44, -0.16] |
+      | transmission -> cubic, all | +3.50 [+2.78, +4.26] | |
+      | test bed v5 -> specfast v5eq (transmission), all | **-0.09 [-0.21, +0.04]** | -0.06 [-0.13, +0.02] |
+      | same, 2020+ | +0.16 [-0.09, +0.61] | |
+
+    - **The v5eq port is closed:** specfast matches or slightly beats
+      the test bed in every era. Its tau Cet ML excess is 1.62 m/s.
+    - **The interpolation choice alone moves RVs by 0.71 m/s per
+      (exposure, telescope), and 0.76 m/s in the part common to all
+      telescopes** (258 exposures). An iodine-model error is shared by
+      every telescope, so this is a candidate contributor to the
+      unexplained common per-exposure term. Whether the learned
+      correction (M1) absorbs it is running.
 - **The multi-star joint model is unchanged by the grid fix**
   (tau Cet 0.00 [-0.05, +0.05]).
   - The aliasing is a static observed-frame error, and the learned

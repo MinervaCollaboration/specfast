@@ -179,7 +179,9 @@ not filled.
 The model is evaluated on a fine uniform grid in ln(lambda) (step about
 0.05 km/s below 30 cm/s: a 0.25 km/s grid with the raw iodine scan
 leaves 0.69 m/s; FINDINGS 2026-11-24, iodinfo). The iodine atlas is
-interpolated in optical depth from its native samples, and convergence is
+interpolated linearly in transmission from its native samples, which
+behave like bin averages (a cubic spline through them doubles chi2;
+FINDINGS 2026-11-25, specfast joint model), and convergence is
 tested by shifting the grid phase and changing the interpolation, not only
 the step: at 0.25 km/s those choices move a trace by 3-5 m/s and an
 exposure by ~1 m/s (FINDINGS 2026-11-25, cross-start). Requirement: < 0.1
