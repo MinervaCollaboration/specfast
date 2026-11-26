@@ -1344,10 +1344,77 @@ median, by period:
     reject ambient temperature, so the cell follows the room by
     roughly 0.1-0.4 C.
 - The absolute median k is 0.934: the NIST atlas is 5-7% too deep.
-- Caveat: k could also absorb LSF-width changes. B-star frames in M1
-  will separate the two.
+- k could also absorb LSF-width changes; the B-star test in the M1
+  follow-up below rules that out.
 - Earlier: the cell temperature does not correlate with the nightly RV
   residuals, so the fitted k absorbs the depth change.
+
+### Follow-up: one iodine correction shared by all targets (M1; PR #10, 1ac0f54)
+
+The joint model now takes a list of targets. The learned iodine
+correction is solved once per order from every target's normal
+equations, and each target keeps its own template and zero points.
+
+**Synthetic test:** two stars with different BERV, plus a featureless
+star, observed through a wrong iodine atlas. The learned correction
+recovers the injected error (r 0.885) and the RVs are photon-limited.
+
+**M1 data:** 428 frames from 2017 on, chi2r-weighted:
+- tau Cet, sigma Dra and HD 122064 (up to 150 each);
+- 51 Peg (17);
+- 6 B stars (25 each, featureless).
+
+2016 is excluded because sigma Dra's 2016-02 frames fit at chi2r 24.
+
+Results:
+- **Who constrains the shared correction.** Information shares: B
+  stars 0.39, tau Cet 0.35, sigma Dra 0.22, HD 122064 0.03, 51 Peg
+  0.01. The multi-star correction agrees with the tau-Cet-only one at
+  median r 0.78 over orders (red orders 21-23 ~0.37).
+- **51 Peg's BERV trend is gone with its own adjusted template:**
+  slope -0.02 m/s per km/s, K 56.1 ± 1.7, rms 4.7. Learned on 51 Peg
+  alone it was +3.2 and 57.3 ± 3.6.
+- **The gauge is unnecessary with several targets:** gauge on vs off
+  gives r 0.999 between corrections and a tau Cet excess change of
+  -0.01.
+- **tau Cet's excess does not move:** 2.40 -> 2.34, d -0.06 [-0.34,
+  +0.25], 97 exposures, 2017+. The shared correction fixes
+  short-baseline stars, not the ~1.4 m/s per-exposure term. The
+  convergence plateau (offset increments of a few m/s per sweep) also
+  remains.
+
+**The iodine-depth drop since 2024 is the cell.** All B-star frames
+from 2022 on, with the correction fixed and the depth k free per
+exposure:
+
+| Year | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|
+| B stars | 1.006 | 1.017 | 0.949 | 0.921 | 0.912 |
+| tau Cet | 0.996 | - | 0.931 | 0.921 | 0.916 |
+
+- The B stars have no stellar lines, yet they show the same 8-9% drop.
+- Within 2020+, k follows the cell temperature: B stars r 0.88,
+  0.22 per K; tau Cet r 0.84, 0.21 per K.
+- An LSF-width change would not follow the cell temperature within an
+  era. The cause is the cell running ~0.3 C cold.
+- In 2017-23 k is flat at 0.98-1.02 for every star.
+
+**The 2020+ T3 port deficit is the iodine grid.** specfast's copy of
+the chain vs the test bed on 2020+ T3 (32 exposures):
+
+| Variant | per-exposure difference, robust sd (m/s) |
+|---|---|
+| base | 2.11 |
+| atlas interpolated in transmission | 1.34 |
+| grid shifted by half a step | 1.12 |
+| both | 0.93 |
+
+- The worst orders fall from 17-22 to 4-6 m/s.
+- A half-step shift of the 0.25 km/s grid moving per-exposure
+  velocities by 1-2 m/s means **the grid undersamples the iodine.**
+  This violates DESIGN's < 0.1 m/s per exposure convergence
+  requirement. specfast needs a finer grid, or a sampling-invariant
+  atlas representation, before the port comparison means anything.
 
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
