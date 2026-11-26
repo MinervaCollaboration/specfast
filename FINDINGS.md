@@ -1515,6 +1515,28 @@ the chain vs the test bed on 2020+ T3 (32 exposures):
   - On the 97-exposure subset, the joint model still does not beat the
     v5-equivalent chain: +0.57 [-0.28, +1.62] m/s.
   - 51 Peg: K 56.0 ± 1.6, BERV slope +0.12.
+- **The multi-star joint model with transmission interpolation**
+  (`sf_m1_g0125ss4_tinterp`, 5 sweeps, still not converged: dv_p95 2.2):
+  - tau Cet vs M1 at the grid fix: -0.07 [-0.18, +0.04]. vs v5eq with
+    transmission (97 exposures): +0.64 [-0.20, +1.62]. The joint model
+    still does not beat v5eq.
+  - **The learned correction absorbs about half of the interpolation
+    sensitivity for tau Cet:** per (exposure, telescope) and
+    telescope-common robust sd 0.34 / 0.34 m/s (v5eq: 0.71 / 0.76). The
+    correction itself moves by 0.009 rms, about 40% of its size. Absorption
+    is weaker for sigma Dra (1.25 / 1.49) and 51 Peg (1.22).
+  - So an iodine-model error of this kind is not removed by learning the
+    correction; at most half of it is. The model of the iodine must be
+    right in the first place, not learned around.
+- **Water column** correlates with the joint model's level-1 residual (r
+  -0.27 [-0.38, -0.18]) and with joint minus v5eq (-0.24). It may be
+  seasonal; not yet separated from season.
+- **Not done:** single-component ablations of the joint model (LSF,
+  wavelength, telluric, CTI, BERV function, illumination kernel, infer
+  mode). The convergence plateau (per-order zero-point increments of
+  1.3-4.6 m/s per sweep in every joint and M1 run) is unresolved; a
+  trade between the per-order zero point and a template shift is the
+  working guess, untested.
 - The test bed's own iodine sampling is being checked the same way
   (testbed branch i2super). Its earlier "0.0625 km/s grid leaves the
   excess unchanged" result was also point-sampled.
