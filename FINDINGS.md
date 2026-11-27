@@ -1729,6 +1729,73 @@ reproduced by us; they set the next experiments.
   route is to rerun the CAMAL team's public reduction code on the archived
   raw images (running).
 
+## 2026-11-27: Structure of the excess: order split, lag vs BERV, stricter masks (testbed branch structure, eae31db)
+
+The structure rerun of the frozen v5 chain reproduces the allstars tau
+Cet series exactly (1.80; maximum difference 0 m/s on 352 exposures).
+
+- **tau Cet's excess is mostly order-specific.** Nightly residuals from
+  two order halves (odd/even; blue = orders 1-9 vs red = 10-23, equal
+  information) share only 0.37 [-0.26, 0.80] and 0.21 [-0.53, 0.72] of
+  the full excess variance. Each half's excess is 1.86-2.90 m/s, as
+  expected for independent order errors (sqrt(2) x 1.80 = 2.55).
+- **The other stars' excess is mostly common to all orders:** sigma Dra
+  0.94 [0.69, 1.21] (odd/even) and 0.87 (blue/red); HD 122064 0.65-0.79;
+  quiet stars HD 127334, HD 55575 0.65-1.06. So their excess is an
+  achromatic shift of unknown origin (star, timing or instrument), unlike
+  tau Cet's. HD 84737's covariance is 3x its excess squared: its formal
+  errors are overstated, so ML excess understates it.
+- **The coherence follows BERV, not elapsed time** (22 stars, each
+  normalised by its excess variance, 30-day-block CIs, within-star
+  permutation null):
+  - lag <= 1.5 d +0.70 [0.49, 0.84]; 1.5-4.5 d +0.55; 4.5-15 d +0.22;
+    > 45 d -0.07.
+  - At 4.5-15 d lag: |dBERV| < 0.7 km/s +0.67 [0.24, 0.89], 0.7-1.5
+    +0.34, 1.5-3 +0.07. At <= 4.5 d lag: +0.69 / +0.47 / +0.19 for the
+    same |dBERV| bins.
+  - Same BERV, lag > 200 d: +0.28 [-0.04, 0.50]; different BERV (> 3
+    km/s): -0.12. Repeat across seasons is weak.
+  - Coherence time: tau Cet 2.2 d (BERV rate 0.32 km/s/d), sigma Dra 34
+    d (0.07; 17 d without 2016), HD 122064 40 d (0.08), HD 143761 1.6 d
+    (0.26). Log-log slope of coherence time vs BERV rate over 14 stars
+    -1.04 [-1.84, +1.53] (-1 = BERV mismatch, 0 = fixed days); wide.
+  - The same picture holds without 2016. tau Cet alone has too few pairs
+    in the deciding cells (4.5-15 d, |dBERV| < 0.7: +0.08 [-0.93, +0.86]);
+    the pooled result is driven by the slow-BERV stars.
+- **Interpretation for tau Cet:** static observed-frame spectral
+  structure that the star's lines cross as BERV changes, leaving a
+  different error in each order: template mismatch (DSST, already
+  suspected in 2016), iodine-model mismatch, or a residual
+  detector/wavelength pattern. Not an instrument drift common to all
+  orders, not the atmosphere, not a telescope. The weak cross-season
+  repeat means the structure is not fixed for all time (era-dependent LSF
+  or wavelength, or a template-iodine interaction), which the e2esim
+  (+3.4 same-BERV cross-season) does not reproduce.
+- **No hour-angle or airmass dependence:** tau Cet split at median |HA|
+  +0.01 [-0.74, +0.83], at median airmass +0.31 [-0.41, +1.09]; across 17
+  stars no consistent sign. (No ADC on MINERVA.) An iodine B-star frame was
+  taken on 199 of tau Cet's 214 dates; on the other 15 the excess is 3.29
+  vs 1.69 (-1.60 [-3.13, +0.33]).
+- **Stricter telluric masks do not help** (paired, 352 exp / 214 nights):
+  0.995 refit +0.12 [-0.13, +0.36], with multi-day coherence rising;
+  orders 18-20 dropped -0.07 [-0.21, +0.07]; both -0.04. No independent
+  clean telluric model exists in the test bed (its "clean" variant equals
+  the production mask); NEID's L2 telluric model is the only candidate.
+- **Water (spectral column; frame-name join, 332/352 matched, mid-times
+  agree to 0.00 min):** dry vs wet nights 1.40 vs 2.09, +0.69 [-0.11,
+  +1.49]; airmass-corrected +0.52; against the +/-15-day local median
+  +0.35 [-0.48, +1.12]; variance model g = +0.35 per sd, p = 0.10. A
+  floor(MJD) night key drops half the nights and exaggerates the split
+  (1.04 vs 1.87). Water stays a weak suspect, not significant.
+- **Week-long bootstrap blocks widen CIs 1.05-1.6x.** With 7-day blocks:
+  Charlie -> v5 on x04 -0.71 [-1.38, +0.04] (no longer significant;
+  2018-19 -1.14 [-2.06, +0.09]); no timing -> timing18 -0.61 [-1.09,
+  -0.13] (survives; marginal on the original extraction). tau Cet level
+  1.80 [1.31, 2.24]. Adopt 7-day blocks for headline comparisons.
+- Ledger: `st_split_*`, `st_lagcov`, `st_absha_high`, `st_am_high`,
+  `st_blk7`, `st_blk14`, `st_tell0995`, `st_drop1820`,
+  `st_tell0995_drop1820`, `st_water_wet_*`.
+
 ## 2026-11-27: Instrument history from the project's meeting records
 
 A timeline of ~1200 dated events (private) was compiled from the
