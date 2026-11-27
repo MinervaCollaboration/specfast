@@ -1719,6 +1719,15 @@ reproduced by us; they set the next experiments.
 - Recommended stopping: 2016 extraction forensics, more per-exposure LSF
   kernels, per-telescope break tuning, atlas work, G-CLEF extraction-mode
   simulations; fix the joint model's convergence before adding physics.
+- **PI answers (2026-11-27):** there is no ADC. Atmospheric pressure may
+  be in the FITS headers and is in the nightly logs; spectrograph pressure
+  is in both. Spectrograph focus was never intentionally changed. Hour
+  angle and B-star cadence are to be read from the data. External RVs for
+  2017-19 probably exist (archive search running). An on-sky alternating
+  two-standard test is approved in principle, about a month from
+  resuming observing. Calibrated CAMAL PWV is not readily available; the
+  route is to rerun the CAMAL team's public reduction code on the archived
+  raw images (running).
 
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
