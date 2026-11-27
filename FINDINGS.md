@@ -1917,6 +1917,60 @@ spectral column) remains the better-powered test: wetter looks worse, at
 p ~ 0.1. The spectral column is
 reinstated as a usable water proxy for the full baseline.
 
+## 2026-11-27: Spectrograph thermal state and fibre illumination (testbed branch thermalillum, 9d95c8c)
+
+Neither explains the excess. CIs are 7-day night-block bootstraps with all
+stars resampled together; "per sd" means per standard deviation of the
+covariate. Responses: exposure, nightly, within-night and order-differential
+(odd-even, blue-red) residuals of 16 quiet stars, frozen v5 on x2-0.4.
+
+**Thermal and pressure.** Enclosure logs (2020-2026), PT100 logs
+(detector mount, camera, CCD coolant supply/return, optics) and
+spectrograph/pump pressure, reduced to 1-minute means; atmospheric
+pressure and humidity from headers. No channel is labelled G10.
+- Positive control: the cross-dispersion trace centroid follows the
+  detector-mount sensor at +0.34 [+0.25, +0.41] px/C (nightly r = +0.70),
+  as the 4.4 um/C mount expansion predicts. Sensors and timing are right.
+- But the RVs do not follow it: detector mount vs nightly residual
+  +0.15 [-0.06, +0.65] m/s/C (tau Cet), +0.18 [-0.09, +0.64] (pooled).
+  The iodine lines move with the stellar lines, so the predicted ~10 m/s
+  for 0.03 C does not appear in the RVs (<0.02 m/s).
+- 2,086 single tests (31 channels x mean / within-exposure change / rate,
+  plus header values): 6.2% nominal p<0.05, none past Bonferroni. Joint
+  6-PC model with week-wise 10-fold CV: held-out R^2 -0.008 pooled (null
+  median -0.009, p = 0.44); tau Cet p = 0.73; order differentials
+  p = 0.70-0.93.
+- 95% bounds per channel: pooled nightly median 0.32, 90th pct 0.49 m/s;
+  tau Cet nightly median 0.56, 90th pct 0.83 m/s.
+- Weak leads, none surviving correction: enclosure humidity
+  -0.28 [-0.44, -0.13] m/s per sd (same sign as the shared-term finding);
+  sigma Dra alone joint p = 0.035 (held-out R^2 ~ 0).
+- Wavelength-solution drift is not recoverable from the per-trace fits.
+
+**Fibre illumination / scrambling.** Each telescope's RV minus the mean
+of the other telescopes in the same exposure (cancels star, template and
+BERV), demeaned per star x telescope x feed era, against per-telescope
+illumination diagnostics from the extraction and guiding/seeing/focus/LSF
+covariates.
+- Real per-telescope effects: profile core excess vs the era profile
+  -0.62 [-0.77, -0.50] m/s per sd (same sign on every telescope and star,
+  strongest on T3; survives a throughput control); T3 fibre position
+  -1.15 [-1.59, -0.77] (a nightly state); relative throughput
+  +0.32 [+0.14, +0.49]. Higher throughput goes with less halo and a
+  narrower LSF. Guide offset, guide rms, seeing and focus: |effect| <= 0.3,
+  mostly consistent with zero, and they do not move the halo.
+- Payoff (correction cross-fitted on alternate weeks, paired): tau Cet
+  +0.00 [-0.05, +0.05] m/s; sigma Dra -0.05 [-0.16, +0.03]; HD 122064
+  -0.05 [-0.17, +0.03]; pooled 16 stars -0.03 [-0.05, -0.00]. The
+  per-telescope effects average down across telescopes; a six-term
+  correction makes tau Cet worse (+0.23 [+0.00, +0.54]).
+
+Verdict: thermal state is ruled out at the ~0.5 m/s level per channel.
+Fibre illumination is real per telescope (fibre alignment and near-field
+state, clearest on T3) and argues for a mode scrambler / cladding-mode
+stripper on hardware grounds, but it is not the ~1.7 m/s excess.
+Humidity remains a weak lead.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
