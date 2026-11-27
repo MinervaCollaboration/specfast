@@ -1729,6 +1729,50 @@ reproduced by us; they set the next experiments.
   route is to rerun the CAMAL team's public reduction code on the archived
   raw images (running).
 
+## 2026-11-27: Instrument history from the project's meeting records
+
+A timeline of ~1200 dated events (private) was compiled from the
+project's meeting records. Facts that bear on the RV analysis:
+
+- **Templates were already suspected in 2016:** the Keck DSST
+  deconvolution was called the dominant error, adding ~1 m/s scatter
+  correlated with the barycentric correction, and Keck-MINERVA template
+  mismatch was raised again in 2017. This is the BERV-dependent mismatch
+  the independent review points to.
+- **No set-point step in 2016-04/05.** The only recorded 2016 enclosure
+  set-point change is +2 C in late January (with the slit removed and the
+  clock and DATE-OBS conventions fixed then). Candidates for the shared
+  2016-05..06 drift: an extraction update (~04-08, older data left on the
+  old reduction), exposure-meter-terminated exposures (~04-26), an NTP
+  outage (03-29..04-15, +/-20 s), a second instrument's heat load and
+  coupling to the vacuum chamber, and 2 C peak-to-peak room cycling.
+- **Feed:** no scrambler, double scrambler or agitator was ever
+  installed. The fibre assembly fitted at installation (2015-12, poor FRD,
+  round-to-octagonal splices) appears to be the feed for the whole data
+  set; it was re-polished and re-routed in early 2017 (throughput ~10x,
+  telescope balance changed).
+- **2017:** fibres re-polished; B-star cadence cut to one per night (B+I2
+  frames absent 2017-03..09); a vacuum leak after an April outage with a
+  2 px cross-dispersion shift and an IP change that did not recover; CCD
+  to -80 C and chiller replaced in September. These explain why 2017
+  behaves differently.
+- **2018-09 trip** (not 2018-12): iodine cell back after an FTS rescan
+  (the NIST 2018-08 atlas), all telescopes recollimated, mirrors cleaned,
+  guide units refocused. The 2018-12 trip replaced guide cameras and
+  repaired T3.
+- **2019-09-18 and 2019-10-20 steps:** a guide-unit race condition fixed
+  (one-image lag, wrong fibre position), room HVAC failure with a +1 C
+  set-point change, then the iodine stage controller swapped with its home
+  reversed.
+- **Likely zero-point step not yet in the era list: 2021-05** (outage
+  killed the thermal-control PDU; baseline temperatures shifted). Thermal
+  control was degraded 2020-06..10 and 2021-05..09, and the room HVAC was
+  dead 2023-06..2024-03.
+- **The exposure meter was retired in 2021-09**; flux-weighted timing
+  after that rests on guide images only.
+- Air vs vacuum wavelengths were already flagged in 2016 (cf. the atlas
+  air-dispersion finding).
+
 ## 2026-11-27: External precise RVs for 2016-2020 (stellar bound in MINERVA's worst era)
 
 Public tables only, no spectra. Night-to-night = rms of nightly-mean
