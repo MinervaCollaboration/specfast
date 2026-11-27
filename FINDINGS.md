@@ -1729,6 +1729,35 @@ reproduced by us; they set the next experiments.
   route is to rerun the CAMAL team's public reduction code on the archived
   raw images (running).
 
+## 2026-11-27: External precise RVs for 2016-2020 (stellar bound in MINERVA's worst era)
+
+Public tables only, no spectra. Night-to-night = rms of nightly-mean
+differences < 3 d apart / sqrt(2), not detrended: an upper bound on
+star + instrument.
+
+| Source | Star | Nights 2017-19 | Night-to-night 2017-19 (m/s) |
+|---|---|---|---|
+| HARPS RVBank v2 (Perdelwitz+2024, VizieR J/A+A/683/A125) | tau Cet | 33 | 1.1 |
+| APF / HIRES, California Legacy Survey (Rosenthal+2021, J/ApJS/255/8) | tau Cet | 83 / 43 | 1.8 / 1.5 |
+| same | sigma Dra | 154 / 23 | 2.2 / 1.0 (3 pairs) |
+| same | HD 122064 | 69 / 4 | 1.7 |
+| SONG iodine (Heeren+2023, J/A+A/674/A164) | sigma Dra | 375 | 2.5 |
+| CORALIE (ESO reprocessing) | tau Cet | 113 | 2.2 |
+| ESPRESSO GTO (Figueira+2025, arXiv 2507.07514) | tau Cet | 50 (2018-22: nightly rms 0.7 over 3.5 yr) | not computed |
+
+- **tau Cet's stellar nightly term in 2017-19 is at most about 1 m/s
+  (HARPS), and ESPRESSO's 0.7 m/s nightly rms over 2018-22 bounds it
+  further.** With NEID's <= 0.6 for 2023-25, the star cannot supply most
+  of MINERVA's 1.75 m/s excess in 2018-19.
+- For sigma Dra and HD 122064 the bounds (1.7-2.2 m/s) include the other
+  instruments' own floors, so they do not yet separate stellar from
+  instrumental.
+- Not obtained: ESPRESSO nightly RVs (DACE, manual download); the ESO
+  HARPS DRS catalogue holds 69 tau Cet nights 2016-20 without spectra.
+- Next: put HARPS / ESPRESSO / APF nightly means on MINERVA's nights and
+  test whether MINERVA's nightly residual correlates with them (shared
+  stellar signal) on overlapping or adjacent nights.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
