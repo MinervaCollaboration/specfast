@@ -1625,6 +1625,101 @@ the chain vs the test bed on 2020+ T3 (32 exposures):
     (converged), `v5_x04_cti_i2ss4`, `v5_x04_cti_i2ss4g125`,
     `v5_x04_cti_g0625pt`.
 
+## 2026-11-27: All stars, Charlie's chain as left vs frozen v5 (testbed branch allstars, 1b208d5)
+
+Form A is Charlie's code as he left it (pristine checkout, paths only).
+Form B is the frozen v5 chain: timing from 2018, CTI, floor 100, frozen
+breaks, era zero-points. Both run on x2-0.4. The timing term exists only
+for tau Cet, sigma Dra and HD 122064 (no FAU or exposure-meter curves for
+the others). 135 targets have frames; scored A on 55 stars, B on 44; 47
+targets Charlie never registered were added (configuration only).
+Unusable, excluded: HD 16160 (80-110 m/s, cause unknown), HD 219834
+(binary?), Procyon (solar atlas), HD 97601, eta Cas A, HD 9407, HD 93148
+and the TOIs, HD 161797 and HD 95128 (excess moves without wrms).
+
+- **ML nightly excess, A -> B, all eras:** tau Cet 2.51 -> **1.80
+  [1.4, 2.2]**; sigma Dra 7.22 -> 3.00; HD 122064 5.00 -> 3.62; iota Per
+  4.45 -> 2.85; HD 62613 4.72 -> 3.30; o2 Eri 4.86 -> 4.19; rho CrB 6.48 ->
+  4.52; HD 127334 2.22 -> 2.02; HD 84737 1.59 -> 1.36. Quiet stars without
+  timing (HD 48682, HD 34411, HD 55575) are unchanged at 2.6-2.8.
+- **Paired chain effect (B - A, x04):** tau Cet -0.71 [-1.26, -0.15]
+  (2018-19 -1.14); sigma Dra -4.26; HD 122064 -1.41. Most of the gain is
+  in 2018-19. **B is worse than A in 2017** for tau Cet (0.27 -> 1.85) and
+  HD 62613 (+1.90), and for HD 62613 also in 2018-19 and 2020+.
+- **Paired extraction effect (x04 - original):** tau Cet none (A -0.01, B
+  -0.06). sigma Dra B +0.37, all in 2016 (+0.86); HD 122064 B +0.94 (2016
+  +1.21). **Charlie's unmodified code shows the same 2016 shift** (sigma
+  Dra +0.89 [+0.17, +1.48]), so the 2016 deficit is the extraction, not
+  our corrections. HD 62613 is better on x04 (-0.37).
+- **Planet K recovered** (B / A vs literature): 51 Peg b 55.3 / 55.7
+  (55.9); 55 Cnc b 71.8 / 71.4 (71.4), e 6.3 / 6.8 (6.0), f 5.2 / 2.9
+  (5.1); rho CrB b 67.8 / 64.5 (67.4); HD 217107 b 139.7 / 139.6 (140).
+  Periods longer than 1.5x the span are fitted as a quadratic trend.
+- **A nightly term shared between stars exists, but it is not most of
+  tau Cet's excess.** Random-night-effect model over 44 stars, form B,
+  shuffled-night null: all-telescope shared term 0.84 [0.50, 1.10] m/s
+  (null 95th percentile 0.61); same-telescope 1.14 [1.0, 1.3]. It
+  survives a 30-day running-mean removal (0.81). By era: 2016 2.3
+  (provisional), 2017 below 0.8, 2018-19 0.7-1.0. tau Cet's nightly
+  residual vs the mean of other stars that night: covariance +0.15
+  (null [-0.76, +0.71]), +0.46 detrended, so at most ~0.7 m/s of tau
+  Cet's excess is shared with other stars; the rest is per star or per
+  pointing. The shared term correlates weakly with enclosure humidity
+  (r -0.14 / -0.18, p < 0.002; about 80 covariates tested, only this
+  survives); not with iodine-cell, bench, CCD temperature or pressure.
+  This supersedes the thermal study's "no shared term".
+- Ledger: `as_charlie_x04`, `as_charlie_orig`, `as_v5_x04`, `as_v5_orig`
+  (renamed from the agent's ids to avoid clashing with the overfit runs).
+  Flagged stars carry "FLAGGED unusable" in notes.
+
+## 2026-11-27: Independent review (read-only, a second model)
+
+A reviewer read FINDINGS, DESIGN, the ledger and the code review and
+spot-checked numbers in the result files. Its new results are not yet
+reproduced by us; they set the next experiments.
+
+- **tau Cet's excess is coherent over days, not random night to
+  night.** Nightly-residual covariance vs lag (excess variance 3.14
+  m/s^2): <= 1.5 d +3.36 +/- 0.62; 1.5-4.5 d +1.72 +/- 0.37; 4.5-15 d
+  +0.04 +/- 0.20. The noise-only simulation gives +0.18 at the shortest
+  lag. At short lag the covariance is positive only for |dBERV| < 1.5
+  km/s. The full e2esim shows the same lag structure (its error is a
+  function of BERV) but repeats across years at equal BERV far more than
+  the data do (same-BERV cross-season covariance +3.4 simulated vs +0.66
+  real). The "already full at a 1-day lag" statement in the diagnosis
+  section predates v5 and is stale.
+- **The excess falls by era:** 2017 2.2, 2018-19 1.74, 2020+ 1.31 m/s.
+  The "1.4 m/s unexplained" is an era average and uses a simulation whose
+  template mismatch is known to be inflated; for 2020+ about 0.9 is left.
+- **A 2016 drift is shared by sigma Dra and HD 122064** (-2.5 to -4.9 m/s
+  in 2016-05..06, at the enclosure set-point step). The thermal study's
+  +/-15-day running median removed it. tau Cet vs sigma Dra stays null.
+- **The formal errors overstate within-night scatter by ~20%**
+  (within-night chi2r 0.65), so "within-night excess 0" is censored; the
+  excess runs 2.00 -> 1.48 as the error scale goes x0.85 -> x1.18.
+- **Weaker than stated:** "tellurics ruled out" (a linear test against a
+  noisy proxy; the 0.995 mask lowered common excess 2.61 -> 2.21 at L0 and
+  was never rerun under v5; a crude dry/wet split of the spectral water
+  column gives 1.32 vs 2.07, unverified); the night-block bootstrap
+  assumes independent nights, so CIs are too narrow given multi-day
+  coherence (use blocks of a week or more); several pre-protocol
+  conclusions were scored on nightly rms; the photon floor is quoted
+  three ways.
+- **Missing control:** the per-order common nightly scatter of 8-10 m/s
+  divided by sqrt(23) is 1.7-2.1 m/s, the size of the excess. Untested:
+  whether the excess is just the average of order-specific errors.
+- **Ranked next experiments:** (1) order-split covariance (interleaved
+  halves, blue vs red); (2) lag and BERV covariance on all stars: does the
+  coherence time scale as 1/(dBERV/dt)?; (3) paired v5 rerun with
+  stricter telluric masks (0.995, clean-model mask, orders 18-20 dropped),
+  scored on ML excess and lag-1 covariance, plus calibrated PWV; (4)
+  simulation variants that reproduce strong short-lag and weak
+  annual-repeat covariance; (5) the same simulation for sigma Dra; (6) a
+  2016-04 zero-point for sigma Dra and HD 122064.
+- Recommended stopping: 2016 extraction forensics, more per-exposure LSF
+  kernels, per-telescope break tuning, atlas work, G-CLEF extraction-mode
+  simulations; fix the joint model's convergence before adding physics.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
