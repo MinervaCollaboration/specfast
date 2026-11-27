@@ -1869,6 +1869,53 @@ star + instrument.
   test whether MINERVA's nightly residual correlates with them (shared
   stellar signal) on overlapping or adjacent nights.
 
+## 2026-11-27: CAMAL PWV from the CAMAL team's own reduction code (testbed branch camal-orig, 1c0cf56)
+
+This replaces the crude reduction withdrawn on 2026-11-24. We reran the
+CAMAL team's public reduction code (the code behind arXiv:1706.01798) on
+the archived raw frames. The port to Python 3 is mechanical and scripted:
+exact, asserted substitutions on the untouched originals (syntax, library
+API moves, paths; upload/email/backup code removed). The algorithm is
+unchanged, including a Python 2 dict-order bug that sometimes fits a star
+with another star's temperature grid (13 nights, ~0.1 mm; flagged).
+
+- **Coverage:** PWV for 128 of 143 archived nights (2017-05-12 to
+  2018-06-09), 90,948 triplets; PWV 0.23-24.6 mm (5/50/95th percentiles
+  1.25 / 3.91 / 12.3 mm). Every point carries flags for what had to be
+  guessed or repaired: star temperatures from the target list (34
+  nights), schedules rebuilt from frame names (56 nights the team never
+  reduced), an opt-in fix for truncated triplets or unreadable files (46
+  nights), a reseed on one night. 22 nights are entirely unflagged. No
+  original output survives, so there is no direct check against the
+  team's own numbers.
+- **Against GPS:** Kitt Peak (53 nights, 2017): r = 0.45 per sample, 0.63
+  for night means; CAMAL reads lower by a median 2.4 mm (Sep-Dec 2017
+  -0.8 mm, robust rms 2.0 mm; May-Jul 2017 -3.8 mm, the nights with
+  guessed temperatures and monsoon onset). Amado, at the foot of the
+  mountain (8 nights): r = 0.70, reads ~4 mm above CAMAL as expected for
+  the lower site. Kitt Peak has no 2018 Jan-Jun data.
+- **Against our spectral water column:** r = 0.88 (Spearman 0.95; slant
+  vs CAMAL x airmass 0.91; night means 0.90), but on only 19 exposures,
+  11 nights. The spectral column tracks water after all; the earlier
+  r ~ 0.3 was our photometry.
+- **Against RV residuals (quick look, frozen v5 on x2-0.4):** 203
+  exposures of 7 quiet or slow-orbit stars on 83 CAMAL nights (only 12 of
+  tau Cet), 143 star-nights, residuals about each star-season median.
+  r(night PWV, nightly residual) = +0.02 [-0.12, +0.15];
+  r(PWV, |residual|) = -0.17 [-0.32, -0.02] (wetter is not worse);
+  wet-minus-dry excess +0.3 [-11, +12] m/s (useless: season-median
+  residuals leave orbits and offsets in). Within nights (28 exposures
+  with PWV within 30 min): slope -0.8 m/s per mm, r = -0.19. Night-block
+  bootstrap CIs. Not ledgered: not an ML-excess run.
+
+Verdict: CAMAL now exists as a calibrated-in-shape PWV series for
+2017-05..2018-06, but its overlap with MINERVA RV exposures is small
+(162 of 826 era exposures within 20 min) and the RV test is
+underpowered. Nothing in it says water drives the excess; the earlier
+tau Cet dry/wet split (+0.69 [-0.11, +1.49], spectral column) remains the
+better-powered test and is also not significant. The spectral column is
+reinstated as a usable water proxy for the full baseline.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
