@@ -1902,7 +1902,7 @@ with another star's temperature grid (13 nights, ~0.1 mm; flagged).
   exposures of 7 quiet or slow-orbit stars on 83 CAMAL nights (only 12 of
   tau Cet), 143 star-nights, residuals about each star-season median.
   r(night PWV, nightly residual) = +0.02 [-0.12, +0.15];
-  r(PWV, |residual|) = -0.17 [-0.32, -0.02] (wetter is not worse);
+  r(PWV, |residual|) = -0.17 [-0.32, -0.02] (marginal; likely leftover orbits/offsets, not evidence that wet nights are better);
   wet-minus-dry excess +0.3 [-11, +12] m/s (useless: season-median
   residuals leave orbits and offsets in). Within nights (28 exposures
   with PWV within 30 min): slope -0.8 m/s per mm, r = -0.19. Night-block
@@ -1911,9 +1911,10 @@ with another star's temperature grid (13 nights, ~0.1 mm; flagged).
 Verdict: CAMAL now exists as a calibrated-in-shape PWV series for
 2017-05..2018-06, but its overlap with MINERVA RV exposures is small
 (162 of 826 era exposures within 20 min) and the RV test is
-underpowered. Nothing in it says water drives the excess; the earlier
-tau Cet dry/wet split (+0.69 [-0.11, +1.49], spectral column) remains the
-better-powered test and is also not significant. The spectral column is
+underpowered. It neither confirms nor refutes a water effect; the earlier
+tau Cet dry/wet split (wet 2.09 vs dry 1.40 m/s, +0.69 [-0.11, +1.49],
+spectral column) remains the better-powered test: wetter looks worse, at
+p ~ 0.1. The spectral column is
 reinstated as a usable water proxy for the full baseline.
 
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
