@@ -1589,9 +1589,41 @@ the chain vs the test bed on 2020+ T3 (32 exposures):
   1.3-4.6 m/s per sweep in every joint and M1 run) is unresolved; a
   trade between the per-order zero point and a template shift is the
   working guess, untested.
-- The test bed's own iodine sampling is being checked the same way
-  (testbed branch i2super). Its earlier "0.0625 km/s grid leaves the
-  excess unchanged" result was also point-sampled.
+- **The test bed's sampling (testbed branch i2super, 72386b6): the
+  representation error is real but is not the 1.4 m/s term.**
+  - Half-step grid-phase shift, tau Cet, 868 exposure-telescopes, robust
+    sd per exposure-telescope / telescope-common, m/s:
+
+    | Setting | per exp-tel | telescope-common |
+    |---|---|---|
+    | 0.25 km/s point-sampled (production) | 0.94 | 0.57 |
+    | 0.25, iodine cell-averaged x4 | 0.33 | 0.23 |
+    | 0.125, iodine cell-averaged x4 (specfast's setting) | 0.14 | 0.11 |
+    | 0.25, iodine and stellar template cell-averaged x4, cubic pixel resampling | **0.03** | **0.03** |
+
+  - The leftover after the iodine fix is the stellar template: DSST's
+    native step (0.33 km/s) is coarser than the grid, so point-sampling it
+    is phase-sensitive too. Cell-averaging both meets the < 0.1 m/s
+    requirement at 0.25 km/s, at 2.5-3.5x the CPU.
+  - **The converged model leaves the excess unchanged.** Full frozen v5
+    chain (timing from 2018, CTI, breaks, T2 count slope, 100 e- floor),
+    all three stars refit, paired: tau Cet 1.80 -> 1.80, +0.00 [-0.07,
+    +0.07] m/s, and no era moves significantly (2020+ +0.11 [-0.05,
+    +0.43]). sigma Dra all -0.03 [-0.06, +0.00]; 2016 **-0.18 [-0.23,
+    -0.11]**. HD 122064 +0.00 [-0.06, +0.06].
+  - The ~0.4 m/s rms per-exposure representation error mostly averages
+    out within nights or is absorbed by the zero-points. The 1.4 m/s
+    common term comes from outside the model-grid representation.
+  - Point sampling at 0.0625 km/s is already close to converged in the
+    test bed (0.11 / 0.07 m/s from the converged setting), which explains
+    the earlier unchanged excess at 0.0625.
+  - The half-step phase alone moves the excess by up to 0.1 m/s at the
+    old setting, so single-run differences below ~0.1 are not significant
+    there.
+  - Ledger: baseline `v5_x04_cti_t18f100` (not the overfit `v5_x04_cti`,
+    which has timing everywhere and no floor); `v5_x04_cti_i2ss4cs`
+    (converged), `v5_x04_cti_i2ss4`, `v5_x04_cti_i2ss4g125`,
+    `v5_x04_cti_g0625pt`.
 
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 

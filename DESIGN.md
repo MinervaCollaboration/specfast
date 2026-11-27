@@ -190,7 +190,11 @@ point-sampled: its transmission is averaged over each grid cell from
 several sub-samples. Point sampling at 0.25 km/s moves exposures by
 2 m/s under a half-step phase shift, and still ~0.9 m/s per block at
 0.0625. Grid 0.125 km/s with 4 sub-samples meets the requirement
-(0.07 m/s; FINDINGS 2026-11-25, M1 follow-up). The model is then convolved,
+(0.07 m/s; FINDINGS 2026-11-25, M1 follow-up). An external stellar
+template coarser than the grid (DSST, 0.33 km/s) is cell-averaged the same
+way: in the test bed, iodine and template both cell-averaged with cubic
+pixel resampling reach 0.03 m/s at 0.25 km/s, while iodine alone leaves
+0.33 (FINDINGS 2026-11-25, test-bed sampling). The model is then convolved,
 then integrated onto pixels. Without a gas cell (G-CLEF) `I2 = 1`, and
 `lam(x)` is the calibration solution shifted by the drift measured from
 the simultaneous reference channels.
