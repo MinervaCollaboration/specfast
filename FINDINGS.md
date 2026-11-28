@@ -2021,6 +2021,58 @@ Verdict: a real but small common-mode humidity term (more humid, lower RV;
 alike. It is not tau Cet's excess. If it matters for G-CLEF it argues for
 humidity control around the fibre exit and camera.
 
+## 2026-11-28: Chunk-by-chunk analysis (testbed branch chunks, 6a5762c)
+
+A chunk is one telescope trace x one order (4 x 23 = 92), fixed in the
+observer frame; its RV is the residual of the chain's level-1 joint fit
+relative to the exposure RV (so it sees only chunk-specific error, not the
+part common to all chunks). Base chain reproduces structure's series
+exactly. CIs: 7-day night-block bootstrap; selections cross-fitted.
+
+- **Chunk-specific error is a small part of the excess.** Errors
+  independent across chunks add 0.30 [0.14, 0.35] (m/s)^2 for tau Cet
+  against a chain excess^2 of 3.24 (9%, at most ~0.55 m/s in quadrature);
+  1-5% for the other stars. That caps any mask.
+- **It is real and shared at the order (wavelength) level.** Every star
+  rejects equal chunks (p <= 0.023); split-half rho 0.3-0.65. Orders 17-20
+  (Na D, water band) are worst for every star (order 19: 10-29 m/s chunk
+  excess). Badness agrees between tau Cet and each solar-type star
+  (Spearman +0.29..+0.48 against a ceiling of 0.57-0.75); shuffling traces
+  within an order keeps it, so it is wavelength, not detector or fibre.
+  HD 122064 (K4V) agrees with no one.
+- **Chromatic slope in every star:** nightly RV-vs-wavelength slope excess
+  4.9 [2.6, 6.1] m/s per 1000 A for tau Cet, 3.3-6.1 for the others.
+- **BERV structure is strong, repeatable and wavelength-located** for
+  tau Cet (cross-season Z +34.6; null 95% [-4.8, 5.7]; 75 of 92 chunks at
+  q < 0.1) and sigma Dra (+19.4); weak elsewhere. Curves agree across the
+  four traces of an order (0.47) and not across orders of one trace
+  (-0.03). It does not transfer between stars, and on the same night
+  chunk residuals of different stars are uncorrelated. Feature map:
+  peaks are not enriched on telluric lines; features that persist under
+  both templates include a shallow telluric line at 5077.24 A
+  (T = 0.983, just above the 0.98 mask) and the window edges of orders
+  19, 20 and 23, where stellar lines cross the fixed window.
+- **No out-of-sample payoff** (tau Cet, season split): weight by chunk
+  excess +0.00 [-0.08, +0.12]; mask 9 worst +0.14 [-0.04, +0.32];
+  spline-correct 9 worst BERV chunks -0.06 [-0.23, +0.14]; mask 9 worst
+  BERV chunks +0.04 [-0.11, +0.22]. Transfers between stars null both
+  ways. In-sample greedy dropping of 20 chunks gives 1.80 -> 1.15
+  (-0.65 [-1.01, -0.27]) but +0.09 [-0.23, +0.48] held out: the size of
+  the overfitting trap.
+- **NEID template (dsst_cs vs neid_cs):** chain excess 1.79 -> 1.76;
+  chunk-specific variance falls ~40% (0.27 -> 0.16) and the chromatic
+  slope 5.0 -> 3.1, but the bad chunks stay (per-chunk excess rho 0.88,
+  BERV strength rho 0.87, at the reliability ceiling) and ~88% of the
+  repeatable BERV structure survives (Z 32.8 -> 28.8). The
+  template-dependent part is ~16% of the BERV-curve variance.
+
+Verdict: the bad chunks are fixed in wavelength and common to the G/K
+dwarfs, not tau Cet's DSST template; the BERV structure is mostly
+template-independent. But chunk-specific error is only ~9% of tau Cet's
+excess, so masks and weights cannot recover it; the rest is common to all
+chunks (possibly chromatic). The 5077 A line was already inside the 0.995
+mask test (structure entry: +0.12, no gain).
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
