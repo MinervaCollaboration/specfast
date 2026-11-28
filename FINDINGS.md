@@ -2168,6 +2168,140 @@ and removes the template's order-specific errors, but the excess is
 unchanged at ~1.8 m/s, now closer to achromatic. Together with the chunk
 analysis, the remaining excess is common across orders and telescopes.
 
+## 2026-11-28: Stable-line atlas from NEID solar data (specfast branch lineatlas)
+
+Question: are some solar absorption lines individually stable (in both
+NEID eras and at low and high activity), and does restricting to or
+weighting by them lower RV scatter on the Sun and on tau Ceti?
+
+**Literature first.** Line selection in Sun-like stars typically buys a
+factor ~1.5-2 in rms on HARPS alpha Cen B (Dumusque 2018; Cretignier et
+al. 2020: uncorrelated lines 0.89 vs ~2.1 m/s; Siegel et al. 2022: 2.67 ->
+1.29 m/s) and 44% on the NEID Sun with an aggressive scatter-minimising
+selection of 24 of 3830 line/order pairs (Pandey et al. 2026, FLARES,
+2.01 -> 1.12 m/s). Activity sensitivity scales inversely with line depth
+and with formation temperature (Cretignier 2020; Al Moulla et al. 2022,
+2024). Only FLARES publishes a per-line solar table (Zenodo
+10.5281/zenodo.20937741, CC BY 4.0); the Geneva and Siegel line tags are
+not public. ESPRESSO masks ship with the ESO pipeline; the NEID DRP masks
+are not publicly hosted.
+
+**Data.** 120 new NEID solar days, 2021-01 to 2026-11 (two per month,
+chosen from archive metadata by frame count and span only; 10 frames
+spread over each day), plus the six 40-frame days of the earlier test,
+streamed into compact caches (orders m = 154-79). RV-blind cuts: comb
+wavelength calibration only (eight "ThAr-only" days sit ~30 m/s off in
+NEID's own CCFs as well), S/N >= 150, exposure-meter flux variability
+<= 0.27 (clear sky 0.245-0.255) and S/N >= 0.8 x the day's best (clouds),
+>= 4 good frames, and NEID's CCF velocities consistent within the day
+(robust sd <= 3 m/s; catches feed or instrument glitches such as
+2021-10-24 at +150 m/s, independently of any line choice). 767 frames on
+77 days remain (25 pre-fire, 52 post-fire). One template per NEID master
+wavelength file (pre-fire; post-fire 20201216, 20240902, 20260130 and
+20260920 / DRP v1.5.4), per-line zero points per template era plus a
+break at 2024-03-01.
+
+**Method.** `specfast.doppler.lbl`: median co-add template per order with
+per-frame continua; 17,331 line windows between the template's maxima;
+per-line velocity = projection of the residual on dT/dv (Bouchy 2001,
+Dumusque 2018, Artigau 2022). Clean lines: NEID telluric model < 1%
+anywhere in the window in every frame, measured in >= 90% of frames,
+FWHM >= 4 km/s, median per-frame error <= 100 m/s (8,370). Lines combine
+per frame with 5-sigma clipping. The robust combination matters: on tau
+Ceti a plain weighted mean of all lines gave 2.75 m/s nightly in a first run, because a
+few red-order lines (sky emission, tellurics) are off by tens of m/s.
+Per line: an unbiased day-to-day excess variance (mean of D^2 - E^2 over
+era-centred daily means), on pre-fire, post-fire, low- and high-sunspot
+days separately; within-day excess; slopes against the common daily RV
+(beta) and the sunspot number. "Universal" stable: excess below the
+clean-line median in all four subsets. Cross-fit: alternate days in each
+era form two halves; select on one, evaluate on the other, both ways;
+2000 day-bootstrap resamples, paired.
+
+**The LBL velocities.** Daily rms 2.11 m/s with all clean lines (NEID DRP
+CCF 2.94 on the same days); per exposure the LBL matched the CCF to
+0.25 m/s on three clean 2021 days (first test). Within eras the daily RV tracks the sunspot
+number (r = 0.48, 2.7 m/s per 100 SN; 2.11 -> 1.85 m/s after regression).
+
+**Per-line statistics.**
+- Per-line excess is large and repeatable. The median clean line
+  scatters 11 m/s day to day beyond photon noise; 44% have an excess
+  above 3 sigma, 22% are consistent with zero. Spearman of per-line excess
+  between disjoint day halves 0.78, pre- vs post-fire 0.63, low vs high
+  activity 0.76. Universal sets chosen on the two halves share 2,092 lines
+  against 869 by chance. **So some lines are "universally" more stable.**
+- What predicts stability: depth above all (photon-weighted mean excess
+  1475 (m/s)^2 at depth 0.03-0.1, 404 at 0.1-0.2, 143 at 0.2-0.4, 57 at
+  0.4-0.6, 38 above 0.6), then width (broader is better) and blending; it
+  is higher at 4500-5500 A, rises weakly with excitation potential
+  (Spearman +0.13) and does not depend on the Lande factor (atomic data
+  from VALD via FLARES, 2,950 matched lines).
+- Per-line activity response is not measurable line by line here: beta
+  and the sunspot slope are not repeatable between halves (Spearman 0.13,
+  0.10). Binned by depth, shallow lines follow the common daily RV less
+  (beta 0.62 at depth < 0.1, 0.81 at 0.1-0.2, ~0.9 deeper).
+- The universal set (all days) is 3,065 of 8,370 clean lines (37%) but
+  carries 81% of the photon weight: the unstable lines are mostly the
+  shallow ones that photon weighting already down-weights.
+
+**Payoff (m/s, 95% CIs).**
+
+| | Sun, daily rms (cross-fit, 77 days) | diff vs all | tau Cet, nightly rms (25 nights) | diff vs all |
+|---|---|---|---|---|
+| all clean lines | 2.01 [1.61, 2.38] | | 0.647 [0.45, 0.81] | |
+| universal stable set | 1.96 | -0.05 [-0.15, +0.05] | 0.605 | -0.04 [-0.10, +0.04] |
+| lowest-excess 50% | 1.98 | -0.04 [-0.11, +0.03] | 0.610 | -0.04 [-0.10, +0.04] |
+| lowest-|beta| 50% | 1.99 | -0.02 [-0.08, +0.05] | 0.621 | -0.03 [-0.07, +0.03] |
+| excess-variance weights | 1.99 | -0.022 [-0.042, -0.005] | 0.662 | +0.01 [-0.00, +0.04] |
+| FLARES top 24 (40 windows) | 2.21 (all days) | +0.10 [-0.24, +0.51] | 0.965 | +0.32 [+0.04, +0.58] |
+| FLARES top 10% (467) | 1.97 (all days) | -0.14 [-0.26, -0.03] | 0.679 | +0.03 [-0.10, +0.17] |
+| NEID DRP CCF | 2.94 | | 0.717 | |
+
+tau Ceti uses the solar selection from all solar days (no tau data in the
+choice). The FLARES rows on the Sun are not out of sample: FLARES was
+selected on 2021-2025 NEID solar data that overlap these days.
+
+- **The stable subset buys 2-7% at most, not significant on either star.**
+  Per-line excess is mostly independent between lines, so it averages
+  down over thousands of lines (~0.1 m/s), while the 2 m/s daily scatter
+  is common to all lines and about half of it tracks solar activity. A
+  selection only helps if lines differ in their response to the common
+  term, and that response cannot be measured line by line at this S/N.
+- Published lists do not transfer cleanly: FLARES's 24 lines are
+  photon-limited on tau Ceti and not better on the independent part of
+  the solar data; its top 10% helps on the Sun (partly in sample) and not
+  on tau Ceti.
+
+**MINERVA.** Every line in 500-620 nm carries its MINERVA order (tau Cet
+frame). Per order, the share of stable-line information against tau Cet's
+chunk-specific excess (chunk-by-chunk entry): Spearman +0.36 (p 0.09; a
+benefit would be negative), stable fraction +0.24 (p 0.27). Stable lines
+do not explain MINERVA's bad chunks, consistent with that entry's finding
+that chunk-specific error is ~9% of tau Cet's excess.
+
+Verdict: individually stable solar lines exist and are the same in both
+eras and at both activity levels, but restricting or weighting to them
+does not lower the daily or nightly RV scatter measurably; the remaining
+stellar term is common to all lines. For NEID, NRES and G-CLEF the useful
+products are the line windows and the robust LBL combination (0.65 m/s
+nightly on tau Ceti vs 0.72 for the DRP CCF), not a stable-line mask.
+
+Atlas: `data/neid_solar_line_atlas.csv` (10,265 rows: clean lines and
+resolved telluric-flagged lines). Columns: NEID order m; rest vacuum
+wavelength in the solar template frame and window edges (A); depth; FWHM
+(km/s); blend (1 - lower flanking maximum / continuum); `tell_max` (max
+NEID telluric absorption in the window over all solar frames); `clean`;
+median per-frame error (m/s); day-to-day excess variance ((m/s)^2,
+unbiased, can be negative) on pre-fire, post-fire, low- and high-activity
+days and all days, with its standard error; within-day excess variance;
+`beta` (slope vs the common daily RV) and the slope vs sunspot number
+(m/s per 100), with errors; excitation energy, log gf and Lande factor
+where a FLARES line matches within 1 km/s (VALD via Pandey et al. 2026,
+CC BY 4.0); MINERVA order (1-23, -1 outside); `stable` (universal set on
+all days); `flares_top24`. Species identifications are not included.
+Code: `scripts/neid_lbl_cache.py`, `scripts/neid_lbl.py`,
+`scripts/neid_lineatlas.py`; ledger rows `la_*`.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
