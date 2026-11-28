@@ -3,7 +3,9 @@
 A Python 3 pipeline for precise radial velocities from fibre-fed echelle
 spectra: extraction and Doppler forward modelling. The first instrument is
 MINERVA's KiwiSpec (iodine cell); G-CLEF (Magellan, then GMT; simultaneous
-comb/etalon/ThAr references, no gas cell) comes later.
+comb/etalon/ThAr references, no gas cell) comes later. NEID (comb/etalon)
+and LCO's NRES (simultaneous ThAr, four units, archival) are test beds for
+the no-gas-cell path.
 
 ## Two stages
 
@@ -34,7 +36,9 @@ behind it.
 ## Status
 
 Skeleton (2026-11). Working and tested: conventions, run config, provenance,
-instrument descriptions (KiwiSpec and G-CLEF provisional), the Zemax-design
+instrument descriptions (KiwiSpec, G-CLEF, NEID and NRES provisional), the
+NEID and NRES converters, the emission-line wavelength model
+(`specfast.wavecal`), the Zemax-design
 to instrument-description tool (`specfast-zemax2instrument`), the
 `ExtractedSpectrum` FITS format, and the Doppler forward model with its
 injection-recovery tests. Interfaces only: extraction, the multi-block
@@ -54,6 +58,26 @@ doppler:
   wavelength: {degree: 3}
   reference: {model: iodine, atlas: iodine_atlas.fits}
 ```
+
+## NRES (archival, simultaneous ThAr)
+
+`specfast.converters.nres` reads LCO's public BANZAI-NRES products: an
+`e92-1d` science file becomes an `ExtractedSpectrum` (channels `fibre0`,
+`fibre1` = ThAr, `fibre2`; order index i is echelle order 52 + i), and a
+master arc is optimally extracted with its lamp flat's profile, in the same
+column space as the science traces. `specfast.wavecal` then fits
+
+- ThAr line centroids (pixel-integrated Gaussians, vectorised);
+- a stable wavelength model per unit and era: static reference line
+  positions learned from all arcs, a low-order per-exposure perturbation
+  shared by every lit fibre, one dispersion law `m*lambda = P(x, m)` and a
+  static fibre offset `S_f(x, m)`, so both science fibres share one
+  solution;
+- the drift of any frame from its simultaneous-ThAr lines.
+
+Velocities come from the template module (`infer` mode, no gas cell) with
+those wavelengths held fixed. See `instruments/nres.yaml` for the facts and
+their public sources.
 
 ## Instrument descriptions from an optical design
 
