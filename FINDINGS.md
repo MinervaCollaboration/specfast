@@ -2073,6 +2073,60 @@ excess, so masks and weights cannot recover it; the rest is common to all
 chunks (possibly chromatic). The 5077 A line was already inside the 0.995
 mask test (structure entry: +0.12, no gain).
 
+## 2026-11-28: NRES rescue, first pass (branch nres, 9b31c79)
+
+LCO's NRES (R ~ 53,000, simultaneous ThAr fibre, 1-m telescopes at four
+sites) stopped operating on 2026-08-01; it is specfast's third instrument,
+an archival test bed for the no-gas-cell calibration path. Scoping found
+that the public BANZAI-NRES pipeline never uses the simultaneous ThAr
+fibre (each frame takes the nearest afternoon arc's wavelengths), fits each
+arc from scratch as one unweighted 2-D polynomial per fibre, uses a
+logg 5.5 PHOENIX template for every dwarf (sometimes misclassified),
+uses 21 of 67 orders, and takes each order's CCF maximum without a peak
+fit. Its quoted errors do not describe the night-to-night term.
+
+**E0, cleaned archive RVs** (tau Cet, sigma Dra, HD 26965, 2020-2025; 157
+spectra; flags fixed in advance: wrong template 6, S/N < 30 8, stale arc
+> 3 d 35, calibration failure 24; 96 clean on 51 star-nights; zero-points
+per site and science fibre; 7-day block bootstrap):
+night-to-night 29.1 [19.1, 35.3] m/s (CPT 18, ELP 34, LSC 24, TLV 37);
+within-night 12.2 [8.5, 15.2]; fibre 0 - fibre 2: CPT -51, ELP +156,
+LSC -182 m/s.
+
+**E1 + E2 pilot** (tau Cet, LSC 2022, 10 exposures on 5 nights, both
+fibres; RVs from the template module in infer mode, wavelengths fixed per
+variant). E1: static reference line positions, a low-order per-arc shift
+shared by all lit fibres, one dispersion law m*lambda = P(x, m) on the
+ThAr fibre and a static offset map per science fibre (0.059 px per line
+arc to arc, 1.5-2 m/s per arc). E2: frame-to-frame drift from the ~900
+simultaneous ThAr lines (5-6 m/s per 143-s frame), relative to a static
+science-vs-arc offset per unit, era and fibre.
+
+| method | night-to-night | paired vs archive | within-night | fibre 0 - 2 |
+|---|---|---|---|---|
+| archive (BANZAI CCF) | 18.3 | | 10.3 | -153 |
+| specfast, BANZAI wavelengths | 14.3 | -4.0 [-5.9, -0.7] | 3.2 | -159 |
+| E1 | 13.7 | -4.7 [-15.2, +1.9] | 3.2 | -396 |
+| E1 + E2, drift averaged per night | 4.9 | -13.4 [-18.6, -1.0] | 3.2 | -395 |
+
+- Night-to-night: promising (18 -> 5 m/s, paired) but five nights at one
+  site; the network go/no-go waits for the full three-star run.
+- The fibre split grows, not vanishes, once both fibres are on one
+  ThAr-consistent scale: BANZAI's arc solutions are biased by +66 to +230
+  m/s depending on fibre and era, which partly cancelled a real ~-395 m/s
+  displacement of starlight relative to lamp light. In the pilot, fibre 0
+  and fibre 2 were used in different months, so fibre and era are
+  confounded; the two-fibre sites can separate them.
+- Re-extraction from raw was not needed for the pilot.
+
+**TESS inventory (partial, 2016-01..2020-10 only):** 27,975 public NRES
+science exposures, 6,494 matching 443 TOI hosts; 219 targets with >= 5
+nights, 59 with >= 10; 5,425 matched exposures have raw frames but no
+BANZAI product (mostly 2018-19). Counts are lower bounds.
+
+The archive rate-limited anonymous access mid-download; the full E0-E2
+run on all three stars and sites is scripted to resume.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
