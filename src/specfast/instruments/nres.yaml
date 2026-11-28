@@ -1,0 +1,186 @@
+# LCO NRES (Network of Robotic Echelle Spectrographs), from PUBLIC facts only:
+# Siverd et al. 2016, SPIE 9908, 99086X and 2018, SPIE 10702, 107026C;
+# McCully et al. 2022, SPIE 12189 (arXiv:2212.11381); the LCO NRES
+# instrument, performance and pipeline pages
+# (https://lco.global/observatory/instruments/nres/); the BANZAI-NRES code
+# (https://github.com/LCOGT/banzai-nres); and the headers and arrays of
+# public NRES raw (e00) and BANZAI-NRES (e92) files read 2026-11-27.
+# Unknown numbers are null. Status: provisional.
+name: nres
+description: >-
+  Four identical fibre-fed R ~ 53,000 echelles (units nres01 LSC, nres02
+  ELP, nres03 CPT, nres04 TLV) on the Las Cumbres Observatory 1-m network,
+  in temperature-controlled enclosures; no gas cell. Each unit has two
+  telescope fibres (0 and 2) and, between them, a ThAr fibre (1) that is
+  lit during science exposures (simultaneous reference). Daytime ThAr arcs light fibre 1 plus one science fibre.
+  LCO stopped operating NRES on 2026-08-01; specfast's third instrument,
+  an archival test bed for a simultaneous-ThAr calibration chain.
+status: provisional
+gas_cell: none
+# Vacuum, the BANZAI-NRES wavelengths of orders m = 119..52.
+wavelength_range_nm: [388.8, 905.6]
+
+# Four sites, one unit each; the instrument-wide site is left null and the
+# unit is read from the file name ({site}nrs{NN}-...). Site codes: lsc
+# (Cerro Tololo), elp (McDonald), cpt (SAAO Sutherland), tlv (Wise
+# Observatory). The barycentric correction is the pipeline's, per frame.
+site: null
+
+channels:
+  - name: fibre0
+    role: science
+    telescope: null
+    slit_position: 0
+    notes: >-
+      BANZAI fibre 0. At sites with two 1-m telescopes the two science
+      fibres come from different telescopes. Header SCIFIBER names the
+      science fibre of an exposure; OBJECTS lists fibre0&fibre1&fibre2.
+  - name: fibre1
+    role: reference_thar
+    slit_position: 1
+    sources: [thar, flat]
+    notes: >-
+      Simultaneous ThAr in science frames (OBJECTS middle entry "thar").
+      BANZAI-NRES extracts it but never uses it for the wavelength
+      solution; specfast.wavecal measures its drift (E2).
+  - name: fibre2
+    role: science
+    telescope: null
+    slit_position: 2
+    notes: BANZAI fibre 2.
+
+arms:
+  - name: main
+    channels: [fibre0, fibre1, fibre2]
+    # Order index i of the specfast product <-> echelle order m = 52 + i.
+    orders: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+             19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+             36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+             53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]
+    echelle_orders: [52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65,
+                     66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+                     80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93,
+                     94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105,
+                     106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+                     117, 118, 119]
+    # specfast's first NRES runs use m = 78..112 (450-600 nm, few tellurics).
+    # BANZAI-NRES's CCF uses m = 77..97 only.
+    rv_orders: [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+                42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+                58, 59, 60]
+    wavelength_range_nm: [388.8, 905.6]
+    # Vacuum [min, max] of the BANZAI-NRES wavelength per order over the
+    # extracted columns, science fibre 2 of an LSC frame (2022-06-14).
+    order_wavelength_ranges_nm:
+      - [887.77, 905.58]   #  0  m = 52
+      - [871.01, 888.49]   #  1  m = 53
+      - [854.87, 872.03]   #  2  m = 54
+      - [839.32, 856.16]   #  3  m = 55
+      - [824.32, 840.87]   #  4  m = 56
+      - [809.85, 826.11]   #  5  m = 57
+      - [795.88, 811.86]   #  6  m = 58
+      - [782.38, 798.09]   #  7  m = 59
+      - [769.33, 784.78]   #  8  m = 60
+      - [756.71, 771.91]   #  9  m = 61
+      - [744.49, 759.45]   # 10  m = 62
+      - [732.66, 747.38]   # 11  m = 63
+      - [721.20, 735.70]   # 12  m = 64
+      - [710.09, 724.37]   # 13  m = 65
+      - [699.32, 713.38]   # 14  m = 66
+      - [688.87, 702.72]   # 15  m = 67
+      - [678.72, 692.38]   # 16  m = 68
+      - [668.87, 682.33]   # 17  m = 69
+      - [659.30, 672.57]   # 18  m = 70
+      - [650.00, 663.09]   # 19  m = 71
+      - [640.95, 653.86]   # 20  m = 72
+      - [632.16, 644.89]   # 21  m = 73
+      - [623.59, 636.17]   # 22  m = 74
+      - [615.26, 627.67]   # 23  m = 75
+      - [607.15, 619.40]   # 24  m = 76
+      - [599.24, 611.34]   # 25  m = 77
+      - [591.54, 603.48]   # 26  m = 78
+      - [584.03, 595.83]   # 27  m = 79
+      - [576.73, 588.36]   # 28  m = 80
+      - [569.61, 581.08]   # 29  m = 81
+      - [562.68, 573.98]   # 30  m = 82
+      - [555.90, 567.04]   # 31  m = 83
+      - [549.29, 560.27]   # 32  m = 84
+      - [542.84, 553.66]   # 33  m = 85
+      - [536.55, 547.20]   # 34  m = 86
+      - [530.39, 540.89]   # 35  m = 87
+      - [524.36, 534.72]   # 36  m = 88
+      - [518.48, 528.69]   # 37  m = 89
+      - [512.72, 522.80]   # 38  m = 90
+      - [507.10, 517.03]   # 39  m = 91
+      - [501.59, 511.38]   # 40  m = 92
+      - [496.22, 505.86]   # 41  m = 93
+      - [490.95, 500.45]   # 42  m = 94
+      - [485.77, 495.16]   # 43  m = 95
+      - [480.73, 489.97]   # 44  m = 96
+      - [475.79, 484.89]   # 45  m = 97
+      - [470.94, 479.91]   # 46  m = 98
+      - [466.20, 475.03]   # 47  m = 99
+      - [461.54, 470.25]   # 48  m = 100
+      - [456.98, 465.56]   # 49  m = 101
+      - [452.51, 460.97]   # 50  m = 102
+      - [448.12, 456.46]   # 51  m = 103
+      - [443.82, 452.01]   # 52  m = 104
+      - [439.59, 447.65]   # 53  m = 105
+      - [435.46, 443.37]   # 54  m = 106
+      - [431.41, 439.16]   # 55  m = 107
+      - [427.42, 435.03]   # 56  m = 108
+      - [423.50, 430.98]   # 57  m = 109
+      - [419.65, 426.99]   # 58  m = 110
+      - [415.88, 423.04]   # 59  m = 111
+      - [412.17, 419.21]   # 60  m = 112
+      - [408.54, 415.42]   # 61  m = 113
+      - [404.97, 411.67]   # 62  m = 114
+      - [401.45, 408.00]   # 63  m = 115
+      - [398.04, 404.38]   # 64  m = 116
+      - [394.73, 400.81]   # 65  m = 117
+      - [391.51, 397.26]   # 66  m = 118
+      - [388.79, 393.67]   # 67  m = 119
+    # Measured ThAr line sigma ~1.5 px; ~1.45 km/s per pixel at m = 86.
+    resolving_power: 53000
+    detector:
+      # Raw SPECTRUM extension: 4160 x 4108 stored, DATASEC [1:4096,1:4096].
+      name: 4k x 4k CCD (header DETECTOR = UNKNOWN)
+      npix_dispersion: 4096
+      npix_cross_dispersion: 4096
+      pixel_size_um: null
+      raw_shape: [4108, 4160]
+      # Header GAIN / RDNOISE differ by unit: LSC 3.4 / 7.5, ELP 3.38 / 6.9,
+      # CPT 3.396 / 7.3, TLV 3.396 / 7.0 (e-/ADU, e-).
+      gain_e_per_adu: 3.4
+      read_noise_e: 7.5
+      # MAXLIN 36000 (LSC) to 40000 (others); SATURATE 36000-47500.
+      saturation_adu: 36000
+      notes: >-
+        Gain, read noise and linearity limits are per unit; the values above
+        are LSC's. Pixel size not taken from a public source (null).
+    notes: >-
+      BANZAI-NRES writes 4096 columns per trace; the extracted pixel index is
+      the detector column. Arcs and flats light two fibres (configuration
+      "110" or "011" in the master-calibration file name), so in a given
+      period only fibre 1 and the active science fibre have traces.
+
+header:
+  date_obs: [DATE-OBS]
+  exptime: [EXPTIME]
+  gas_cell_state: []
+  gas_cell_in_value: null
+  target_ra: [RA]
+  target_dec: [DEC]
+  # psi in the headers; converted to mbar by the reader.
+  spectrograph_pressure: [NRESPRES]
+  gas_cell_temperature: []
+  detector_temperature: []
+  notes: >-
+    Spectrograph temperature NRESTEMP, enclosure IGLATEMP. BANZAI-NRES
+    audit values: RV, RVERR, BARYCORR (astropy, geometric mid-exposure),
+    TCORR, SNR, TEFF/LOGG/FEH (PHOENIX template), SCIFIBER, L1IDARC,
+    L1IDFLAT, PIPEVER.
+
+notes:
+  - Order indices are those of the specfast product; echelle_orders holds m = 52 + index.
+  - "Converter: specfast.converters.nres (BANZAI-NRES e92-1d and master arcs); wavelength model: specfast.wavecal."
