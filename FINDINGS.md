@@ -1971,6 +1971,56 @@ state, clearest on T3) and argues for a mode scrambler / cladding-mode
 stripper on hardware grounds, but it is not the ~1.7 m/s excess.
 Humidity remains a weak lead.
 
+## 2026-11-27: Humidity (testbed branch humidity, 632bf62 pre-registration, 0f45659 code)
+
+The vacuum tank is dry, but the fibres and camera see the room air. Sources:
+outside RH from the site weather station (2016-02..2026-03, 99% of
+exposures), spectrograph-room RH from the clean-room HVAC return air
+(integer %, 2019-04..2024-03, 28% of exposures; clock drift fitted),
+telescope-enclosure RH from headers. The header spectrograph-humidity
+keyword is never filled. Correction to the thermalillum entry: its
+"enclosure humidity" is the telescope enclosure 1 sensor, not the
+spectrograph room.
+
+- Room RH follows outside within ~1 h (peak r = 0.63) and is 93%
+  explained by the outside water content at room temperature: the room
+  has no humidity control.
+- Seven tests were pre-registered (each needs p < 0.0071). CIs are 7-day
+  night-block bootstraps; because humidity varies on months, each was
+  also checked against the humidity series shifted by 30-365 d.
+
+| Test | Effect | p (boot) | time-shift p |
+|---|---|---|---|
+| 16 quiet stars nightly vs 24-h outside RH | -0.23 [-0.39, -0.06] m/s per sd | 0.006 | 0.11 |
+| tau Cet nightly vs 24-h outside RH | -0.30 [-0.61, +0.10] | 0.08 | |
+| shared nightly term vs 24-h outside RH | r = -0.14 | 7e-4 | 0.01-0.03 |
+| 16 quiet stars nightly vs 24-h room RH | -0.56 [-0.84, -0.26]; -1.07 per 10% RH | 1e-4 | 0.10 |
+| per-telescope minus other telescopes | all within +-0.10 | 0.97 | |
+| per-telescope profile core excess | r = +0.047 | 0.011 (fails) | |
+| wet minus dry nightly excess | -0.10 [-0.46, +0.33] | 0.77 | |
+
+- Best single predictor: outside RH at the exposure, -0.38 [-0.54, -0.20]
+  m/s per sd (-0.26 per 10% RH, r = -0.11), time-shift p = 0.007; 14 of 15
+  stars negative; also within nights. Longer leads are weaker.
+- Room RH result is almost all 2019 (402 of 443 nights) and driven by
+  tau Cet and sigma Dra; fitted with outside RH, they share it.
+- No fibre-specific effect (excluded at ~0.3 m/s per sd); no sign of
+  humidity-driven focal-ratio degradation; order differentials null.
+- Not simple telluric water: same sign in all BERV terciles, and RH beats a
+  slant water proxy when both are fitted.
+- tau Cet wet/dry by outside RH: dry 1.68, wet 1.40 m/s, so it does not
+  reproduce the spectral-water split (that column tracks slant water and
+  room RH, r = 0.75 / 0.69, not outside RH, r = 0.36).
+- Payoff (alternate-week cross-fit, paired): outside RH -0.011
+  [-0.050, +0.026] m/s pooled, tau Cet -0.02 [-0.13, +0.12], sigma Dra
+  -0.15 [-0.27, -0.03]; room RH (2019-24 only) -0.11 [-0.20, -0.00],
+  probably one 2019 episode.
+
+Verdict: a real but small common-mode humidity term (more humid, lower RV;
+~1% of nightly variance), acting within about an hour on all telescopes
+alike. It is not tau Cet's excess. If it matters for G-CLEF it argues for
+humidity control around the fibre exit and camera.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
