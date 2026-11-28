@@ -2127,6 +2127,47 @@ BANZAI product (mostly 2018-19). Counts are lower bounds.
 The archive rate-limited anonymous access mid-download; the full E0-E2
 run on all three stars and sites is scripted to resume.
 
+## 2026-11-28: NEID-built template for tau Cet (testbed branch neidtemplate, 99cf2b9)
+
+Template: 48 public NEID L2 HR spectra of tau Cet (extsnr >= 280, one per
+night, BERV -27..+18 km/s), telluric-corrected and masked, shifted to rest,
+co-added, continuum from DSST on scales > 10 A only, deconvolved by the
+width fitted against DSST (relative sigma 0.896 km/s; NEID's nominal LSF
+is 1.14, so DSST looks under-deconvolved by ~0.7 km/s in quadrature),
+placed on DSST's frame and cell-averaged as in the chain. Co-add vs DSST
+0.76% rms (Mg b 2.4%); DSST has a ~0.2 km/s velocity tilt across the band
+against NEID's comb wavelengths (absorbed by per-order zero-points).
+
+Frozen v5 on x2-0.4, 352 exposures, 214 nights, paired 7-day block CIs:
+- **ML nightly excess: 1.79 -> 1.76 m/s, -0.03 [-0.22, +0.18].** No era
+  moves; point-sampled pair the same; dropping Na D changes nothing.
+- Lag <= 1.5 d covariance -0.19 [-0.42, +0.03]; BERV-matched and
+  cross-season covariances, BERV slope and cubic-in-BERV rms
+  (0.46 -> 0.37) all unchanged within CIs.
+- **The order split changes:** common/total excess variance rises
+  odd/even 0.41 -> 0.69 (+0.29 [+0.02, +0.70]) and blue/red 0.19 -> 0.63
+  (+0.44 [+0.01, +1.29]); each half's excess drops while the full excess
+  stays. DSST added order-specific errors that average out across orders;
+  what remains is closer to achromatic. This weakens the structure
+  entry's "tau Cet's excess is order-specific".
+- Per-trace fits: lower reduced chi2 on 96% of 19,558 traces (median
+  4.51 -> 3.92); Mg b order 11.3 -> 4.2 (a DSST defect).
+- **Residual stack** (persistent rms, 1e-3 of continuum, DSST / NEID):
+  observer frame 5.2 / 5.4; detector 3.6 / 3.6; stellar 3.6 / 2.5. The
+  observer-frame pattern is the same in all four telescopes (between-
+  telescope covariance equals within-telescope persistence) and is not on
+  the detector (the pixel-wavelength mapping moves 6 km/s per trace, yet
+  detector-frame persistence is lower). The template error is the stellar-
+  frame part and falls with NEID, mainly in orders 14-20. What remains
+  fixed in wavelength points to the iodine model/LSF or telluric residuals;
+  its RV impact is not established (residuals are orthogonal to the
+  velocity derivative).
+
+Verdict: the stellar template is not what limits tau Cet. NEID fits better
+and removes the template's order-specific errors, but the excess is
+unchanged at ~1.8 m/s, now closer to achromatic. Together with the chunk
+analysis, the remaining excess is common across orders and telescopes.
+
 ## 2026-11-25: Autofocus-in-exposure spectra: keep and correct (testbed branch afexp)
 
 Question (JDE via the robofast session): are the 2016-04..2020-01 spectra
